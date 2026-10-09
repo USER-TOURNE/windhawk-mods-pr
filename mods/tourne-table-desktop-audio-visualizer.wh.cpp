@@ -3,7 +3,7 @@
 // @name                Tourne'Table [Audio Visualizer]
 // @description         A real-time audio visualizer for the Windows desktop. Advanced settings without sacrificing resource efficiency. Near-headless rendering with CPU optimization for audio capture.
 // @description:ru-RU   Аудиовизуализатор реального времени для рабочего стола Windows. Расширенные настройки без ущерба для экономии ресурсов. Практически безинтерфейсный (near-headless) поток рендеринга с оптимизацией процессора для захвата звука.
-// @version             1.3.0
+// @version             2.0.0
 // @author              USER-TOURNE
 // @github              https://github.com/USER-TOURNE
 // @donateUrl           https://ko-fi.com/tourne
@@ -45,6 +45,30 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 ---
 
+## ✧ NEW IN 2.0
+
+The performance figures further down were measured on 1.x and haven't been re-measured on 2.0 yet.
+
+**Every bar is its own measurement now.** Up to 1.5 the analysis split the sound into 7 fixed bands and every bar interpolated between those 7 numbers, so Bar Count and FFT Size changed how many bars you saw, not how much they knew. The new **Precision** engine gives each bar its own frequency band with its own edges, measured straight from the spectrum:
+
+- bass comes from long, finely resolved windows and treble from short, fast ones (three resolution tiers), so a 1/24-octave bar at 50 Hz is a real reading rather than a smear;
+- band layouts on Log, Linear, Mel, Bark or ERB scales, the standard **IEC 61260** fractional-octave bands every RTA uses, or one bar per **musical note**;
+- **A / C / Z weighting** (IEC 61672), a dB-per-octave **tilt**, RMS or peak detection, and a choice of FFT window;
+- **ballistics on real time**, so bars move at the same speed at 60, 144 or 240 FPS, with presets for an analyzer, a VU meter and both broadcast PPMs, and gravity peak caps;
+- **loudness** (ITU-R BS.1770-5 / EBU R128: momentary, short-term, integrated), 4x-oversampled **true peak**, PLR and stereo **correlation** in the readout, and a new **Goniometer** shape.
+
+The 1.4 analysis is still there as **Analysis Engine = Classic**.
+
+**You choose where the work runs.** **Workload** is GPU, CPU or Hybrid: Hybrid analyses on the CPU and draws on the GPU (the cheapest split almost everywhere), GPU does both on the graphics chip, CPU does both on the processor. NPU stays as an experimental option.
+
+**A new renderer built to cost next to nothing.** **Renderer = Direct3D 11** draws everything from one tiny shader and a buffer of bar heights, **skips any frame where nothing moved**, keeps the text on its own surface that only redraws when the text changes, and tells Windows when the panel is opaque so it copies instead of blending. When audio stops, drawing stops, and after a few more seconds of silence the audio stream itself stops (**Deep Idle**). The 1.5 Direct2D path is still there for comparison.
+
+**Target FPS 0** matches your display's refresh rate, whatever it is.
+
+**Right-click for quick settings.** Shape, colours, analysis, readout, overlays and **which audio device it listens to**, any output, input or virtual device (VB-Audio, Voicemeeter, an Ableton return), all live, without opening Windhawk. Plus a **Terminal** shape (text characters: columns, a waterfall or text meters) and a **media widget** layout: title and artist inside the panel, pixel-sharp text, a track progress bar and media controls pinned to the panel.
+
+---
+
 ## ◈ PERFORMANCE AT A GLANCE
 
 Measured on an **Intel Core Ultra 265KF** (8 P-cores plus 12 E-cores), running a 120-bar oscilloscope at a 144 FPS target with background blur on, and with media controls, the peak-frequency readout, peak hold and beat flash all enabled.
@@ -72,7 +96,7 @@ Full methodology, raw traces and caveats live in [the project repo](https://gith
 
 ## ◆ VISUAL STYLES
 
-### 8 Shapes
+### 9 Shapes
 
 | Shape | What it does |
 |:--|:--|
@@ -84,6 +108,7 @@ Full methodology, raw traces and caveats live in [the project repo](https://gith
 | **Dots** | Stacked dots instead of solid bars, old LED-meter look. |
 | **Radial** | Bars shoot outward from a center point, like a sunburst. |
 | **Oscilloscope** | A single line tracing the actual sound wave. |
+| **Goniometer** | The stereo field: every sample plotted with mono straight up and width sideways, with a correlation bar underneath. *(2.0)* |
 
 ![Oscilloscope closeup](https://raw.githubusercontent.com/USER-TOURNE/TOURNE-TABLE/main/GIF/8.gif)
 
@@ -142,6 +167,80 @@ The built-in **Tourne** color mode is drawn from these.
 
 ---
 
+## ☰ RIGHT-CLICK MENU *(2.0)*
+
+Right-click the visualizer for quick settings, applied the moment you pick them:
+
+- **Audio Source**: the default output (what you hear), the default input, or **any active device by name**, outputs and inputs, virtual ones included. VB-Audio Cable and Matrix, Voicemeeter buses, an Ableton return routed to its own device: if Windows lists it, it's there. Outputs are captured by loopback, inputs recorded directly.
+- **Shape**, **Terminal Style**, **Color Mode**, **Analysis Engine**, **Band Layout**, **Weighting**, **Ballistics**, **Readout**, **Workload**, **Renderer**, **Target FPS**.
+- Toggles for Peak Hold Caps, Beat Flash, Now Playing, the Track Progress Bar, Media Controls, Pixel-Sharp Text, **Pixel Snap** and **Subpixel Nudges**.
+- **Pause Visualizer**, which blanks it and stops the audio stream until you right-click the same spot again (or the media strip) and untick it.
+- **Reset Quick Settings**.
+
+Windhawk lets a mod read its settings but not write them, so a menu choice is kept as the mod's own saved value and laid over the settings page. The page keeps showing what's underneath, which is why the menu says how many quick settings are active. **Reset Quick Settings** hands everything back to the page.
+
+The menu only opens where the visualizer is actually showing on the desktop, never through a window that covers it, and a right-click there doesn't open the desktop's own menu. If you'd rather keep a plain right-click for the desktop, set **Right-Click Menu** (Interaction) to **Ctrl + Right-Click**. Right-clicking the media strip opens the same menu.
+
+---
+
+## ◫ SHARP AT EVERY SIZE, OR BETWEEN PIXELS *(2.0)*
+
+**Why it could look soft.** Every size was scaled by your display scaling and every position was a percentage of the screen, both kept as exact fractions. At 125% a 2 px bar is 2.5 px wide, and a Position of 50% can put the visualizer at x = 812.37. A bar that starts or ends partway through a pixel gets an antialiased edge, so some sizes came out crisp and others blurry.
+
+**Pixel Snap** *(Position, on by default)* rounds the position and every scaled size (bar width, gap, max size, panel padding) to whole pixels, so every bar edge, the panel and the text sit exactly on the pixel grid at any size and any scaling. Bar heights stay fractional, which keeps their motion smooth. The process also declares per-monitor DPI awareness on each of its own threads now, so Windows never stretches the picture on a monitor whose scaling differs from your main one.
+
+**Subpixel placement** is Pixel Snap **off**. The picture can then sit between pixels, so it moves by fractions of a pixel, at the cost of slightly soft edges. Physically, a crisp edge and a position between two pixels can't both happen.
+
+- **Keyboard Move Fine Step** *(Interaction)*: 1/2, 1/4, 1/8 or 1/16 px.
+- Hold **Keyboard Move Fine Key** with the move modifier, or tick **Subpixel Nudges** in the right-click menu to make every nudge fine.
+- Fine steps move the visualizer. The media strip and the text overlays still move whole pixels, since a window and a text box can't sit between them.
+- With Pixel Snap on, fine nudges still add up: four quarter-pixel presses move the picture one pixel.
+
+---
+
+## ▣ THE TERMINAL SHAPE *(2.0)*
+
+**Shape = Terminal** draws the visualizer as text: a grid of characters in a monospace font, in three styles.
+
+- **Columns**: every bar a column of characters (`#` by default) that turns the **Hot Color** above **Hot Threshold**, with the peak cap as a character of its own. The cava / btop look.
+- **Waterfall**: a spectrogram in characters. Each line is one moment and each column one band, with the character picked from **Waterfall Ramp** by level and the newest line on top.
+- **Meters**: text meters, `Bass:    [######     48%]`, for bass, mid, treble and the loudest band.
+
+It runs on the same per-bar levels as every other shape, so the engine, band layout, weighting and ballistics all apply. With the Direct3D 11 renderer the characters come from a glyph atlas baked once, and the whole grid is one instanced draw: a few hundred cells cost the same as a few hundred bars. Pick a pixel font and **Text Rendering = Pixel** for hard-edged characters.
+
+---
+
+## ◰ RECIPES
+
+**A compact media widget** (coral bars on a dark teal panel, the title over the artist on the right, controls at the top left, a progress bar underneath):
+
+| Setting | Value |
+|:--|:--|
+| Shape / Bar Count / Bar Width / Bar Gap | Stereo / `64` / `2` / `2` |
+| Bar Max Size / Idle Size / Corner Radius | `36` / `2` / `0` |
+| Color Mode / Color | Solid / `#FFFF8F8F` |
+| Background Color / Padding / Corner Radius | `#FF121C21` / `12 12 52 12` / `4` |
+| Background Border Size / Color | `1` / `#FF2A3A40` |
+| Now Playing | on, Display Seconds `0`, Layout **Two lines**, Placement **Inside the panel, top**, Alignment **Right** |
+| Now Playing Color / Artist Color | `#FFFF8F8F` / `#FF64AA89` |
+| Font / Text Rendering | a pixel font (e.g. Press Start 2P at `8`) / **Pixel** |
+| Track Progress | on, Below the panel, Height `2`, Gap `6`, Color `#FFFF8F8F`, Track `#FF64AA89` |
+| Media Controls | on, Icon Size `14`, Spacing `8`, Icon Color `#FF64AA89`, Anchor **Panel, top left**, Insets `10` / `10` |
+
+The two colours are the Red and Pale Green of the palette above, and the panel is its Dark Teal.
+
+**A terminal readout** (green and red characters on black):
+
+| Setting | Value |
+|:--|:--|
+| Shape | Terminal |
+| Terminal Style | Columns, Waterfall or Meters |
+| Font / Size | Consolas or Cascadia Mono / `12` |
+| Background Color / Corner Radius | `#FF000000` / `0` |
+| Peak Hold Caps | on (Columns) |
+
+---
+
 # ✦ EVERY SETTING, EXPLAINED
 
 **You don't need any of this to use the mod.** The defaults work. This is for when you want to tweak something and you're wondering what a word means.
@@ -195,21 +294,39 @@ Two things it does affect, worth knowing before you go hunting for them:
 **FFT Size**: How finely sound gets analyzed. An FFT is the math that splits audio into separate frequencies: think of it as sorting sound into buckets by pitch. More buckets = finer detail, slightly more CPU.
 `1024` fastest, plenty for most · `2048` / `4096` noticeably crisper · `8192` maximum detail.
 
-> **Note. This is an admittedly 'beta' implementation for now.** Everything up to `8192` runs near-flawlessly with almost no overhead, *with the caveat that you're using anything other than the Oscilloscope shape.*
+> **With the Precision engine (2.0)** this is the size of each of the three resolution tiers, and bass detail comes from the tiers rather than from raising this. `2048` *(the new default)* is the sweet spot. Sensitivity no longer has to be retuned per FFT Size either: levels are calibrated in dBFS, so a change of FFT Size changes resolution, not height.
+
+> **The Oscilloscope no longer cares what this is set to.** It used to take its trace over a window of exactly one FFT block, so raising FFT Size stretched the trace to cover more time and updated it less often, which is why `8192` used to look so rough on that shape. The trace now runs on its own time base, set by **Oscilloscope Time Window** below. Pick FFT Size for the bars and leave the scope out of it.
 >
 > **One more note:** the higher the FFT Size, the more accurate the Sensitivity slider becomes for your specific audio setup. The correlation generally runs: **as FFT Size goes up, your Sensitivity will need to go up too.** For now that means fine-tuning Sensitivity per EQ Preset *and* per FFT Size, for your particular placement, size and personal adjustments.
 
-**Frequency Scale**: How the frequency range spreads across the bars. This matters more than it sounds.
+**Frequency Scale**: How the frequency range spreads across the bars (with Band Layout = Frequency Scale). This matters more than it sounds.
 - **Log**: the natural-feeling default. Gives bass and treble roughly equal visual space, matching how humans hear pitch.
 - **Linear**: spreads by raw Hz. Since most musical energy lives low, this crams all the action into a sliver on the left and leaves the right mostly dead. Technically accurate, visually dull.
 - **Mel**: uses the *mel scale*, built from research on how people actually perceive pitch. Like Log, tuned to human hearing.
+- **Bark**: the ear's critical bands (Traunmueller's formula): more room for the midrange, where hearing is most finely tuned.
+- **ERB**: equivalent rectangular bandwidths (Glasberg and Moore), the widths of the ear's own auditory filters. Between Log and Bark.
 
-**Peak Frequency Readout**: Shows the loudest note as a live number, e.g. `1.2 kHz`.
+**Peak Frequency Readout**: Shows the loudest note as a live number, e.g. `1.2 kHz`, or loudness figures instead (see **Readout Content** under Analysis).
 
 **Peak Readout Position**: Where that number sits. Horizontal: Left / Center / Right. Vertical: Above / Top / Middle / Bottom / Below.
 > **Above** and **Below** place it fully *outside* the bars so it never overlaps the visualization.
 
 **Multiband Oscilloscope Coloring**: Only affects the Oscilloscope shape. The line tints toward whatever part of the spectrum is loudest: warm for bass, green for mids, blue for treble. Overrides Color Mode for that shape.
+
+**Oscilloscope Time Window (ms)**: How much audio the trace shows end to end. Range 5-250, default `24`.
+
+> This is the scope's time base, and it is the setting that decides what the trace *looks* like. Small values stretch out individual wave cycles, so a bass note reads as a few big smooth curves. Large values pack more of the signal into the same width, so it reads as a rolling envelope. Around `20-30` is the hardware-scope look; **`150-180` is close to what FFT Size `8192` used to give**.
+>
+> It is deliberately independent of **FFT Size**. The trace is sampled on its own clock at roughly 100 updates a second whatever the FFT is doing, peak-sampled rather than point-sampled so it neither aliases nor loses amplitude as the window widens, and aligned to a rising zero crossing so the waveform holds still instead of sliding sideways.
+
+**Oscilloscope Damping**: Slows how fast the trace changes *shape*, without slowing how often it is *drawn*. Range 0-100, default `0`.
+
+> These are two different things and the distinction is the whole point. The trace is still redrawn every frame at your Target FPS, so nothing gets choppier. What damping changes is how far each point is allowed to move per frame, so the waveform evolves slowly enough to follow with your eyes instead of being a new picture every frame.
+>
+> This is what makes a wide **Time Window** legible rather than busy. On its own a 170 ms window is a lot of information changing fast; damped, it becomes a shape you can actually track. Try `150` window with `60-80` damping.
+>
+> It costs nothing. The easing is a single multiply per point on the render thread, and it does not touch the capture path or the frame rate.
 
 **Anchor**: Which edge bars grow from. `Bottom` rise upward *(classic)* · `Top` hang downward · `Middle` grow **both directions** from a center line.
 
@@ -225,6 +342,69 @@ Two things it does affect, worth knowing before you go hunting for them:
 > The Peak Frequency Readout shares these same font settings.
 
 **Now Playing Display Seconds**: How long the text stays up after a track change before fading.
+
+## Analysis (Precision Engine)
+
+Everything here applies to **Analysis Engine = Precision**, the default. With **Classic** the bars come from the 1.4 analysis and these settings are ignored.
+
+**Analysis Engine**: **Precision** gives every bar its own frequency band, measured from the spectrum. **Classic** is the 1.4 analysis: 7 fixed bands the bars interpolate between. Kept for comparison, and because some people will prefer its looser look.
+
+**Band Layout**: How the spectrum is cut into bars.
+- **Frequency Scale** *(default)*: **Bar Count** bars spread from Min to Max Frequency on the **Frequency Scale** set under Appearance.
+- **IEC 61260**: the standard fractional-octave bands (base-10, centred on 1 kHz) that every real-time analyzer uses. **Octave Fraction** picks the width.
+- **Musical**: one bar per note of equal temperament (or per quarter tone), tuned to **Tuning (A4)**.
+
+IEC and Musical decide how many bars there are, so **Bar Count** is ignored for them: 1/3 octave from 20 Hz to 20 kHz is 31 bars, 1/6 is 60, 1/12 is 120 and 1/24 is 240.
+
+**Octave Fraction**: 1/1, 1/3, 1/6, 1/12 or 1/24 octave. 1/3 is the classic RTA; 1/12 is a semitone. Musical only uses 1/12 and 1/24.
+
+**Min / Max Frequency**: The analysed range. Max is capped at 21 kHz, below the Nyquist limit of every common output device.
+
+**Tuning (A4)**: Reference pitch for Musical, 400 to 480 Hz.
+
+**Weighting**: **Z** is flat. **A** follows the ear at quiet listening levels and pulls the bass right down; **C** is the gentler loud-level curve. Both from IEC 61672-1, added per band, free.
+
+**Tilt (dB per octave)**: A slope around 1 kHz.
+
+> **What 0 means here.** Bars are measured as band power and, by default, referenced to a 1/3-octave band (see Level Reference), so **pink noise already reads flat at 0**, the way it does on a hardware RTA. Most music falls a little faster than pink. **1.5** *(default)* makes a typical modern mix read level, the same thing SPAN's 4.5 dB/oct default does on a plain FFT display (an FFT display needs 3 dB/oct just to flatten pink noise; this one doesn't).
+
+**Detector**: **RMS** sums the power of every frequency in the band, the right reading for music and noise. **Peak** shows the band's loudest single frequency, closer to what a tone reads on a meter.
+
+**Level Reference**: **Third-octave** *(default)* scales every band to the power a 1/3-octave band at the same centre would hold. Changing Bar Count or Band Layout then changes how fine the bars are, not how tall. **Band** shows each band's true power, so wide bars read higher than narrow ones.
+
+**FFT Window**: **Hann** is the general-purpose choice. **Blackman-Harris** has 92 dB of dynamic range, so quiet detail next to a loud tone stays visible. **Flat-top** reads a tone's exact level wherever it falls between bins, at the cost of resolution. **Hamming** has a narrower peak and more leakage.
+
+**Bass Detail**: The resolution tiers. The audio is analysed as captured, decimated by 4, and decimated by 16, each with the same FFT size, and each bar is measured from the fastest tier that can resolve it. **High** *(default)* uses all three, which is what makes fine bass bars real; **Standard** stops at 4; **Off** is a single FFT.
+
+> **Why tiers instead of a bigger FFT.** Bin spacing is sample rate over FFT size, 23 Hz at 48 kHz and 2048. A 1/24-octave band at 50 Hz is 1.4 Hz wide, so one FFT would need to be enormous to resolve it, and an enormous FFT reacts slowly everywhere, treble included. Decimating first gives the bass a long window and the treble a short one. At FFT Size 2048 the three windows are 43, 171 and 683 ms long, and the two deeper tiers are only re-analysed when enough new audio has arrived to make it worthwhile.
+
+**Channel**: Which signal the spectrum comes from. **Mix** averages all channels, as before. **Mid** is what both speakers share; **Side** is their difference, which shows exactly where a mix's stereo width lives.
+
+**Display Floor / Ceiling (dBFS)**: The levels that draw as an empty and a full bar, before Sensitivity. A full-scale sine is 0 dBFS; loud modern music sits around -20 dBFS per third-octave band. Defaults -72 and -12.
+
+> **Sensitivity** still works with Precision, as a gain: each step from the default 150 is 0.2 dB, so the slider covers -30 to +30 dB. **Sensitivity Curve** still shapes the top of the range, **Auto Gain** lifts quiet sources toward 85% of the range (boost only, held through silence), **EQ Preset** becomes a dB gain on the low, mid and high zones, and **Motion Smoothing** slows whichever Ballistics you pick, up to 6x.
+
+**Ballistics**: How bars rise and fall. All of them run on elapsed time, so the motion is the same at any frame rate.
+- **Snappy** *(default)*: closest to the 1.4 feel.
+- **Smooth**: slower, easier to follow.
+- **Analyzer**: falls a steady 20 dB per second, like a hardware RTA.
+- **VU**: 300 ms integration.
+- **PPM, EBU (Type II)** and **PPM, DIN (Type I)**: the IEC 60268-10 return rates (24 dB in 2.8 s, 20 dB in 1.5 s).
+- **Custom**: **Custom Attack (ms)** and **Custom Release (dB/s)**.
+
+**Peak Hold Time / Peak Fall**: With **Peak Hold Caps** on, how long a cap hangs, then whether it falls with **Gravity** (accelerating, the classic analyzer look) or at a steady **Linear** rate.
+
+**Readout Content**: What the readout set up under **Peak Frequency Readout** shows.
+- **Peak frequency**: as before.
+- **Loudness**: **M**omentary (400 ms), **S**hort-term (3 s) and gated **I**ntegrated loudness in LUFS, per ITU-R BS.1770-5 and EBU R128.
+- **Loudness, true peak, PLR, correlation**: adds 4x-oversampled true peak (dBTP), PLR (true peak minus integrated loudness) and stereo correlation (+1 mono, 0 wide, -1 out of phase).
+- **Both**: peak frequency and loudness.
+
+The loudness meters only run while they are on screen.
+
+**Reset Integrated Loudness On Track Change**: Starts a new integrated measurement with each track, so the figure is per track.
+
+> **What loopback can't see.** The mod hears what Windows mixes, after each app's own volume slider and before the master slider. Players in **WASAPI exclusive** or **ASIO** mode bypass that mix entirely, so the visualizer shows nothing while they play, and loudness figures describe the mix, not the file.
 
 ## Position
 
@@ -251,22 +431,87 @@ Two things it does affect, worth knowing before you go hunting for them:
 
 ## Performance
 
-**Target FPS**: How many times per second it redraws. Higher = smoother, more CPU. Little point exceeding your monitor's refresh rate.
+**Target FPS**: How many times per second it redraws. Higher = smoother, more CPU. Little point exceeding your monitor's refresh rate. **`0` matches the refresh rate**, whatever it is. With the Direct3D 11 renderer a frame where nothing moved is skipped entirely, so a high target costs far less than it used to in quiet or steady passages.
 
 **Pause On Fullscreen**: Stops completely when a fullscreen app runs. Detects both true fullscreen *(games)* and borderless windows. Since the visualizer lives on the desktop it's invisible anyway. This just stops it burning power. Resumes automatically.
 
-**Pause When Silent (seconds)**: After this long without audio, drops to a trickle instead of full speed. `0` disables.
+**Pause When Silent (seconds)**: After this long without audio, drops to a trickle instead of full speed: it wakes only when audio arrives or four times a second, and with Direct3D 11 presents nothing unless something changes. `0` disables (and Deep Idle with it).
+
+**Deep Idle** *(2.0)*: Five seconds after Pause When Silent kicks in, stops the audio stream itself and reads Windows' own peak meter four times a second instead, restarting the moment anything plays. A running capture stream registers an audio power request, which can keep the PC from sleeping (`powercfg /requests` shows it); a stopped one doesn't. On by default.
 
 **Auto-Hide When Idle** + **Delay**: Fades out entirely after prolonged silence. Once fully faded it **stops rendering completely**, not just invisible, genuinely doing nothing until audio returns.
 
 **Pause When Covered**: Stops rendering *and* audio capture while fully hidden behind another window.
 > **Off by default.** Reliably detecting "am I covered?" on Windows 11 is genuinely tricky: the shell is full of invisible windows that report themselves as visible. The check is deliberately conservative (only a fully-covering, real application window counts), but if the visualizer ever vanishes when it shouldn't, this is the switch to flip.
 
+## Hardware
+
+There are two jobs in this mod, and they can run on different silicon: **analysing** the audio (the FFTs that turn sound into frequency bands) and **drawing** the result.
+
+**Workload**: Where the work runs.
+- **Hybrid** *(default)*: analysis on the CPU, drawing on the GPU. Analysis is a fraction of a percent of one core, and the GPU draws for almost nothing, so this is the cheapest split on nearly every PC.
+- **GPU**: the analysis runs on the graphics chip as well, in four small compute passes that feed the drawing directly, so the CPU only copies audio and nothing comes back each frame but 8 bytes of statistics. Needs the Precision engine and the Direct3D 11 renderer, and uses at most FFT Size 4096. Worth trying on a strong iGPU; measure it against Hybrid rather than assume.
+- **CPU**: analysis and drawing both on the processor (drawing in software, through WARP). The GPU is left with nothing but Windows' own compositing. Fine for a small widget; a full-width strip at a high frame rate is real CPU work.
+- **NPU** *(experimental)*: the FFTs run on an Intel AI Boost NPU, drawing on the GPU. See the NPU section below for why this rarely saves anything.
+
+**Drawing Device**: Which GPU draws.
+- **Auto** *(default)*: the GPU your chosen monitor is plugged into. On a laptop with two GPUs, or a desktop with the iGPU left on, drawing on the *other* one means every frame gets copied across to the GPU that scans it out, which is exactly the kind of uneven frame time this mod is trying to avoid. Auto asks Windows which GPU owns that screen and uses it, and follows if the answer changes.
+- **Integrated GPU**: the power-saving GPU, the same one Windows picks for "Power saving" in Graphics settings. Falls back to Auto, with a warning, if there isn't one (F and KF processors have no iGPU, and desktops often switch it off in the BIOS).
+- **Discrete GPU**: the high-performance GPU. Same fallback.
+- **CPU**: software rendering, the same as Workload = CPU.
+
+If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop switching GPUs), the mod rebuilds itself on whatever is available instead of freezing until restart.
+
+**Renderer**:
+- **Direct3D 11** *(default)*: every bar, dot, cap, spoke and scope segment is one instanced quad from a tiny vertex shader that reads the bar heights straight from a buffer. The CPU writes two numbers per bar and issues a handful of draw calls per frame, whatever the bar count, and the pixel shader computes exact antialiased edges, so shapes look like Direct2D's. On top of that:
+  - **Frames where nothing moved are skipped.** The picture is summarised in a hash (bar heights to a quarter pixel, colours, the trace) and compared with the last frame shown. If it matches, nothing is drawn and nothing is presented, so Windows has nothing to recompose.
+  - **The text lives on its own surface**, redrawn only when the text or its fade changes. The animated surface covers just the panel, not the room reserved around it for text.
+  - **The panel can be opaque** (see Opaque Panel).
+- **Direct2D**: the 1.5 path, unchanged, including Smooth Mode's batching. Kept for comparison, and used automatically, with a warning, if Direct3D 11 can't start (a GPU below feature level 11.0, or `d3dcompiler_47.dll` missing).
+
+**Opaque Panel**: When the background panel can't show anything behind it (**Blur** on, or a panel colour with full alpha) and **Auto-Hide** is off, the Direct3D 11 renderer creates the panel's surface with alpha ignored and lets the compositor cut the rounded corners. Windows then copies those pixels instead of blending them every frame; Chromium measured the same switch at 3.12 W against 2.28 W. **Off** always blends, for comparison.
+
+**NPU Runtime Folder**: Where Intel's OpenVINO runtime lives. Blank searches the usual places. Only read when Workload is NPU.
+
+**Smooth Mode**: Frame timing locked to the display, and motion on elapsed time. **Auto** *(default)* turns it on when drawing runs on an integrated GPU or the CPU; **On** works on any GPU and is worth trying on a discrete one too; **Off** is the 1.4 timing. What it changes:
+
+- **Frame timing locked to the display.** The 1.4 loop asks for a frame every `1000 / Target FPS` milliseconds and lets the timer's wake-up latency pile up, which is why 144 requested measured 141.7 delivered. On a 144 Hz panel that is a couple of refreshes every second with no new frame: a repeat, which you see as a hitch. Smooth Mode schedules from Windows' own composition clock instead, places every frame half a refresh away from the deadline on either side, and never accumulates drift.
+- **Target FPS rounded to an even fraction of the refresh rate.** 60 FPS on a 144 Hz screen means frames held for 2, 3, 2, 3 refreshes, which reads as judder however precise the timer is. Smooth Mode runs the nearest whole fraction instead: 60 becomes 72 on 144 Hz, 48 if you set it to 50, 60 on a 60 Hz screen. Asking for more than the refresh rate gets the refresh rate rather than frames nobody can see.
+- **Motion that doesn't depend on frame timing.** With the Classic engine, bar rise and fall, peak caps, beat flash and scope damping were all "move this fraction per frame", so a late frame visibly slowed everything down for a moment. They now scale by how much time actually passed. (The Precision engine runs on elapsed time whatever this is set to.)
+- **A proper animation clock.** Wave, Breathe and Rainbow ran off a millisecond counter that only ticks every 15.6 ms, stored in a float that loses precision the longer the PC has been on. They now run off the high-resolution clock. (Always, with the Direct3D 11 renderer.)
+- **With the Direct2D renderer:** the background baked once into one image, all bars in one sprite batch, and cached text layouts.
+
 ---
 
 ![Oscilloscope closeup](https://raw.githubusercontent.com/USER-TOURNE/TOURNE-TABLE/main/GIF/4.gif)
 
 *The same shape in a warm colour: the Oscilloscope picks up Color Mode like every other shape.*
+
+# ◇ RUNNING THE ANALYSIS ON AN NPU (EXPERIMENTAL)
+
+Written against an **Alienware Aurora ACT1250** (the 2025 Aurora: Core Ultra 7 265K / 265KF or Ultra 9 285K, RTX 50-series), but it applies to any Intel Core Ultra machine.
+
+**Read this first: it almost certainly won't save power.** An NPU is a matrix-multiply engine. It wins when the work is a large, dense block of multiply-accumulates that runs continuously, like a neural network. An FFT is neither: to run on the NPU it has to be rewritten as matrix multiplies, which is roughly 25 times more arithmetic than an FFT, and every call has a fixed start-up cost the FFT is far too small to pay back. Calling it once per frame also keeps the NPU from power-gating between calls. Meanwhile the CPU does the whole analysis in well under 1% of one core. More bars don't change that: with the Precision engine every bar adds up its own bins once per frame, so 240 bars cost the same as 7.
+
+It stays as an option because the plumbing is the hard, reusable part (finding the runtime, compiling off the audio path, proving the result against a known answer, falling back to the CPU with a reason), and because the NPU's real use in a visualizer is still to come: neural models such as note transcription (a piano-roll mode, note names on musical bars) or stem separation (colour each bar by whether drums, bass or vocals drive it). Those are dense, continuous matrix work, which is what an NPU is for.
+
+**What's in there.** Arrow Lake desktop chips carry Intel's NPU 3, sold as *Intel AI Boost*: about 13 TOPS, the same generation as Meteor Lake, and present on K, KF and F models alike (the F only drops the iGPU). It is a separate block from both the CPU cores and the GPU, built for large batches of multiply-accumulates in low precision (FP16 / INT8).
+
+**Making sure it's on.**
+1. Device Manager should have a **Neural processors** category with **Intel(R) AI Boost** under it. Task Manager on Windows 11 24H2 and later also shows an **NPU** graph on the Performance tab.
+2. If it's missing, install the **Intel NPU driver** (from Dell's support page for the Aurora, or Intel's own "Intel NPU Driver - Windows" download). It needs Windows 11.
+3. Still missing after that: check the BIOS for an NPU / AI Boost switch. Some Arrow Lake firmware ships one, and Intel's own guidance for Windows 10 machines is to turn the NPU off there.
+
+**Giving this mod a way to talk to it.** Intel exposes the NPU through its **OpenVINO** runtime, which this mod loads at runtime if it's present. Nothing is bundled and nothing is installed for you. Any of these works:
+- Download the OpenVINO archive for Windows from Intel and extract it (to `C:\Program Files (x86)\Intel\openvino_<version>` is the conventional spot, which the mod searches on its own), or
+- `pip install openvino` into a Python install (the mod searches the usual Python locations too), or
+- put the folder holding `openvino_c.dll` into **NPU Runtime Folder**.
+
+Use an OpenVINO version at least as new as the one your NPU driver's release notes name. Then set **Workload** to **NPU**. The Windhawk log says what happened: which runtime and device it found, how long the model took to compile, and every 30 seconds the mean and worst NPU time per FFT. If anything is missing, the settings-problems window says which piece and what to do, and the analysis stays on the CPU in the meantime.
+
+> **64-bit only.** OpenVINO ships 64-bit builds only. Windhawk 1.x runs tool mods in a 32-bit process, so there the NPU option reports that and stays on the CPU.
+
+**How it works.** The FFT is rewritten as matrix multiplies (a "four-step" DFT: a DFT down the columns, a twiddle multiply, a DFT along the rows). The model is generated in memory for your FFT Size, compiled for the NPU once, and checked against a known answer before it's trusted. Its output feeds exactly the same band maths as the CPU path, for either engine, so the bars look identical. Measure it with HWiNFO against Hybrid, the same way the CPU figures above were measured, and keep whichever costs less.
 
 # ▲ WHERE THE EFFICIENCY COMES FROM
 
@@ -311,6 +556,25 @@ DXGI queues up to three frames ahead by default. For a passive widget that's pur
 ### 7. Genuine idle shutdown
 
 **Auto-Hide** now stops rendering completely once faded: presents one blank frame, then exits the render path entirely. **Pause When Covered** stops rendering and capture while hidden, checked once per second rather than per frame.
+
+### 8. One wake per frame, for audio and video together *(2.0)*
+
+1.5 woke two threads to get audio onto the screen: a capture thread on every WASAPI packet (about 100 times a second while anything played) and a pacing thread once per frame. 2.0 merges them: once per frame, one thread drains whatever audio has arrived, analyses it and hands the frame over. At 60 FPS that is roughly 100 fewer wake-ups a second.
+
+### 9. Frames that didn't change are never presented *(2.0, Direct3D 11 renderer)*
+
+Every present hands Windows' compositor a new buffer and wakes it to blend that rectangle again, even when the pixels are identical. The renderer now compares a summary of the frame with the last one shown and skips both the draw and the present when nothing moved by a quarter of a pixel. During sustained notes, quiet passages and every idle state, that is most frames, and a compositor with nothing to do goes back to sleep.
+
+### 10. Three steps of idle *(2.0)*
+
+- **Playing**: one wake per frame.
+- **Silent** (after Pause When Silent): wakes only when audio arrives or four times a second, and presents nothing unless something changes.
+- **Deep Idle** (five seconds later): the loopback stream itself is stopped, and Windows' own peak meter is read four times a second instead. A running capture stream registers an audio power request, which can hold the PC out of sleep (check `powercfg /requests`); a stopped one doesn't. The engine thread also asks Windows for efficiency-core scheduling (EcoQoS) while idle, and opts out of it while playing so frame pacing stays tight.
+
+### 11. Less for the compositor to blend *(2.0, Direct3D 11 renderer)*
+
+The animated surface covers only the panel; the text has a surface of its own that only changes when the text does. And when the panel is opaque (Blur on, or a solid colour), Windows is told so, and copies those pixels instead of blending them.
+
 
 ---
 
@@ -424,6 +688,8 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - dots: Dots
         - radial: Radial
         - oscilloscope: Oscilloscope
+        - goniometer: Goniometer (stereo field)
+        - terminal: Terminal (text characters, see the Terminal section)
     - orientation: horizontal
       $name: Orientation
       $description: Whether bars run left-to-right or bottom-to-top
@@ -502,9 +768,9 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - pop: Pop
         - jazz: Jazz
         - electronic: Electronic
-    - fftSize: '1024'
+    - fftSize: '2048'
       $name: FFT Size
-      $description: Higher values give finer frequency detail at a small extra CPU cost
+      $description: Higher values give finer frequency detail at a small extra CPU cost. With the Precision engine this is the size of each of its three resolution tiers, so bass detail comes from the tiers rather than from raising this; 2048 is the sweet spot. Workload GPU uses at most 4096
       $options:
         - '1024': 1024 (Fastest)
         - '2048': '2048'
@@ -517,6 +783,8 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - log: Log (natural, matches previous behavior)
         - linear: Linear (Hz-even spacing)
         - mel: Mel (perceptual pitch spacing)
+        - bark: Bark (critical bands, Traunmueller)
+        - erb: ERB (auditory filter bandwidths, Glasberg and Moore)
     - peakFreqEnabled: false
       $name: Peak Frequency Readout
       $description: Shows the current dominant frequency as a small numeric overlay
@@ -539,6 +807,12 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - oscilloscopeMultibandEnabled: false
       $name: Multiband Oscilloscope Coloring
       $description: Tints the Oscilloscope trace by which part of the spectrum (low/mid/high) is currently dominant, overriding Color Mode for that shape
+    - oscilloscopeWindowMs: 24
+      $name: Oscilloscope Time Window (ms)
+      $description: How much audio the trace shows end to end, in milliseconds. Range 5 to 250. Low values stretch out individual wave cycles and look like a hardware scope; high values compress more of the signal into the same width and read as a rolling envelope. This is a real time base, independent of FFT Size, so changing frequency resolution no longer changes what the trace looks like. Around 150 to 180 is close to what FFT Size 8192 used to give. Only affects the Oscilloscope shape
+    - oscilloscopeDamping: 0
+      $name: Oscilloscope Damping
+      $description: Slows how fast the trace changes shape, without slowing how often it is drawn. Range 0 to 100. 0 is the raw trace, redrawn every frame. Higher values ease each point toward its new position so the waveform moves slowly enough to follow with your eyes, which is what makes a wide time window legible rather than busy. Pair it with a high Time Window. Costs nothing and does not change your frame rate. Only affects the Oscilloscope shape
     - verticalAnchor: bottom
       $name: Anchor
       $description: Where bars grow from
@@ -578,7 +852,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
       $description: Text size, in points
     - nowPlayingDisplaySeconds: 6
       $name: Now Playing Display Seconds
-      $description: How long the text stays visible after a track changes, before fading out
+      $description: How long the text stays visible after a track changes, before fading out. 0 keeps it on screen all the time, like a media widget
     - nowPlayingOffsetX: 0
       $name: Now Playing Offset X
       $description: Shifts the artist/title text sideways from where it normally sits, in pixels. Negative moves it left, positive right. It still travels with the visualizer -- this only changes where it sits relative to it, which is how you move it clear of the background panel. Can also be nudged live with the keyboard (Interaction, move target 2). A keyboard nudge ADDS to this number rather than replacing it, so whatever you type here always counts
@@ -621,7 +895,244 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - peakFreqBgBorderColor: '#40FFFFFF'
       $name: Peak Readout Background Border Color
       $description: 'Color of the readout panel''s outline. Format is #AARRGGBB, #RRGGBB, rgba(r, g, b, a), or rgb(r, g, b)'
+    - nowPlayingLayout: one_line
+      $name: Now Playing Layout
+      $description: One line ("Artist - Title") or two (the title, with the artist underneath in its own colour)
+      $options:
+        - one_line: One line
+        - two_lines: Two lines (title, then artist)
+    - nowPlayingPlacement: above
+      $name: Now Playing Placement
+      $description: Above the bars, as before, or inside the background panel, in the padding above or below the bars, as wide as the bars so Left and Right line up with them. For the inside placements give the panel enough padding on that side (Background, Padding) to hold the text
+      $options:
+        - above: Above the visualizer
+        - panel_top: Inside the panel, top
+        - panel_bottom: Inside the panel, bottom
+    - nowPlayingAlign: center
+      $name: Now Playing Alignment
+      $options:
+        - center: Center
+        - left: Left
+        - right: Right
+    - nowPlayingArtistColor: '#B3FFFFFF'
+      $name: Now Playing Artist Color
+      $description: 'Colour of the artist: the second line in the two-line layout, the "Artist" part of the one-line layout. Format is #AARRGGBB, #RRGGBB, rgba(r, g, b, a), or rgb(r, g, b)'
+    - textRendering: smooth
+      $name: Text Rendering
+      $description: Smooth antialiases text. Pixel draws it without antialiasing, on whole pixels, for pixel fonts (e.g. Press Start 2P, Silkscreen, Pixelify Sans, installed in Windows) at a multiple of their design size. Applies to the Now Playing text, the readout and the Terminal shape
+      $options:
+        - smooth: Smooth
+        - pixel: Pixel (no antialiasing)
   $name: Appearance
+- audio:
+    - source: default_output
+      $name: Audio Source
+      $description: What the visualizer listens to. The default output is what you hear (as before). An input is a microphone, a line-in or the recording side of a virtual cable. Or pick a device by name, which covers any output or input, virtual ones included (VB-Audio Cable / Matrix, Voicemeeter, an Ableton return routed to its own device). The right-click menu lists every active device and switches live
+      $options:
+        - default_output: Default output (what you hear)
+        - default_input: Default input
+        - named: A device by name (below)
+    - deviceName: ''
+      $name: Device Name
+      $description: 'Part of the device''s name, as Windows Sound settings show it, e.g. "VB-Audio Matrix" or "CABLE Output". Outputs are captured by loopback, inputs recorded directly. If it isn''t connected the default output stands in, with a heads-up, until it is. Only used when Audio Source is "A device by name"'
+  $name: Audio Source
+- progress:
+    - enabled: false
+      $name: Track Progress Bar
+      $description: A thin bar showing how far into the current track you are, from the same Windows media session as Now Playing. Works with players that report their position (Spotify, most browsers, foobar2000, MusicBee and more)
+    - placement: below
+      $name: Placement
+      $options:
+        - below: Below the panel
+        - above: Above the panel
+        - panel_bottom: Inside the panel, under the bars
+    - height: 2
+      $name: Height
+      $description: In pixels
+    - gap: 6
+      $name: Gap
+      $description: Distance from the panel (or, inside it, from the bars), in pixels
+    - color: '#FFFFFFFF'
+      $name: Color
+      $description: 'The played part. Format is #AARRGGBB, #RRGGBB, rgba(r, g, b, a), or rgb(r, g, b)'
+    - trackColor: '#40FFFFFF'
+      $name: Track Color
+      $description: 'The rest of the bar. Format is #AARRGGBB, #RRGGBB, rgba(r, g, b, a), or rgb(r, g, b)'
+  $name: Track Progress
+- terminal:
+    - style: columns
+      $name: Terminal Style
+      $description: Only used when Shape is Terminal. Columns draws every bar as a column of characters. Waterfall is a spectrogram in characters, newest line on top. Meters prints Bass, Mid, Treble and Volume as text meters
+      $options:
+        - columns: Columns
+        - waterfall: Waterfall
+        - meters: Meters
+    - font: Consolas
+      $name: Font
+      $description: A monospace font installed in Windows (Consolas, Cascadia Mono, a Nerd Font, a pixel font)
+    - fontSize: 14
+      $name: Font Size
+      $description: In points. Sets the cell size, and with it the size of the whole grid; Bar Width, Gap and Max Size don't apply to this shape
+    - rows: 16
+      $name: Rows
+      $description: Height of Columns and Waterfall, in lines. Columns are one per bar (Bar Count, or the band layout)
+    - meterColumns: 40
+      $name: Meter Width
+      $description: Width of the Meters style, in characters
+    - hotThreshold: 75
+      $name: Hot Threshold (%)
+      $description: Above this share of full height a character turns the Hot Color
+    - columnGlyph: '#'
+      $name: Column Glyph
+      $description: The character columns and meters are built from. One printable ASCII character
+    - peakGlyph: '-'
+      $name: Peak Glyph
+      $description: The peak cap in Columns (with Peak Hold on). One printable ASCII character
+    - ramp: ' .:-=+*#%@'
+      $name: Waterfall Ramp
+      $description: Characters from quiet to loud for the Waterfall. Printable ASCII
+    - scrollRate: 20
+      $name: Waterfall Speed
+      $description: Lines per second
+    - lowColor: '#FF33FF66'
+      $name: Color
+    - highColor: '#FFFF3B3B'
+      $name: Hot Color
+    - dimColor: '#FF1E6B34'
+      $name: Dim Color
+      $description: The faintest level of the Waterfall
+    - labelColor: '#FFB8FFB8'
+      $name: Label Color
+      $description: The Meters labels
+  $name: Terminal
+- analysis:
+    - engine: precision
+      $name: Analysis Engine
+      $description: Precision gives every bar its own frequency band, measured straight from the spectrum, with bass from long high-resolution windows and treble from short fast ones. Classic is the 1.4 analysis, 7 bands that the bars interpolate between, kept for comparison and for anyone who prefers its look. Everything else in this section only applies to Precision
+      $options:
+        - precision: Precision (every bar its own band)
+        - classic: Classic (1.4, 7 bands)
+    - bandLayout: scale
+      $name: Band Layout
+      $description: How the spectrum is cut into bars. Frequency Scale spreads Bar Count bars across Min to Max Frequency on the Frequency Scale chosen above. IEC 61260 uses the standard fractional-octave bands every RTA uses (Octave Fraction picks 1/1 to 1/24), and Musical gives one bar per note of equal temperament. Both of those decide the number of bars themselves, so Bar Count is ignored for them
+      $options:
+        - scale: Frequency Scale (uses Bar Count)
+        - iec: IEC 61260 fractional-octave bands
+        - musical: Musical notes (equal temperament)
+    - octaveFraction: '6'
+      $name: Octave Fraction
+      $description: Bandwidth for the IEC 61260 and Musical layouts. 1/3 is the classic RTA; 1/12 is one bar per semitone; 1/24 is a quarter tone, about 240 bars from 20 Hz to 20 kHz. Musical only offers 1/12 and 1/24; anything coarser counts as 1/12 there
+      $options:
+        - '1': 1/1 octave
+        - '3': 1/3 octave
+        - '6': 1/6 octave
+        - '12': 1/12 octave (semitone)
+        - '24': 1/24 octave (quarter tone)
+    - minFrequency: 20
+      $name: Min Frequency (Hz)
+      $description: Bottom of the analysed range. Range 10 to 1000
+    - maxFrequency: 20000
+      $name: Max Frequency (Hz)
+      $description: Top of the analysed range. Range 1000 to 21000; anything above the device's Nyquist limit is trimmed automatically
+    - tuningA4: 440
+      $name: Tuning (A4, Hz)
+      $description: Reference pitch for the Musical layout. Range 400 to 480
+    - weighting: z
+      $name: Weighting
+      $description: Frequency weighting from IEC 61672-1, added per band. Z is flat, the honest view of the signal. A follows the ear's sensitivity at quiet listening levels and pulls the bass right down; C is the gentler loud-level curve. Costs nothing
+      $options:
+        - z: Z (flat)
+        - a: A (IEC 61672)
+        - c: C (IEC 61672)
+    - tilt: '1.5'
+      $name: Tilt (dB per octave)
+      $description: A slope around 1 kHz. Bars are referenced to a 1/3-octave band (see Level Reference), so pink noise already reads flat at 0. Most music falls a little faster than pink, and 1.5 makes a typical modern mix look level, the same thing SPAN's 4.5 dB/oct default does on a plain FFT display
+      $options:
+        - '0': 0 (pink noise flat)
+        - '1.5': 1.5 (typical mix flat)
+        - '3': '3'
+        - '4.5': '4.5'
+        - '6': '6'
+    - detector: rms
+      $name: Detector
+      $description: RMS adds up the power of every frequency in the band, the right reading for music and noise. Peak shows the band's loudest single frequency, closer to what a tone measures
+      $options:
+        - rms: RMS (band power)
+        - peak: Peak (loudest bin)
+    - levelReference: third_octave
+      $name: Level Reference
+      $description: Third-octave scales every band to the power a 1/3-octave band at the same centre would hold, so bar heights don't change when you change Bar Count or Band Layout, and pink noise reads flat. Band shows each band's true power, so wide bars read higher than narrow ones
+      $options:
+        - third_octave: Third-octave (independent of bar count)
+        - band: Band (true band power)
+    - window: hann
+      $name: FFT Window
+      $description: Hann is the general-purpose choice. Blackman-Harris trades a little resolution for 92 dB of dynamic range, so quiet detail next to loud tones stays visible. Flat-top reads the exact level of a tone wherever it falls, at the cost of resolution. Hamming has a narrower peak and more leakage
+      $options:
+        - hann: Hann
+        - hamming: Hamming
+        - blackman_harris: Blackman-Harris (high dynamic range)
+        - flat_top: Flat-top (accurate tone levels)
+    - bassDetail: '2'
+      $name: Bass Detail
+      $description: The resolution tiers. Each bar is measured from the fastest tier that can resolve it. High adds a tier decimated by 16, which is what makes 1/12 and 1/24-octave bass bars real measurements; Standard stops at 4; Off is a single FFT, like the classic engine
+      $options:
+        - '2': High (3 tiers)
+        - '1': Standard (2 tiers)
+        - '0': Off (single FFT)
+    - channel: mix
+      $name: Channel
+      $description: Which signal the spectrum is taken from. Mix is all channels averaged, as before. Mid is what both speakers share, Side is the difference between them, which shows exactly where the stereo width in a mix lives
+      $options:
+        - mix: Mix (all channels)
+        - left: Left
+        - right: Right
+        - mid: Mid (L+R)
+        - side: Side (L-R)
+    - dbFloor: -72
+      $name: Display Floor (dBFS)
+      $description: The level that draws as an empty bar. Range -120 to -20. Lower shows quieter detail, at the cost of noise and hiss showing too
+    - dbCeiling: -12
+      $name: Display Ceiling (dBFS)
+      $description: The level that draws as a full bar, before Sensitivity. Range -60 to 0. A full-scale sine is 0 dBFS; loud modern music sits around -20 per third-octave band
+    - ballistics: snappy
+      $name: Ballistics
+      $description: How bars rise and fall, all on real time, so they move the same at any frame rate. Snappy is closest to the 1.4 feel. Analyzer falls a steady 20 dB per second like a hardware RTA. VU integrates over 300 ms. The two PPMs follow IEC 60268-10 Type I (DIN) and Type II (EBU) return rates. Custom uses the two settings below. Motion Smoothing above slows whichever you pick
+      $options:
+        - snappy: Snappy
+        - smooth: Smooth
+        - analyzer: Analyzer (20 dB/s)
+        - vu: VU
+        - ppm_ebu: PPM, EBU (Type II)
+        - ppm_din: PPM, DIN (Type I)
+        - custom: Custom
+    - attackMs: 10
+      $name: Custom Attack (ms)
+      $description: Rise time constant for Ballistics = Custom. Range 1 to 500
+    - releaseDbPerSecond: 20
+      $name: Custom Release (dB/s)
+      $description: Fall rate for Ballistics = Custom. Range 1 to 200
+    - peakHoldMs: 500
+      $name: Peak Hold Time (ms)
+      $description: How long a peak cap hangs before it falls. Range 0 to 5000. Only used with Peak Hold Caps on
+    - peakFall: gravity
+      $name: Peak Fall
+      $description: Gravity accelerates like a dropped object, the classic analyzer look. Linear falls at a steady rate
+      $options:
+        - gravity: Gravity
+        - linear: Linear
+    - readout: frequency
+      $name: Readout Content
+      $description: What the readout set up under Peak Frequency Readout shows. Loudness is ITU-R BS.1770-5 / EBU R128 momentary (400 ms), short-term (3 s) and gated integrated loudness. Full adds 4x-oversampled true peak, PLR (true peak minus integrated loudness) and stereo correlation (+1 mono, 0 wide, -1 out of phase). The loudness meters only run while they are shown
+      $options:
+        - frequency: Peak frequency
+        - loudness: Loudness (LUFS M / S / I)
+        - loudness_full: Loudness, true peak, PLR, correlation
+        - both: Peak frequency and loudness
+    - loudnessResetOnTrack: true
+      $name: Reset Integrated Loudness On Track Change
+      $description: Starts a new integrated measurement whenever the playing track changes, so the figure is per track. Off measures from when the mod started
+  $name: Analysis (Precision Engine)
 - position:
     - horizontalPosition: '50'
       $name: Horizontal Position
@@ -632,6 +1143,9 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - monitor: 1
       $name: Monitor
       $description: 1-based monitor index
+    - pixelSnap: true
+      $name: Pixel Snap
+      $description: Puts the panel, every bar, the text and the grid on whole pixels, so edges stay razor sharp at any size and any display scaling (at 125% or 150%, sizes otherwise land on half pixels and blur). Turn off for subpixel placement, which moves the picture by fractions of a pixel at the cost of antialiased, slightly soft edges. Bar heights move smoothly either way
   $name: Position
 - interaction:
     - keyMoveEnabled: true
@@ -662,6 +1176,23 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - keyMoveFastStep: 10
       $name: Keyboard Move Fast Step
       $description: How far one press moves it while the Fast Key below is also held, in pixels
+    - keyMoveFineStep: '0.25'
+      $name: Keyboard Move Fine Step
+      $description: A subpixel step for the visualizer, used while the Fine Key is held or with Subpixel Nudges ticked in the right-click menu. Only shows as movement with Pixel Snap off (Position); with it on, the position still accumulates and the picture moves a whole pixel at a time
+      $options:
+        - '0.5': 1/2 pixel
+        - '0.25': 1/4 pixel
+        - '0.125': 1/8 pixel
+        - '0.0625': 1/16 pixel
+    - keyMoveFineKey: none
+      $name: Keyboard Move Fine Key
+      $description: Held alongside the modifier for the fine step. Must not be one of the modifier's keys or the Fast Key. None leaves fine steps to the right-click menu's Subpixel Nudges
+      $options:
+        - none: None
+        - shift: Shift
+        - ctrl: Ctrl
+        - alt: Alt
+        - win: Win
     - keyMoveFastKey: shift
       $name: Keyboard Move Fast Key
       $description: Held alongside the modifier to use the larger step. Must not be one of the keys already used by the modifier above
@@ -689,6 +1220,13 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - left: Left Click
         - middle: Middle Click
         - right: Right Click
+    - contextMenu: right_click
+      $name: Right-Click Menu
+      $description: Right-click the visualizer for a menu of quick settings (shape, colours, analysis, audio source, overlays, pause). It only opens where the visualizer is actually showing on the desktop, never through a window covering it. Ctrl + Right-Click leaves a plain right-click to the desktop
+      $options:
+        - right_click: Right-Click
+        - ctrl_right_click: Ctrl + Right-Click
+        - 'off': 'Off'
   $name: Interaction
 - media_controls:
     - enabled: false
@@ -763,6 +1301,21 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - verticalPosition: '95'
       $name: Vertical Position
       $description: 0-100, percentage down the monitor's work area. Decimals allowed. Same caveat as Horizontal Position -- a saved keyboard position takes priority over this field until it is cleared
+    - anchor: screen
+      $name: Anchor
+      $description: Screen places the strip with the two Position percentages above. A panel corner pins it inside that corner of the visualizer's background panel instead, so it moves with the visualizer (drags included) and the Position settings are ignored. Give the panel enough padding on that side to hold it
+      $options:
+        - screen: Screen (Position settings)
+        - panel_top_left: Panel, top left
+        - panel_top_right: Panel, top right
+        - panel_bottom_left: Panel, bottom left
+        - panel_bottom_right: Panel, bottom right
+    - anchorOffsetX: 8
+      $name: Anchor Inset X
+      $description: Distance in from the panel's left or right edge, in pixels. Only used with a panel anchor
+    - anchorOffsetY: 8
+      $name: Anchor Inset Y
+      $description: Distance in from the panel's top or bottom edge, in pixels. Only used with a panel anchor
   $name: Media Controls
 - background:
     - enabled: true
@@ -790,13 +1343,16 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 - performance:
     - targetFps: 60
       $name: Target FPS
-      $description: Caps how often the visualizer redraws itself. Match your monitor's refresh rate for the smoothest motion at the lowest overhead
+      $description: Caps how often the visualizer redraws itself. 0 matches your display's refresh rate, whatever it is. With the Direct3D 11 renderer a frame where nothing moved is skipped entirely, so a high target costs far less than it used to during quiet or steady passages
     - pauseOnFullscreen: true
       $name: Pause On Fullscreen
       $description: Stops rendering while any window is fullscreen, since the visualizer would be hidden behind it anyway
     - pauseWhenSilentSeconds: 10
       $name: Pause When Silent (seconds)
-      $description: 0 disables this behavior
+      $description: After this long without audio, drawing drops to a trickle that presents nothing unless something actually changes. 0 disables this behavior, and Deep Idle with it
+    - deepIdle: true
+      $name: Deep Idle
+      $description: Five seconds after Pause When Silent kicks in, stops the audio stream itself and watches Windows' own peak meter four times a second instead, restarting the moment anything plays. A running capture stream registers an audio power request, which can keep the PC from sleeping; a stopped one doesn't. Turn off only if the visualizer is slow to wake for a very quiet source
     - autoHideEnabled: false
       $name: Auto-Hide When Idle
       $description: Fades the whole visualizer out after prolonged silence, instead of just idling
@@ -831,6 +1387,46 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - '95': 95% covered
         - '100': 100% covered (fully hidden)
   $name: Performance
+- hardware:
+    - workload: hybrid
+      $name: Workload
+      $description: Where the work runs. Hybrid analyses on the CPU, which is a fraction of a percent of one core, and draws on the GPU, the cheapest split on almost every PC. GPU moves the analysis onto the graphics chip too, so the CPU only copies audio. CPU does everything on the processor, drawing included (software rendering), leaving the GPU nothing but Windows' own compositing. NPU runs the FFTs on an Intel AI Boost NPU and is experimental; see the readme for why it rarely saves power
+      $options:
+        - hybrid: Hybrid - CPU analysis, GPU drawing (recommended)
+        - gpu: GPU - analysis and drawing on the GPU
+        - cpu: CPU - everything on the processor
+        - npu: NPU analysis, GPU drawing (experimental)
+    - renderDevice: auto
+      $name: Drawing Device
+      $description: Which GPU draws. Auto uses the one your chosen monitor is plugged into, which avoids copying every frame from one GPU to another and is the right answer almost everywhere. Integrated and Discrete force a GPU type, and fall back to Auto (with a warning) if this PC does not have one. CPU draws in software, the same as Workload = CPU
+      $options:
+        - auto: Auto (GPU driving the monitor)
+        - integrated: Integrated GPU (lowest power)
+        - discrete: Discrete GPU (highest performance)
+        - cpu: CPU (software rendering)
+    - renderer: d3d11
+      $name: Renderer
+      $description: Direct3D 11 draws everything with one tiny shader from a buffer of bar heights, skips any frame where nothing moved, keeps the text on its own surface that only redraws when the text changes, and tells Windows when the panel is opaque so it copies instead of blending. Direct2D is the 1.5 path, unchanged, including Smooth Mode's batching; it is kept for comparison and as the automatic fallback
+      $options:
+        - d3d11: Direct3D 11 (recommended)
+        - direct2d: Direct2D (1.5 path)
+    - opaquePanel: auto
+      $name: Opaque Panel
+      $description: When the background panel can't show anything behind it (Blur on, or a fully opaque colour) and Auto-Hide is off, the Direct3D 11 renderer marks it opaque so Windows composes it without blending, with the rounded corners cut by the compositor. Off always blends, for comparison
+      $options:
+        - auto: Auto
+        - 'off': 'Off'
+    - npuRuntimePath: ''
+      $name: NPU Runtime Folder
+      $description: The folder that contains openvino_c.dll, or the root of an extracted OpenVINO archive. Leave blank to search the usual places - INTEL_OPENVINO_DIR, Program Files\Intel\openvino*, a pip-installed openvino package, and PATH. Only used when Workload is NPU
+    - smoothMode: auto
+      $name: Smooth Mode
+      $description: Frame timing locked to the display's refresh so every frame lands on its own refresh, and motion that scales with real elapsed time. Target FPS is rounded to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) because that is what makes motion even. With the Direct2D renderer it also bakes the panel and batches the bars. Auto turns it on when drawing runs on an integrated GPU or the CPU. On works with any GPU. Off is the 1.4 timing
+      $options:
+        - auto: Auto (integrated GPU or CPU drawing)
+        - 'on': 'On'
+        - 'off': Off (1.4 timing)
+  $name: Hardware
 - validation:
     - showErrors: true
       $name: Warn About Invalid Settings
@@ -842,11 +1438,16 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 #include <windhawk_utils.h>
 
 #include <d2d1_1.h>
+// d2d1_3 for ID2D1DeviceContext3 / ID2D1SpriteBatch (Smooth Mode's batched
+// bars), dxgi1_6 for EnumAdapterByGpuPreference (Drawing Device). Both are
+// only used after a runtime QueryInterface, so older Windows still loads.
+#include <d2d1_3.h>
 #include <d2d1helper.h>
 #include <d3d11.h>
 #include <dcomp.h>
 #include <dwmapi.h>
 #include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include <shellscalingapi.h>
 #include <shlwapi.h>
 #include <shellapi.h>
@@ -860,6 +1461,9 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cwctype>
+#include <condition_variable>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -889,6 +1493,7 @@ using Microsoft::WRL::ComPtr;
 #define TIMER_ID_MSG_FULLSCREEN_WATCH 4
 #define TIMER_ID_MSG_SAVE_POSITION 5
 #define TIMER_ID_MSG_FONT_RECHECK 6
+#define TIMER_ID_MSG_REBUILD_DEVICE 7
 
 #define WM_APP_CLEANUP (WM_APP + 1)
 #define WM_APP_SETTINGS_CHANGED (WM_APP + 2)
@@ -896,17 +1501,23 @@ using Microsoft::WRL::ComPtr;
 #define WM_APP_MEDIA_REPAINT (WM_APP + 4)
 #define WM_APP_REQUEST_SAVE_POSITION (WM_APP + 5)
 #define WM_APP_FORCE_REDRAW (WM_APP + 6)
+// Hardware section. A worker thread (NPU build) or the render path (device
+// loss) can't touch the settings-issue list or rebuild D3D objects itself, so
+// both hand the job to the message window, which lives on the UI thread.
+#define WM_APP_HW_NOTICE (WM_APP + 7)        // lParam: heap std::wstring*, owned by receiver
+#define WM_APP_REBUILD_DEVICE (WM_APP + 8)   // wParam: 1 = device was lost
+#define WM_APP_CONTEXT_MENU (WM_APP + 9)     // wParam, lParam: screen x, y
 #define OVERLAY_WINDOW_CLASS (L"DesktopAudioVisOverlay_" WH_MOD_ID)
 #define MESSAGE_WINDOW_CLASS (L"DesktopAudioVisMessage_" WH_MOD_ID)
 #define MEDIA_WINDOW_CLASS (L"DesktopAudioVisMedia_" WH_MOD_ID)
 
-enum class VizShape { Stereo, Mountain, Mirror, Wave, Breathe, Dots, Radial, Oscilloscope };
+enum class VizShape { Stereo, Mountain, Mirror, Wave, Breathe, Dots, Radial, Oscilloscope, Goniometer, Terminal };
 enum class VizColorMode { Solid, Gradient, ReactiveGradient, Accent, AlbumArt, DynamicAlbum, Acrylic, RainbowCycle, Tourne };
 enum class VizEQ { Default, Bass, Rock, Pop, Jazz, Electronic };
 enum class VizSensitivityCurve { Exponential, Knee, Power };
 enum class VizOrientation { Horizontal, Vertical };
 enum class VizAnchor { Top, Middle, Bottom };
-enum class VizFreqScale { Log, Linear, Mel };
+enum class VizFreqScale { Log, Linear, Mel, Bark, Erb };
 enum class VizTextAlignH { Left, Center, Right };
 enum class VizTextAlignV { Above, Top, Middle, Bottom, Below };
 enum class VizDragModifier { None, Ctrl, Alt, Shift, Win };
@@ -926,6 +1537,29 @@ enum class VizKeyMoveKeys { Both, Arrows, Wasd };
 // move modifier + 1/2/3, so the same combo places all three pieces without
 // needing a separate shortcut per piece.
 enum class VizMoveTarget { Visualizer, NowPlaying, PeakFreq, MediaControls };
+// Hardware section.
+enum class VizRenderDevice { Auto, Integrated, Discrete, Cpu };
+enum class VizSmoothMode { Auto, On, Off };
+// 2.0. Where the work runs; which analysis core; which renderer.
+enum class VizWorkload { Hybrid, Gpu, Cpu, Npu };
+enum class VizRenderer { D3D11, Direct2D };
+enum class VizOpaquePanel { Auto, Off };
+enum class VizEngineKind { Precision, Classic };
+enum class VizBandLayout { Scale, Iec, Musical };
+enum class VizWeighting { Z, A, C };
+enum class VizDetector { Rms, Peak };
+enum class VizLevelRef { ThirdOctave, Band };
+enum class VizWindowKind { Hann, Hamming, BlackmanHarris, FlatTop };
+enum class VizChannel { Mix, Left, Right, Mid, Side };
+enum class VizBallisticsPreset { Snappy, Smooth, Analyzer, Vu, PpmEbu, PpmDin, Custom };
+enum class VizPeakFall { Gravity, Linear };
+enum class VizReadout { Frequency, Loudness, LoudnessFull, Both };
+enum class VizTermStyle { Columns, Waterfall, Meters };
+enum class VizNpLayout { OneLine, TwoLines };
+enum class VizNpPlacement { Above, PanelTop, PanelBottom };
+enum class VizProgressPlacement { Below, Above, PanelBottom };
+enum class VizMediaAnchor { Screen, PanelTopLeft, PanelTopRight, PanelBottomLeft, PanelBottomRight };
+enum class VizContextMenu { RightClick, CtrlRightClick, Off };
 
 struct Settings {
     VizShape shape = VizShape::Stereo;
@@ -959,6 +1593,10 @@ struct Settings {
     int keyMoveStep = 1;
     int keyMoveFastStep = 10;
     unsigned keyMoveFastKey = VIZ_MOD_SHIFT;
+    float keyMoveFineStep = 0.25f;           // px, for subpixel nudges
+    unsigned keyMoveFineKey = VIZ_MOD_NONE;  // held for a fine step
+    bool keyMoveFine = false;                // every nudge fine (right-click menu)
+    bool pixelSnap = true;
 
     bool dragEnabled = false;
     VizDragModifier dragModifier = VizDragModifier::Ctrl;
@@ -1014,6 +1652,8 @@ struct Settings {
     VizTextAlignH peakFreqAlignH = VizTextAlignH::Right;
     VizTextAlignV peakFreqAlignV = VizTextAlignV::Top;
     bool oscilloscopeMultibandEnabled = false;
+    int oscilloscopeWindowMs = 24;
+    int oscilloscopeDamping = 0;
 
     bool mediaControlsEnabled = false;
     BYTE mediaIconColorA = 255, mediaIconColorR = 255, mediaIconColorG = 255, mediaIconColorB = 255;
@@ -1033,6 +1673,70 @@ struct Settings {
     int mediaCoveredThresholdPercent = 50;
     float mediaHorizontalPosition = 50.0f;
     float mediaVerticalPosition = 95.0f;
+
+    VizRenderDevice renderDevice = VizRenderDevice::Auto;
+    std::wstring npuRuntimePath;
+    VizSmoothMode smoothMode = VizSmoothMode::Auto;
+    VizWorkload workload = VizWorkload::Hybrid;
+    VizRenderer renderer = VizRenderer::D3D11;
+    VizOpaquePanel opaquePanel = VizOpaquePanel::Auto;
+    bool deepIdle = true;
+
+    // Analysis (2.0).
+    VizEngineKind engine = VizEngineKind::Precision;
+    VizBandLayout bandLayout = VizBandLayout::Scale;
+    int octaveFraction = 6;
+    int minFreq = 20, maxFreq = 20000;
+    float tuningA4 = 440.f;
+    VizWeighting weighting = VizWeighting::Z;
+    float tiltDbPerOct = 1.5f;
+    VizDetector detector = VizDetector::Rms;
+    VizLevelRef levelRef = VizLevelRef::ThirdOctave;
+    VizWindowKind window = VizWindowKind::Hann;
+    int bassDetail = 2;
+    VizChannel channel = VizChannel::Mix;
+    int dbFloor = -72, dbCeiling = -12;
+    VizBallisticsPreset ballistics = VizBallisticsPreset::Snappy;
+    int attackMs = 10, releaseDbPerSec = 20;
+    int peakHoldMs = 500;
+    VizPeakFall peakFall = VizPeakFall::Gravity;
+    VizReadout readout = VizReadout::Frequency;
+    bool loudnessResetOnTrack = true;
+    int layoutBandCount = 0;  // bars implied by an IEC / musical layout, 0 = use Bar Count
+
+    // Audio source (2.0): "" / default_output, default_input, id:<endpoint>, name:<text>.
+    std::wstring audioSourceKey;
+
+    // Media widget (2.0).
+    VizNpLayout npLayout = VizNpLayout::OneLine;
+    VizNpPlacement npPlacement = VizNpPlacement::Above;
+    VizTextAlignH npAlign = VizTextAlignH::Center;
+    BYTE npArtistA = 0xB3, npArtistR = 255, npArtistG = 255, npArtistB = 255;
+    bool textPixel = false;
+    bool progressEnabled = false;
+    VizProgressPlacement progressPlacement = VizProgressPlacement::Below;
+    int progressHeight = 2, progressGap = 6;
+    BYTE progressA = 255, progressR = 255, progressG = 255, progressB = 255;
+    BYTE progressTrackA = 0x40, progressTrackR = 255, progressTrackG = 255, progressTrackB = 255;
+    VizMediaAnchor mediaAnchor = VizMediaAnchor::Screen;
+    int mediaAnchorOffsetX = 8, mediaAnchorOffsetY = 8;
+    VizContextMenu contextMenu = VizContextMenu::RightClick;
+
+    // Terminal shape (2.0).
+    VizTermStyle termStyle = VizTermStyle::Columns;
+    std::wstring termFont = L"Consolas";
+    int termFontSize = 14;
+    int termRows = 16;
+    int termMeterColumns = 40;
+    int termHotThreshold = 75;
+    wchar_t termColumnGlyph = L'#';
+    wchar_t termPeakGlyph = L'-';
+    std::wstring termRamp = L" .:-=+*#%@";
+    int termScrollRate = 20;
+    BYTE termDimA = 255, termDimR = 0x1E, termDimG = 0x6B, termDimB = 0x34;
+    BYTE termLowA = 255, termLowR = 0x33, termLowG = 0xFF, termLowB = 0x66;
+    BYTE termHighA = 255, termHighR = 0xFF, termHighG = 0x3B, termHighB = 0x3B;
+    BYTE termLabelA = 255, termLabelR = 0xB8, termLabelG = 0xFF, termLabelB = 0xB8;
 };
 
 // A 4K display fits ~1280 bars at 2 px wide with 1 px gaps, and ultrawides more
@@ -1084,6 +1788,10 @@ ComPtr<ID2D1DeviceContext> g_dc;
 ComPtr<IDCompositionDevice> g_compositionDevice;
 ComPtr<IDCompositionTarget> g_compositionTarget;
 ComPtr<IDCompositionVisual> g_compositionVisual;
+// Since 2.0 the target's root is an empty container with the text surface
+// (g_compositionVisual) as a child, so the Direct3D 11 renderer can slide its
+// panel surface in underneath it.
+ComPtr<IDCompositionVisual> g_rootVisual;
 ComPtr<ID2D1SolidColorBrush> g_barBrush;
 ComPtr<ID2D1SolidColorBrush> g_barBrush2;
 ComPtr<ID2D1SolidColorBrush> g_backgroundBrush;
@@ -1106,6 +1814,8 @@ ComPtr<ID2D1StrokeStyle> g_roundCapStrokeStyle;
 ComPtr<IDWriteFactory> g_dwriteFactory;
 ComPtr<IDWriteTextFormat> g_dwriteTextFormat;
 ComPtr<ID2D1SolidColorBrush> g_nowPlayingBrush;
+ComPtr<ID2D1SolidColorBrush> g_npArtistBrush;
+ComPtr<ID2D1SolidColorBrush> g_progressBrush;
 ComPtr<ID2D1SolidColorBrush> g_textPanelBrush;
 int g_dwriteTextFormatFontSize = -1;
 std::wstring g_dwriteTextFormatFontName;
@@ -1113,7 +1823,138 @@ std::wstring g_dwriteTextFormatFontName;
 static const IID kCLSID_D2D1GaussianBlur = {
     0x1feb6d69, 0x2fe6, 0x4ac9, {0x8c, 0x58, 0x1d, 0x7f, 0x93, 0xe7, 0xa6, 0xa5}};
 
+// ---- Hardware state ----------------------------------------------------------
+// What the current D3D device actually landed on, which is not always what
+// was asked for: Integrated on a desktop with no iGPU falls back, and a failed
+// hardware device falls back to WARP. Smooth Mode's Auto keys off this rather
+// than off the setting, so it follows the hardware that is really drawing.
+struct VizRenderAdapterInfo {
+    bool valid = false;
+    bool warp = false;        // software rasterizer (CPU drawing)
+    bool integrated = false;  // shares system memory with the CPU
+    LUID luid = {};
+    std::wstring name;
+};
+VizRenderAdapterInfo g_renderAdapter;
+
+// Resolved Smooth Mode. Read by the render thread for pacing and by the UI
+// thread for drawing, so it is an atomic rather than a settings field.
+std::atomic<bool> g_smoothActive{false};
+
+// Device-loss recovery is rate-limited so a driver that keeps failing can't
+// put the UI thread into a rebuild loop.
+std::atomic<bool> g_deviceRebuildQueued{false};
+ULONGLONG g_lastDeviceRebuildTick = 0;
+
+// ---- Smooth Mode resources ---------------------------------------------------
+// All device-dependent, all released with the other visual resources.
+//
+// The background plate is the blurred wallpaper slice, the panel fill and the
+// border ring rendered once into a bitmap. The 1.4 path re-does all three
+// every frame, and the blur goes through a layer with a geometric mask, which
+// on an integrated GPU means an offscreen allocation plus extra full-surface
+// passes per frame for pixels that never change.
+ComPtr<ID2D1Bitmap1> g_plateBitmap;
+D2D1_RECT_F g_plateRect = {0.f, 0.f, 0.f, 0.f};
+
+// Batched bars. One small atlas holds a pre-antialiased cap/body/cap strip of
+// the bar shape; each frame becomes a single DrawSpriteBatch call, instead of
+// one FillRoundedRectangle per bar (or, with per-corner radii, one brand new
+// path geometry per bar, per frame).
+ComPtr<ID2D1DeviceContext3> g_dc3;
+ComPtr<ID2D1SpriteBatch> g_spriteBatch;
+ComPtr<ID2D1Bitmap1> g_spriteAtlas;
+struct VizAtlasKey {
+    int kind = -1;  // 0 = bars, 1 = dots
+    bool horizontal = true;
+    float thick = 0.f, rTL = 0.f, rTR = 0.f, rBR = 0.f, rBL = 0.f, frac = 0.f;
+    bool operator==(const VizAtlasKey& o) const {
+        return kind == o.kind && horizontal == o.horizontal && thick == o.thick &&
+               rTL == o.rTL && rTR == o.rTR && rBR == o.rBR && rBL == o.rBL && frac == o.frac;
+    }
+};
+VizAtlasKey g_spriteAtlasKey;
+// Atlas geometry, in atlas pixels. capA is the leading cap (top for vertical
+// bars, left for horizontal ones), capB the trailing cap.
+struct VizAtlasLayout {
+    UINT pad = 1, capA = 0, mid = 3, capB = 0, across = 0;  // across = thickness incl. padding
+    UINT along = 0;                                         // pad + capA + mid + capB + pad
+} g_spriteAtlasLayout;
+std::vector<D2D1_RECT_F> g_spriteDst;
+std::vector<D2D1_RECT_U> g_spriteSrc;
+std::vector<D2D1_COLOR_F> g_spriteCol;
+
+// Text layouts, cached per overlay. DrawText builds a fresh layout (font
+// fallback, shaping, line breaking) on every call; the strings here change a
+// few times a minute at most, so Smooth Mode keeps the last one.
+struct VizTextLayoutCache {
+    std::wstring text;
+    float w = -1.f, h = -1.f;
+    ComPtr<IDWriteTextLayout> layout;
+    void Reset() { text.clear(); w = h = -1.f; layout.Reset(); }
+};
+VizTextLayoutCache g_npLayoutCache, g_pfLayoutCache;
+
+// Per-frame motion scale for Smooth Mode: 1.0 when the frame arrived exactly
+// one Target-FPS interval after the last, larger when it was late. Written and
+// read on the UI thread only.
+float g_frameScale = 1.0f;
+
+inline LONGLONG VizQpcFreq() {
+    static LONGLONG s_freq = [] {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        return f.QuadPart;
+    }();
+    return s_freq;
+}
+
+// Animation clock for Smooth Mode: seconds since the first call, from QPC.
+//
+// The 1.4 path drives Wave, Breathe and Rainbow from
+// (float)GetTickCount64() * 0.001f. That has two problems, and both show up as
+// stepping rather than motion. GetTickCount64 only moves every 15.6 ms, so at
+// 144 FPS two frames in three repeat the previous animation phase. And a float
+// holding a millisecond uptime runs out of mantissa: after a day of uptime the
+// value can only change in 8 ms steps, after ten days in 64 ms steps, so the
+// longer the PC has been on, the choppier those shapes get. This clock is QPC
+// in a double, and callers reduce phase * time modulo one cycle while still in
+// double (VizClockPhase) before narrowing, so it stays exact however long the
+// mod has been running.
+inline double VizClockSeconds() {
+    static LONGLONG s_start = [] {
+        LARGE_INTEGER q;
+        QueryPerformanceCounter(&q);
+        return q.QuadPart;
+    }();
+    LARGE_INTEGER q;
+    QueryPerformanceCounter(&q);
+    return (double)(q.QuadPart - s_start) / (double)VizQpcFreq();
+}
+
+// clock * rate, reduced modulo `cycle` in double precision.
+inline float VizClockPhase(double clock, double rate, double cycle) {
+    return (float)fmod(clock * rate, cycle);
+}
+
+// Converts a per-frame easing factor tuned at the Target FPS into the one
+// that covers the time that actually passed. At g_frameScale == 1 this is the
+// identity, so a frame that arrives on time moves exactly as in 1.4; a late
+// frame catches up instead of visibly slowing the motion down.
+inline float VizEaseForFrame(float perFrame) {
+    if (g_frameScale == 1.0f) return perFrame;
+    perFrame = std::clamp(perFrame, 0.0f, 1.0f);
+    return 1.0f - powf(1.0f - perFrame, g_frameScale);
+}
+
 float g_dpiScale = 1.0f;
+
+// A size in settings pixels, DPI-scaled, and with Pixel Snap on rounded to a
+// whole device pixel so edges land on the pixel grid.
+inline float VizPx(float v) {
+    float p = v * g_dpiScale;
+    return g_settings.pixelSnap ? roundf(p) : p;
+}
 FILETIME g_lastWallpaperTime = {};
 std::atomic<HMONITOR> g_cachedMonitor{nullptr};
 
@@ -1204,6 +2045,26 @@ float g_visualOffsetX = 0.f, g_visualOffsetY = 0.f;
 
 std::mutex g_nowPlayingMutex;
 std::wstring g_nowPlayingDisplay;
+std::wstring g_nowPlayingTitle, g_nowPlayingArtist;  // the parts, for the two-line layout
+
+// Track timeline from the media session, for the progress bar: start, end and
+// position in 100 ns units, and the tick at which the position was current.
+// Between updates the bar extrapolates while playing, since most players only
+// report the position on a seek or a state change.
+std::atomic<bool> g_tlValid{false};
+std::atomic<int64_t> g_tlStart{0}, g_tlEnd{0}, g_tlPos{0};
+std::atomic<ULONGLONG> g_tlTick{0};
+
+float VizTrackProgress() {
+    if (!g_tlValid.load(std::memory_order_relaxed)) return -1.f;
+    double start = (double)g_tlStart.load(std::memory_order_relaxed);
+    double dur = (double)g_tlEnd.load(std::memory_order_relaxed) - start;
+    if (dur <= 0.0) return -1.f;
+    double pos = (double)g_tlPos.load(std::memory_order_relaxed) - start;
+    if (g_mediaIsPlaying.load(std::memory_order_relaxed))
+        pos += (double)(GetTickCount64() - g_tlTick.load(std::memory_order_relaxed)) * 10000.0;
+    return (float)std::clamp(pos / dur, 0.0, 1.0);
+}
 std::atomic<ULONGLONG> g_nowPlayingChangedTick{0};
 
 static float VIZ_SEEDS[VIZ_BARS_MAX] = {};
@@ -1234,6 +2095,10 @@ static HANDLE g_gsmtcStopEvent = nullptr;
 // pair. This is the documented form for a global worker thread.
 [[clang::no_destroy]] static std::optional<std::thread> g_gsmtcThread;
 static std::thread* g_albumArtThread = nullptr;
+// Guards the pointer above: callers arrive from WinRT callbacks, the GSMTC
+// thread and the UI thread, and the worker can clear the pending flag before
+// the caller has stored its new thread.
+static std::mutex g_albumArtThreadMutex;
 
 HMODULE GetCurrentModuleHandle() {
     HMODULE module;
@@ -1281,6 +2146,143 @@ HMONITOR GetMonitorById(int monitorId) {
 
     return monitorResult;
 }
+
+// ---- DXCore: adapter classification and NPU discovery -------------------------
+//
+// DXGI can enumerate GPUs but can't say which one is integrated, and can't see
+// an NPU at all: NPUs are compute-only (MCDM) devices with no display engine,
+// so they never show up as a DXGI adapter. DXCore sees both. It ships in the
+// box from Windows 10 2004 on, but the toolchain's headers don't carry it, so
+// it is loaded at runtime and the handful of methods used here are declared
+// by hand, in vtable order, from the Windows SDK's dxcore_interface.h. Only
+// the leading methods are declared, and nothing past the last one is called.
+//
+// None of this runs per frame: it runs when the device is created and when the
+// NPU path explains why it can't start.
+namespace ttdxcore {
+
+enum : uint32_t {
+    kPropInstanceLuid = 0,
+    kPropDriverDescription = 2,
+    kPropIsIntegrated = 12,
+};
+
+struct IAdapter : public IUnknown {
+    virtual bool STDMETHODCALLTYPE IsValid() = 0;
+    virtual bool STDMETHODCALLTYPE IsAttributeSupported(REFGUID attributeGUID) = 0;
+    virtual bool STDMETHODCALLTYPE IsPropertySupported(uint32_t property) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetProperty(uint32_t property, size_t bufferSize,
+                                                  void* propertyData) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetPropertySize(uint32_t property, size_t* bufferSize) = 0;
+};
+
+struct IAdapterList : public IUnknown {
+    virtual HRESULT STDMETHODCALLTYPE GetAdapter(uint32_t index, REFIID riid, void** ppvAdapter) = 0;
+    virtual uint32_t STDMETHODCALLTYPE GetAdapterCount() = 0;
+};
+
+struct IAdapterFactory : public IUnknown {
+    virtual HRESULT STDMETHODCALLTYPE CreateAdapterList(uint32_t numAttributes,
+                                                        const GUID* filterAttributes,
+                                                        REFIID riid, void** ppvAdapterList) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetAdapterByLuid(const LUID& adapterLUID, REFIID riid,
+                                                       void** ppvAdapter) = 0;
+};
+
+static const GUID kIID_Factory = {
+    0x78ee5945, 0xc36e, 0x4b13, {0xa6, 0x69, 0x00, 0x5d, 0xd1, 0x1c, 0x0f, 0x06}};
+static const GUID kIID_List = {
+    0x526c7776, 0x40e9, 0x459b, {0xb7, 0x11, 0xf3, 0x2a, 0xd7, 0x6d, 0xfc, 0x28}};
+static const GUID kIID_Adapter = {
+    0xf0db4c7f, 0xfe5a, 0x42a2, {0xbd, 0x62, 0xf2, 0xa6, 0xcf, 0x6f, 0xc8, 0x3e}};
+static const GUID kAttrD3D11Graphics = {
+    0x8c47866b, 0x7583, 0x450d, {0xf0, 0xf0, 0x6b, 0xad, 0xa8, 0x95, 0xaf, 0x4b}};
+static const GUID kAttrD3D12Graphics = {
+    0x0c9ece4d, 0x2f6e, 0x4f01, {0x8c, 0x96, 0xe8, 0x9e, 0x33, 0x1b, 0x47, 0xb1}};
+static const GUID kAttrGenericML = {
+    0xb71b0d41, 0x1088, 0x422f, {0xa2, 0x7c, 0x02, 0x50, 0xb7, 0xd3, 0xa9, 0x88}};
+// Windows 11 24H2 and later. Older builds simply return an empty list for it.
+static const GUID kAttrHardwareNpu = {
+    0xd46140c4, 0xadd7, 0x451b, {0x9e, 0x56, 0x06, 0xfe, 0x8c, 0x3b, 0x58, 0xed}};
+
+typedef HRESULT(WINAPI* CreateFactoryFn)(REFIID riid, void** ppvFactory);
+
+inline ComPtr<IAdapterFactory> CreateFactory() {
+    // Kept loaded for the life of the process: it's a system DLL, and
+    // FreeLibrary on it buys nothing.
+    static HMODULE s_module = LoadLibraryExW(L"dxcore.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    ComPtr<IAdapterFactory> factory;
+    if (!s_module) return factory;
+    auto create = (CreateFactoryFn)(void*)GetProcAddress(s_module, "DXCoreCreateAdapterFactory");
+    if (!create) return factory;
+    if (FAILED(create(kIID_Factory, (void**)factory.GetAddressOf()))) factory.Reset();
+    return factory;
+}
+
+// 1 = integrated, 0 = discrete, -1 = DXCore can't say (pre-2004 Windows, or a
+// LUID it doesn't know).
+inline int IsIntegrated(const LUID& luid) {
+    ComPtr<IAdapterFactory> factory = CreateFactory();
+    if (!factory) return -1;
+    ComPtr<IAdapter> adapter;
+    if (FAILED(factory->GetAdapterByLuid(luid, kIID_Adapter, (void**)adapter.GetAddressOf())) ||
+        !adapter) {
+        return -1;
+    }
+    bool integrated = false;
+    if (FAILED(adapter->GetProperty(kPropIsIntegrated, sizeof(integrated), &integrated))) return -1;
+    return integrated ? 1 : 0;
+}
+
+inline std::wstring AdapterDescription(IAdapter* adapter) {
+    size_t size = 0;
+    if (FAILED(adapter->GetPropertySize(kPropDriverDescription, &size)) || size == 0 || size > 1024)
+        return L"";
+    std::string narrow(size, '\0');
+    if (FAILED(adapter->GetProperty(kPropDriverDescription, size, narrow.data()))) return L"";
+    narrow.resize(strnlen(narrow.c_str(), size));
+    int wlen = MultiByteToWideChar(CP_ACP, 0, narrow.c_str(), (int)narrow.size(), nullptr, 0);
+    std::wstring wide(wlen > 0 ? wlen : 0, L'\0');
+    if (wlen > 0) MultiByteToWideChar(CP_ACP, 0, narrow.c_str(), (int)narrow.size(), wide.data(), wlen);
+    return wide;
+}
+
+// Name of the first NPU Windows can see, e.g. "Intel(R) AI Boost", or empty.
+// Used to tell "the NPU is there but the runtime isn't" apart from "Windows
+// doesn't see an NPU at all", which need very different fixes.
+inline std::wstring FindNpuName() {
+    ComPtr<IAdapterFactory> factory = CreateFactory();
+    if (!factory) return L"";
+
+    auto firstMatching = [&](const GUID& attr, bool skipGraphics) -> std::wstring {
+        ComPtr<IAdapterList> list;
+        if (FAILED(factory->CreateAdapterList(1, &attr, kIID_List, (void**)list.GetAddressOf())) ||
+            !list) {
+            return L"";
+        }
+        uint32_t count = list->GetAdapterCount();
+        for (uint32_t i = 0; i < count; i++) {
+            ComPtr<IAdapter> adapter;
+            if (FAILED(list->GetAdapter(i, kIID_Adapter, (void**)adapter.GetAddressOf())) || !adapter)
+                continue;
+            // Every GPU also advertises generic ML, so on builds that predate
+            // the NPU attribute the only tell is "compute-only, no graphics".
+            if (skipGraphics && (adapter->IsAttributeSupported(kAttrD3D12Graphics) ||
+                                 adapter->IsAttributeSupported(kAttrD3D11Graphics))) {
+                continue;
+            }
+            std::wstring name = AdapterDescription(adapter.Get());
+            if (!name.empty()) return name;
+        }
+        return L"";
+    };
+
+    std::wstring name = firstMatching(kAttrHardwareNpu, false);
+    if (name.empty()) name = firstMatching(kAttrGenericML, true);
+    return name;
+}
+
+}  // namespace ttdxcore
 
 bool ParseColorHex(PCWSTR colorStr, BYTE* a, BYTE* r, BYTE* g, BYTE* b) {
     if (!colorStr || !*colorStr) {
@@ -1904,6 +2906,7 @@ void FetchAlbumArtColorAsync() {
     if (!g_albumArtFetchPending.compare_exchange_strong(expected, true))
         return;
 
+    std::lock_guard<std::mutex> threadLock(g_albumArtThreadMutex);
     if (g_albumArtThread) {
         if (g_albumArtThread->joinable())
             g_albumArtThread->join();
@@ -1930,6 +2933,8 @@ void FetchAlbumArtColorAsync() {
                                                         : (artist + L" - " + title);
                 if (!display.empty()) {
                     std::lock_guard<std::mutex> lock(g_nowPlayingMutex);
+                    g_nowPlayingTitle = title;
+                    g_nowPlayingArtist = artist;
                     if (g_nowPlayingDisplay != display) {
                         g_nowPlayingDisplay = display;
                         g_nowPlayingChangedTick.store(GetTickCount64(), std::memory_order_relaxed);
@@ -2049,6 +3054,7 @@ void FetchAlbumArtColorAsync() {
 
 static winrt::event_token g_gsmtcMediaPropsToken{};
 static winrt::event_token g_gsmtcPlaybackToken{};
+static winrt::event_token g_gsmtcTimelineToken{};
 static winrt::event_token g_gsmtcSessionToken{};
 [[clang::no_destroy]] static GlobalSystemMediaTransportControlsSessionManager g_gsmtcMgr{ nullptr };
 [[clang::no_destroy]] static GlobalSystemMediaTransportControlsSession        g_gsmtcSession{ nullptr };
@@ -2064,16 +3070,48 @@ void RefreshMediaPlaybackStatus() {
     if (g_mediaWnd) PostMessage(g_mediaWnd, WM_APP_MEDIA_REPAINT, 0, 0);
 }
 
+// Reads the session's timeline for the progress bar. LastUpdatedTime says how
+// old the position already is; a player that leaves it unset gets age 0.
+void RefreshMediaTimeline() {
+    if (!g_gsmtcSession) {
+        g_tlValid.store(false, std::memory_order_relaxed);
+        return;
+    }
+    try {
+        auto tl = g_gsmtcSession.GetTimelineProperties();
+        if (!tl) {
+            g_tlValid.store(false, std::memory_order_relaxed);
+            return;
+        }
+        int64_t start = tl.StartTime().count(), end = tl.EndTime().count(), pos = tl.Position().count();
+        int64_t ageMs = std::chrono::duration_cast<std::chrono::milliseconds>(winrt::clock::now() -
+                                                                              tl.LastUpdatedTime())
+                            .count();
+        if (ageMs < 0 || ageMs > 6LL * 3600 * 1000) ageMs = 0;
+        g_tlStart.store(start, std::memory_order_relaxed);
+        g_tlEnd.store(end, std::memory_order_relaxed);
+        g_tlPos.store(pos, std::memory_order_relaxed);
+        g_tlTick.store(GetTickCount64() - (ULONGLONG)ageMs, std::memory_order_relaxed);
+        g_tlValid.store(end > start, std::memory_order_relaxed);
+    } catch (...) {
+        g_tlValid.store(false, std::memory_order_relaxed);
+    }
+}
+
 void SetupGsmtcSessionListener() {
     if (!g_gsmtcMgr) return;
     try {
         if (g_gsmtcSession) {
             try { g_gsmtcSession.MediaPropertiesChanged(g_gsmtcMediaPropsToken); } catch (...) {}
             try { g_gsmtcSession.PlaybackInfoChanged(g_gsmtcPlaybackToken); } catch (...) {}
+            try { g_gsmtcSession.TimelinePropertiesChanged(g_gsmtcTimelineToken); } catch (...) {}
             g_gsmtcSession = nullptr;
         }
         g_gsmtcSession = g_gsmtcMgr.GetCurrentSession();
-        if (!g_gsmtcSession) return;
+        if (!g_gsmtcSession) {
+            g_tlValid.store(false, std::memory_order_relaxed);
+            return;
+        }
         g_gsmtcMediaPropsToken = g_gsmtcSession.MediaPropertiesChanged(
             [](auto const&, auto const&) {
                 if (g_settings.colorMode == VizColorMode::AlbumArt ||
@@ -2082,8 +3120,14 @@ void SetupGsmtcSessionListener() {
                     FetchAlbumArtColorAsync();
             });
         g_gsmtcPlaybackToken = g_gsmtcSession.PlaybackInfoChanged(
-            [](auto const&, auto const&) { RefreshMediaPlaybackStatus(); });
+            [](auto const&, auto const&) {
+                RefreshMediaPlaybackStatus();
+                RefreshMediaTimeline();  // pausing freezes the bar where it is
+            });
+        g_gsmtcTimelineToken = g_gsmtcSession.TimelinePropertiesChanged(
+            [](auto const&, auto const&) { RefreshMediaTimeline(); });
         RefreshMediaPlaybackStatus();
+        RefreshMediaTimeline();
     } catch (...) {}
 }
 
@@ -2121,6 +3165,7 @@ void InitGsmtcListener() {
             if (g_gsmtcSession) {
                 g_gsmtcSession.MediaPropertiesChanged(g_gsmtcMediaPropsToken);
                 g_gsmtcSession.PlaybackInfoChanged(g_gsmtcPlaybackToken);
+                g_gsmtcSession.TimelinePropertiesChanged(g_gsmtcTimelineToken);
             }
             if (g_gsmtcMgr) {
                 g_gsmtcMgr.CurrentSessionChanged(g_gsmtcSessionToken);
@@ -2574,6 +3619,22 @@ void RepositionAndRepaintMediaControls() {
     int x = mi.rcWork.left + (int)std::lround((workWidth - width) * (hPercent / 100.0f));
     int y = mi.rcWork.top + (int)std::lround((workHeight - height) * (vPercent / 100.0f));
 
+    // Anchored to the visualizer's panel (2.0): a corner of the panel as last
+    // drawn, inset by the anchor offsets, replacing the position above. The
+    // panel publishes its rect every frame and re-posts this when it moves.
+    if (g_settings.mediaAnchor != VizMediaAnchor::Screen && g_drawRectValid.load(std::memory_order_relaxed)) {
+        LONG pl = g_drawRectL.load(std::memory_order_relaxed), pt = g_drawRectT.load(std::memory_order_relaxed);
+        LONG pr = g_drawRectR.load(std::memory_order_relaxed), pb = g_drawRectB.load(std::memory_order_relaxed);
+        int ox = (int)std::lround(g_settings.mediaAnchorOffsetX * dpiScale);
+        int oy = (int)std::lround(g_settings.mediaAnchorOffsetY * dpiScale);
+        bool right = g_settings.mediaAnchor == VizMediaAnchor::PanelTopRight ||
+                     g_settings.mediaAnchor == VizMediaAnchor::PanelBottomRight;
+        bool bottom = g_settings.mediaAnchor == VizMediaAnchor::PanelBottomLeft ||
+                      g_settings.mediaAnchor == VizMediaAnchor::PanelBottomRight;
+        x = right ? (int)pr - ox - width : (int)pl + ox;
+        y = bottom ? (int)pb - oy - height : (int)pt + oy;
+    }
+
     Wh_Log(L"[Media] Reposition xywh=(%d,%d,%d,%d) work=(%ld,%ld,%ld,%ld) monitor=%d dpiScale=%.2f",
            x, y, width, height, mi.rcWork.left, mi.rcWork.top, mi.rcWork.right, mi.rcWork.bottom,
            g_settings.monitor, dpiScale);
@@ -2621,6 +3682,16 @@ LRESULT CALLBACK MediaWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
 
         case WM_APP_MEDIA_REPAINT:
             RepositionAndRepaintMediaControls();
+            return 0;
+
+        // Right-click on the strip opens the same quick-settings menu as the
+        // visualizer (handy when the visualizer is paused from it).
+        case WM_RBUTTONUP:
+            if (g_messageWnd && g_settings.contextMenu != VizContextMenu::Off) {
+                POINT pt;
+                GetCursorPos(&pt);
+                PostMessage(g_messageWnd, WM_APP_CONTEXT_MENU, (WPARAM)pt.x, (LPARAM)pt.y);
+            }
             return 0;
 
         case WM_DESTROY:
@@ -2756,6 +3827,2121 @@ VizEQMul GetVizEQMultipliers(VizEQ eq) {
     }
 }
 
+// ---- Precision analysis core (Analysis Engine = Precision) ---------------------
+//
+// Everything in here is plain C++ with no Windows dependency, so it can be
+// compiled and tested on its own against a reference implementation. The mod
+// pastes it in verbatim.
+//
+// What it replaces, and why. The 1.4 analysis ran one complex FFT over real
+// data, summed it into 7 fixed bands, and then every bar interpolated between
+// those 7 numbers. Bar Count and FFT Size changed how many bars were drawn,
+// not how much the bars knew. This core gives every bar its own frequency band
+// with its own edges, measured straight from the spectrum:
+//
+//   * a real-input FFT (an N/2-point complex FFT plus a post-twiddle), which
+//     is half the work of running a complex FFT on real data;
+//   * three resolution tiers: the signal as captured, decimated by 4 and
+//     decimated by 16, each analysed with the same FFT size. Bass bands come
+//     from the long, finely resolved windows, treble from the short, fast ones,
+//     so a 1/24-octave bar at 50 Hz is a real measurement instead of a smear;
+//   * band layouts on log / linear / mel / Bark / ERB scales, IEC 61260-1
+//     fractional-octave bands, or equal-tempered musical notes;
+//   * A / C / Z weighting (IEC 61672-1) and a dB-per-octave tilt, added per
+//     band in dB, which costs nothing;
+//   * frame-rate-independent ballistics: every coefficient is 1 - exp(-dt/tau)
+//     from the time that actually passed, so 60, 144 and 240 Hz all move the
+//     bars at the same speed;
+//   * BS.1770-5 loudness (momentary, short-term, gated integrated), 4x
+//     oversampled true peak, and a stereo correlation meter.
+//
+// Cost, at FFT Size 2048 and 144 FPS: one 1024-point complex FFT per frame for
+// the top tier, the lower tiers only when enough new decimated samples have
+// arrived to be worth it (every 1.5 and 6 frames). Well under 1% of one core.
+namespace ttdsp {
+
+constexpr double kPi = 3.14159265358979323846;
+
+// ---- Small helpers ----------------------------------------------------------
+
+inline bool IsPow2(int n) { return n > 0 && (n & (n - 1)) == 0; }
+inline int Log2i(int n) {
+    int l = 0;
+    while ((1 << l) < n) l++;
+    return l;
+}
+inline float DbFromPower(double p) { return (float)(10.0 * log10(p > 1e-30 ? p : 1e-30)); }
+
+// Newest-first audio history. Push is one store; Latest copies the newest n
+// samples, oldest first, into a linear buffer for windowing.
+class Ring {
+public:
+    void Init(int capacity) {
+        buf_.assign((size_t)std::max(1, capacity), 0.f);
+        head_ = 0;
+        count_ = 0;
+        total_ = 0;
+    }
+    void Clear() {
+        std::fill(buf_.begin(), buf_.end(), 0.f);
+        head_ = 0;
+        count_ = 0;
+    }
+    void Push(float v) {
+        buf_[head_] = v;
+        head_ = (head_ + 1 == (int)buf_.size()) ? 0 : head_ + 1;
+        if (count_ < (int)buf_.size()) count_++;
+        total_++;
+    }
+    // Zero-padded at the front when fewer than n samples exist yet.
+    void Latest(float* out, int n) const {
+        int cap = (int)buf_.size();
+        int have = std::min(n, count_);
+        int pad = n - have;
+        for (int i = 0; i < pad; i++) out[i] = 0.f;
+        int start = head_ - have;
+        if (start < 0) start += cap;
+        for (int i = 0; i < have; i++) {
+            out[pad + i] = buf_[start];
+            if (++start == cap) start = 0;
+        }
+    }
+    float At(int ageFromNewest) const {  // 0 = newest
+        int cap = (int)buf_.size();
+        int i = head_ - 1 - ageFromNewest;
+        while (i < 0) i += cap;
+        return buf_[i % cap];
+    }
+    int Capacity() const { return (int)buf_.size(); }
+    int Count() const { return count_; }
+    unsigned long long Total() const { return total_; }
+
+private:
+    std::vector<float> buf_;
+    int head_ = 0, count_ = 0;
+    unsigned long long total_ = 0;
+};
+
+// ---- Windows ------------------------------------------------------------------
+//
+// Periodic ("DFT-even") forms, which are the right ones for spectral analysis:
+// the symmetric forms used for filter design put the window's last sample on
+// top of the next period's first and widen the main lobe slightly. Figures are
+// from F. J. Harris (1978).
+//
+//   Hann              -31.5 dB sidelobes, ENBW 1.50 bins   the general default
+//   Hamming           -43 dB,             ENBW 1.36        narrower main lobe
+//   Blackman-Harris   -92 dB,             ENBW 2.00        high dynamic range
+//   Flat-top          scallop ~0.01 dB,   ENBW ~3.8        accurate tone levels
+//   Rectangular       -13 dB,             ENBW 1.00        reference only
+enum class WindowKind { Hann, Hamming, BlackmanHarris, FlatTop, Rectangular };
+
+struct WindowSums {
+    double sum = 0.0;    // sum of w[n]   = N x coherent gain
+    double sumSq = 0.0;  // sum of w[n]^2 = N x incoherent (power) gain
+};
+
+inline WindowSums BuildWindow(WindowKind kind, int n, float* out) {
+    double a[5] = {1, 0, 0, 0, 0};
+    switch (kind) {
+        case WindowKind::Hann: a[0] = 0.5; a[1] = 0.5; break;
+        case WindowKind::Hamming: a[0] = 0.54; a[1] = 0.46; break;
+        case WindowKind::BlackmanHarris:
+            a[0] = 0.35875; a[1] = 0.48829; a[2] = 0.14128; a[3] = 0.01168;
+            break;
+        case WindowKind::FlatTop:
+            a[0] = 0.21557895; a[1] = 0.41663158; a[2] = 0.277263158;
+            a[3] = 0.083578947; a[4] = 0.006947368;
+            break;
+        default: break;
+    }
+    WindowSums s;
+    for (int i = 0; i < n; i++) {
+        double x = 2.0 * kPi * i / n;
+        double w = a[0] - a[1] * cos(x) + a[2] * cos(2 * x) - a[3] * cos(3 * x) + a[4] * cos(4 * x);
+        out[i] = (float)w;
+        s.sum += w;
+        s.sumSq += w * w;
+    }
+    return s;
+}
+
+// ---- Real-input FFT -------------------------------------------------------------
+//
+// N real samples are packed as N/2 complex values z[k] = x[2k] + i x[2k+1],
+// transformed with an N/2-point radix-2 FFT, and unpacked with one post-twiddle
+// pass:
+//   X[k] = E[k] + W^k O[k],  E = (Z[k] + conj Z[m-k]) / 2,
+//                            O = (Z[k] - conj Z[m-k]) / 2i,   W = e^(-2 pi i / N)
+// Output is bins 0..N/2 inclusive.
+class RealFft {
+public:
+    bool Init(int n) {
+        if (!IsPow2(n) || n < 16) return false;
+        n_ = n;
+        m_ = n / 2;
+        int lg = Log2i(m_);
+        rev_.resize(m_);
+        for (int i = 0; i < m_; i++) {
+            int r = 0;
+            for (int b = 0; b < lg; b++)
+                if (i & (1 << b)) r |= 1 << (lg - 1 - b);
+            rev_[i] = r;
+        }
+        twr_.resize(m_ / 2);
+        twi_.resize(m_ / 2);
+        for (int k = 0; k < m_ / 2; k++) {
+            double a = -2.0 * kPi * k / m_;
+            twr_[k] = (float)cos(a);
+            twi_[k] = (float)sin(a);
+        }
+        pr_.resize(m_ + 1);
+        pi_.resize(m_ + 1);
+        for (int k = 0; k <= m_; k++) {
+            double a = -2.0 * kPi * k / n_;
+            pr_[k] = (float)cos(a);
+            pi_[k] = (float)sin(a);
+        }
+        zr_.assign(m_, 0.f);
+        zi_.assign(m_, 0.f);
+        return true;
+    }
+    int Size() const { return n_; }
+
+    void Forward(const float* in, float* re, float* im) {
+        const int m = m_;
+        for (int k = 0; k < m; k++) {
+            int r = rev_[k];
+            zr_[r] = in[2 * k];
+            zi_[r] = in[2 * k + 1];
+        }
+        for (int len = 2; len <= m; len <<= 1) {
+            int half = len >> 1;
+            int stride = m / len;
+            for (int i = 0; i < m; i += len) {
+                for (int j = 0; j < half; j++) {
+                    float wr = twr_[j * stride], wi = twi_[j * stride];
+                    int a = i + j, b = a + half;
+                    float vr = zr_[b] * wr - zi_[b] * wi;
+                    float vi = zr_[b] * wi + zi_[b] * wr;
+                    zr_[b] = zr_[a] - vr;
+                    zi_[b] = zi_[a] - vi;
+                    zr_[a] += vr;
+                    zi_[a] += vi;
+                }
+            }
+        }
+        for (int k = 0; k <= m; k++) {
+            int ka = (k == m) ? 0 : k;
+            int kb = (k == 0) ? 0 : m - k;
+            float ar = zr_[ka], ai = zi_[ka];
+            float br = zr_[kb], bi = -zi_[kb];  // conj Z[m-k]
+            float er = 0.5f * (ar + br), ei = 0.5f * (ai + bi);
+            float dr = ar - br, di = ai - bi;
+            float orr = 0.5f * di, oi = -0.5f * dr;  // (a - b) / 2i
+            re[k] = er + pr_[k] * orr - pi_[k] * oi;
+            im[k] = ei + pr_[k] * oi + pi_[k] * orr;
+        }
+    }
+
+private:
+    int n_ = 0, m_ = 0;
+    std::vector<int> rev_;
+    std::vector<float> twr_, twi_, pr_, pi_, zr_, zi_;
+};
+
+// ---- Half-band decimator (by 2) ---------------------------------------------------
+//
+// A half-band lowpass has every even-offset tap except the centre at zero, so
+// only about a quarter of the taps cost a multiply, and it only has to be
+// evaluated for every second input sample. Kaiser-windowed, 59 taps, beta 9:
+// about 90 dB of stopband from 0.3 fs, passband flat to 0.2 fs. After the
+// decimation that leaves the output clean up to 0.8 of its own Nyquist, which
+// is exactly the band the tier selector below allows each tier to serve.
+class HalfBand {
+public:
+    static constexpr int kTaps = 59;  // 4k + 3, so the outermost taps are non-zero
+    static constexpr int kMid = kTaps / 2;
+
+    HalfBand() {
+        double beta = 9.0;
+        auto bessel0 = [](double x) {
+            double sum = 1.0, term = 1.0;
+            for (int k = 1; k < 50; k++) {
+                term *= (x / (2.0 * k)) * (x / (2.0 * k));
+                sum += term;
+                if (term < 1e-12 * sum) break;
+            }
+            return sum;
+        };
+        double denom = bessel0(beta);
+        double gain = 0.0;
+        for (int i = 0; i < kTaps; i++) {
+            int n = i - kMid;
+            double h = (n == 0) ? 0.5 : sin(kPi * n / 2.0) / (kPi * n);
+            double r = (double)n / kMid;
+            double w = bessel0(beta * sqrt(std::max(0.0, 1.0 - r * r))) / denom;
+            h *= w;
+            if (n != 0 && (n % 2) == 0) h = 0.0;
+            coef_[i] = h;
+            gain += h;
+        }
+        // Unity gain at DC exactly.
+        for (int i = 0; i < kTaps; i++) coef_[i] /= gain;
+        // Odd-offset taps, folded by symmetry: odd_[j] multiplies x[mid - (2j+1)] + x[mid + (2j+1)].
+        for (int j = 0; j < kOdd; j++) odd_[j] = (float)coef_[kMid + 2 * j + 1];
+        center_ = (float)coef_[kMid];
+        Reset();
+    }
+    void Reset() {
+        for (int i = 0; i < 2 * kTaps; i++) hist_[i] = 0.f;
+        pos_ = 0;
+        phase_ = 0;
+    }
+    // Returns true when an output sample was produced (every second call).
+    bool Push(float x, float* out) {
+        // Doubled history so the newest kTaps samples are always contiguous.
+        hist_[pos_] = x;
+        hist_[pos_ + kTaps] = x;
+        pos_ = (pos_ + 1 == kTaps) ? 0 : pos_ + 1;
+        phase_ ^= 1;
+        if (phase_) return false;
+        const float* h = hist_ + pos_;  // h[0] oldest ... h[kTaps-1] newest
+        float acc = center_ * h[kMid];
+        for (int j = 0; j < kOdd; j++) acc += odd_[j] * (h[kMid - (2 * j + 1)] + h[kMid + (2 * j + 1)]);
+        *out = acc;
+        return true;
+    }
+    double Coef(int i) const { return coef_[i]; }
+
+private:
+    static constexpr int kOdd = (kMid + 1) / 2;
+    double coef_[kTaps];
+    float odd_[kOdd];
+    float center_ = 0.5f;
+    float hist_[2 * kTaps];
+    int pos_ = 0, phase_ = 0;
+};
+
+// ---- Band layouts -------------------------------------------------------------------
+
+enum class BandLayout { Scale, Iec, Musical };
+enum class FreqScale { Log, Linear, Mel, Bark, Erb };
+
+struct Band {
+    double f1 = 0, f2 = 0, fc = 0;  // edges and centre, Hz
+};
+
+inline double ScaleFwd(FreqScale s, double f) {
+    switch (s) {
+        case FreqScale::Linear: return f;
+        case FreqScale::Mel: return 2595.0 * log10(1.0 + f / 700.0);
+        case FreqScale::Bark: return 26.81 * f / (1960.0 + f) - 0.53;  // Traunmueller
+        case FreqScale::Erb: return 21.4 * log10(1.0 + 0.00437 * f);  // Glasberg & Moore
+        default: return log(std::max(f, 1e-3));
+    }
+}
+inline double ScaleInv(FreqScale s, double u) {
+    switch (s) {
+        case FreqScale::Linear: return u;
+        case FreqScale::Mel: return 700.0 * (pow(10.0, u / 2595.0) - 1.0);
+        case FreqScale::Bark: return 1960.0 * (u + 0.53) / (26.28 - u);
+        case FreqScale::Erb: return (pow(10.0, u / 21.4) - 1.0) / 0.00437;
+        default: return exp(u);
+    }
+}
+
+// n bands evenly spaced on the chosen scale between fmin and fmax. Each band's
+// centre is the midpoint of its edges in the scale's own units, so on Log it is
+// the geometric mean.
+inline std::vector<Band> ScaleBands(FreqScale s, double fmin, double fmax, int n) {
+    std::vector<Band> out;
+    n = std::max(1, n);
+    double u0 = ScaleFwd(s, fmin), u1 = ScaleFwd(s, fmax);
+    for (int i = 0; i < n; i++) {
+        double a = u0 + (u1 - u0) * i / n;
+        double b = u0 + (u1 - u0) * (i + 1) / n;
+        Band bd;
+        bd.f1 = ScaleInv(s, a);
+        bd.f2 = ScaleInv(s, b);
+        bd.fc = ScaleInv(s, 0.5 * (a + b));
+        out.push_back(bd);
+    }
+    return out;
+}
+
+// IEC 61260-1:2014 / ANSI S1.11, base-10 system. G = 10^(3/10), reference
+// 1000 Hz, bandwidth designator b (1 = octave, 3 = third-octave, ...).
+//   b odd:  fm = fr G^(x/b)
+//   b even: fm = fr G^((2x+1)/(2b))
+//   edges:  fm G^(-1/2b), fm G^(+1/2b)
+// A band is kept when its exact midband frequency is within a quarter of a
+// band of [fmin, fmax], so the band labelled "20 Hz" (exactly 19.95 Hz) is in
+// a 20 Hz - 20 kHz range, the way any RTA shows it.
+inline std::vector<Band> IecBands(int b, double fmin, double fmax) {
+    std::vector<Band> out;
+    b = std::max(1, b);
+    const double G = pow(10.0, 0.3);
+    const double tol = pow(G, 1.0 / (4.0 * b));
+    for (int x = -10 * b; x <= 10 * b; x++) {
+        double fm = (b % 2) ? 1000.0 * pow(G, (double)x / b) : 1000.0 * pow(G, (2.0 * x + 1.0) / (2.0 * b));
+        if (fm < fmin / tol || fm > fmax * tol) continue;
+        Band bd;
+        bd.fc = fm;
+        bd.f1 = fm * pow(G, -1.0 / (2.0 * b));
+        bd.f2 = fm * pow(G, 1.0 / (2.0 * b));
+        out.push_back(bd);
+    }
+    return out;
+}
+
+// Equal temperament: one band per note (stepsPerOctave 12) or per quarter tone
+// (24), centred on fm = A4 x 2^(k / steps), edges half a step either side.
+inline std::vector<Band> MusicalBands(int stepsPerOctave, double a4, double fmin, double fmax) {
+    std::vector<Band> out;
+    int steps = (stepsPerOctave >= 24) ? 24 : 12;
+    double half = pow(2.0, 0.5 / steps);
+    int kLo = (int)floor(steps * log2(fmin / a4)) - 1;
+    int kHi = (int)ceil(steps * log2(fmax / a4)) + 1;
+    for (int k = kLo; k <= kHi; k++) {
+        double fm = a4 * pow(2.0, (double)k / steps);
+        if (fm < fmin * 0.9999 || fm > fmax * 1.0001) continue;
+        Band bd;
+        bd.fc = fm;
+        bd.f1 = fm / half;
+        bd.f2 = fm * half;
+        out.push_back(bd);
+    }
+    return out;
+}
+
+// ---- Weighting curves (IEC 61672-1), dB at f -------------------------------------
+inline double AWeightDb(double f) {
+    double f2 = f * f;
+    double ra = (12194.0 * 12194.0 * f2 * f2) /
+                ((f2 + 20.6 * 20.6) * sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9)) *
+                 (f2 + 12194.0 * 12194.0));
+    return 20.0 * log10(std::max(ra, 1e-30)) + 2.00;
+}
+inline double CWeightDb(double f) {
+    double f2 = f * f;
+    double rc = (12194.0 * 12194.0 * f2) / ((f2 + 20.6 * 20.6) * (f2 + 12194.0 * 12194.0));
+    return 20.0 * log10(std::max(rc, 1e-30)) + 0.06;
+}
+
+enum class Weighting { Z, A, C };
+enum class Detector { Rms, Peak };
+enum class LevelRef { ThirdOctave, Band };
+
+// ---- Spectrum engine ----------------------------------------------------------------
+//
+// Owns the three tiers (rings, decimators, FFTs), the per-band bin maps and
+// the per-band dB offsets. Analyze() turns the newest window of each tier into
+// one dBFS figure per band.
+//
+// Level calibration. Both detectors read a full-scale sine as 0 dBFS:
+//   RMS:  mean square from the bins, 2 sum|X|^2 / (N sum w^2), which is
+//         Parseval's theorem for a windowed block, plus 3.01 dB so a sine's
+//         0.5 mean square reads 0 dB. Correct for noise and tones alike, as
+//         long as the band covers the tone's main lobe.
+//   Peak: the largest bin, 2|X| / sum w. Exact for a tone on a bin centre,
+//         low by the window's scallop loss between bins.
+// With Level Reference = third-octave, RMS bands are scaled to the power a
+// 1/3-octave band at the same centre would hold (+10 log10(BW13 / BW)). That
+// makes pink noise read flat and makes bar heights independent of how many
+// bars there are, which is what a 1/3-octave RTA shows.
+class SpectrumEngine {
+public:
+    struct Config {
+        int sampleRate = 48000;
+        int fftSize = 2048;
+        int maxTier = 2;  // 0 = single resolution, 1 = add /4, 2 = add /4 and /16
+        WindowKind window = WindowKind::Hann;
+        BandLayout layout = BandLayout::Scale;
+        FreqScale scale = FreqScale::Log;
+        int octaveFraction = 6;     // IEC b, or 12 / 24 for Musical
+        double fmin = 20.0, fmax = 20000.0;
+        double a4 = 440.0;
+        int bars = 32;              // used by Scale layout
+        int maxBands = 2048;
+        Weighting weighting = Weighting::Z;
+        double tiltDbPerOct = 0.0;  // pivot 1 kHz
+        Detector detector = Detector::Rms;
+        LevelRef levelRef = LevelRef::ThirdOctave;
+        double zoneDb[3] = {0, 0, 0};  // EQ preset, low (<300 Hz) / mid / high (>2.5 kHz)
+    };
+
+    struct BandMap {
+        int tier = 0;
+        int k0 = 1, k1 = 1;      // inclusive bin range
+        float w0 = 1.f, w1 = 1.f; // weight of the first / last bin (partial overlap)
+        float offsetDb = 0.f;    // calibration + weighting + tilt + EQ + level reference
+        float peakOffsetDb = 0.f;// same for the Peak detector (no bandwidth term)
+    };
+
+    bool Configure(const Config& c) {
+        cfg_ = c;
+        int n = c.fftSize;
+        if (!IsPow2(n) || n < 256) n = 2048;
+        cfg_.fftSize = n;
+        cfg_.maxTier = std::clamp(c.maxTier, 0, 2);
+        double nyq = 0.5 * cfg_.sampleRate;
+        double fmax = std::min(cfg_.fmax, nyq * 0.98);
+        double fmin = std::clamp(cfg_.fmin, 1.0, fmax * 0.5);
+
+        // Bands.
+        switch (cfg_.layout) {
+            case BandLayout::Iec: bands_ = IecBands(cfg_.octaveFraction, fmin, fmax); break;
+            case BandLayout::Musical:
+                bands_ = MusicalBands(cfg_.octaveFraction, cfg_.a4, fmin, fmax);
+                break;
+            default: bands_ = ScaleBands(cfg_.scale, fmin, fmax, cfg_.bars); break;
+        }
+        if ((int)bands_.size() > cfg_.maxBands) bands_.resize(cfg_.maxBands);
+        if (bands_.empty()) bands_ = ScaleBands(FreqScale::Log, fmin, fmax, 1);
+        for (auto& b : bands_) {  // a band can't extend past what any tier can see
+            b.f2 = std::min(b.f2, nyq * 0.98);
+            b.f1 = std::min(b.f1, b.f2 * 0.999);
+        }
+
+        window_.resize(n);
+        WindowSums ws = BuildWindow(cfg_.window, n, window_.data());
+        fft_.Init(n);
+        re_.assign(n / 2 + 1, 0.f);
+        im_.assign(n / 2 + 1, 0.f);
+        scratch_.assign(n, 0.f);
+        for (int t = 0; t < 3; t++) {
+            ring_[t].Init(n * 2);
+            power_[t].assign(n / 2 + 1, 0.f);
+            fresh_[t] = 0;
+            valid_[t] = false;
+        }
+        for (auto& d : dec_) d.Reset();
+
+        // Calibration constants (see the class comment).
+        const double rmsCal = 10.0 * log10(2.0 / (n * ws.sumSq)) + 10.0 * log10(2.0);
+        const double peakCal = 20.0 * log10(2.0 / ws.sum);
+        // Hop per tier before its FFT is worth redoing: the top tier every
+        // frame, the decimated ones once N/16 new samples have arrived.
+        hop_[0] = 1;
+        hop_[1] = hop_[2] = std::max(16, n / 16);
+
+        maps_.assign(bands_.size(), BandMap());
+        tierUsed_[0] = true;
+        tierUsed_[1] = tierUsed_[2] = false;
+        // Half-width of the window's main lobe, in bins. A tone spreads that
+        // far either side of its bin, so a band has to be at least a full
+        // lobe wide (both halves) before a tone in the next band over stops
+        // leaking into it.
+        double lobe = 2.0;
+        switch (cfg_.window) {
+            case WindowKind::BlackmanHarris: lobe = 4.0; break;
+            case WindowKind::FlatTop: lobe = 5.0; break;
+            case WindowKind::Rectangular: lobe = 1.0; break;
+            default: break;
+        }
+        for (size_t i = 0; i < bands_.size(); i++) {
+            const Band& b = bands_[i];
+            BandMap& m = maps_[i];
+            double bw = std::max(b.f2 - b.f1, 1e-6);
+            // Tier: the least decimated (fastest) one whose main lobe fits
+            // inside the band, as long as the band sits inside that tier's
+            // clean passband. Falls back to the finest tier the passband
+            // allows, which is the best resolution there is.
+            int tier = 0;
+            for (int t = 0; t <= cfg_.maxTier; t++) {
+                double fs = TierRate(t);
+                if (b.f2 > 0.4 * fs) break;
+                tier = t;
+                if (2.0 * lobe * fs / n <= bw) break;
+            }
+            m.tier = tier;
+            tierUsed_[tier] = true;
+            double df = TierRate(tier) / n;
+            double x1 = b.f1 / df, x2 = b.f2 / df;  // edges in bins
+            int k0 = (int)floor(x1 + 0.5), k1 = (int)floor(x2 + 0.5);
+            k0 = std::clamp(k0, 1, n / 2);
+            k1 = std::clamp(k1, k0, n / 2);
+            m.k0 = k0;
+            m.k1 = k1;
+            if (k0 == k1) {
+                m.w0 = (float)std::clamp(x2 - x1, 0.0, 1.0);
+                m.w1 = m.w0;
+            } else {
+                m.w0 = (float)std::clamp((k0 + 0.5) - x1, 0.0, 1.0);
+                m.w1 = (float)std::clamp(x2 - (k1 - 0.5), 0.0, 1.0);
+            }
+            double off = 0.0;
+            if (cfg_.weighting == Weighting::A) off += AWeightDb(b.fc);
+            else if (cfg_.weighting == Weighting::C) off += CWeightDb(b.fc);
+            off += cfg_.tiltDbPerOct * log2(b.fc / 1000.0);
+            int zone = (b.fc < 300.0) ? 0 : (b.fc < 2500.0) ? 1 : 2;
+            off += cfg_.zoneDb[zone];
+            double refTerm = 0.0;
+            if (cfg_.levelRef == LevelRef::ThirdOctave) {
+                double bw13 = b.fc * (pow(2.0, 1.0 / 6.0) - pow(2.0, -1.0 / 6.0));
+                refTerm = 10.0 * log10(bw13 / bw);
+            }
+            m.offsetDb = (float)(rmsCal + off + refTerm);
+            m.peakOffsetDb = (float)(peakCal + off);
+        }
+        levelsDb_.assign(bands_.size(), -200.f);
+        configured_ = true;
+        return true;
+    }
+
+    // Mono samples in. Feeds the top tier directly and the decimator cascade
+    // for the others (only as deep as a band actually needs).
+    void Push(const float* x, int count) {
+        if (!configured_) return;
+        int deepest = tierUsed_[2] ? 2 : tierUsed_[1] ? 1 : 0;
+        for (int i = 0; i < count; i++) {
+            float v = x[i];
+            ring_[0].Push(v);
+            fresh_[0]++;
+            if (deepest < 1) continue;
+            float a, b2;
+            if (!dec_[0].Push(v, &a)) continue;
+            if (!dec_[1].Push(a, &b2)) continue;
+            ring_[1].Push(b2);
+            fresh_[1]++;
+            if (deepest < 2) continue;
+            float c, d;
+            if (!dec_[2].Push(b2, &c)) continue;
+            if (!dec_[3].Push(c, &d)) continue;
+            ring_[2].Push(d);
+            fresh_[2]++;
+        }
+    }
+
+    // Runs the FFT for each tier that has enough new data, then rebuilds the
+    // band levels. Returns true if anything was recomputed.
+    //
+    // fftOverride lets the caller run the transform somewhere else (the NPU):
+    // it gets the windowed block and must fill re/im with bins 0..N/2, or
+    // return false to fall back to the CPU FFT.
+    template <typename FftOverride>
+    bool Analyze(bool force, FftOverride&& fftOverride) {
+        if (!configured_) return false;
+        const int n = cfg_.fftSize;
+        bool any = false;
+        for (int t = 0; t < 3; t++) {
+            if (!tierUsed_[t]) continue;
+            if (!force && fresh_[t] < hop_[t]) continue;
+            fresh_[t] = 0;
+            ring_[t].Latest(scratch_.data(), n);
+            for (int i = 0; i < n; i++) scratch_[i] *= window_[i];
+            if (!fftOverride(scratch_.data(), n, re_.data(), im_.data()))
+                fft_.Forward(scratch_.data(), re_.data(), im_.data());
+            float* p = power_[t].data();
+            for (int k = 0; k <= n / 2; k++) p[k] = re_[k] * re_[k] + im_[k] * im_[k];
+            valid_[t] = true;
+            any = true;
+        }
+        if (!any) return false;
+        const bool peakDet = cfg_.detector == Detector::Peak;
+        for (size_t i = 0; i < maps_.size(); i++) {
+            const BandMap& m = maps_[i];
+            const float* p = power_[m.tier].data();
+            double v;
+            if (peakDet) {
+                float mx = 0.f;
+                for (int k = m.k0; k <= m.k1; k++) mx = std::max(mx, p[k]);
+                v = (double)DbFromPower(mx) + m.peakOffsetDb;  // 10log10(|X|^2) = 20log10|X|
+            } else {
+                double s;
+                if (m.k0 == m.k1) {
+                    s = p[m.k0] * m.w0;
+                } else {
+                    s = p[m.k0] * m.w0 + p[m.k1] * m.w1;
+                    for (int k = m.k0 + 1; k < m.k1; k++) s += p[k];
+                }
+                v = (double)DbFromPower(s) + m.offsetDb;
+            }
+            levelsDb_[i] = (float)v;
+        }
+        return true;
+    }
+    bool Analyze(bool force) {
+        return Analyze(force, [](const float*, int, float*, float*) { return false; });
+    }
+
+    // Loudest bin between fmin and fmax, refined by a parabola through the
+    // log magnitudes of the bin and its neighbours (accurate to a fraction of
+    // a bin for a steady tone). Uses the finest tier that covers each range.
+    double DominantHz(double minLevelDbfs) const {
+        double bestDb = -1e9, bestHz = 0.0;
+        const int n = cfg_.fftSize;
+        for (int t = 0; t < 3; t++) {
+            if (!valid_[t]) continue;
+            double fs = TierRate(t);
+            double df = fs / n;
+            // This tier owns [lo, hi): above the next tier's passband edge.
+            double hi = (t == 0) ? std::min(cfg_.fmax, 0.49 * fs) : 0.4 * fs;
+            double lo = (t < 2 && valid_[t + 1]) ? 0.4 * TierRate(t + 1) : cfg_.fmin;
+            int k0 = std::max(2, (int)ceil(lo / df));
+            int k1 = std::min(n / 2 - 2, (int)floor(hi / df));
+            const float* p = power_[t].data();
+            for (int k = k0; k <= k1; k++) {
+                double db = DbFromPower(p[k]) + PeakCal();
+                if (db > bestDb && p[k] >= p[k - 1] && p[k] >= p[k + 1]) {
+                    double a = DbFromPower(p[k - 1]), b = DbFromPower(p[k]), c = DbFromPower(p[k + 1]);
+                    double den = a - 2 * b + c;
+                    double delta = (fabs(den) > 1e-9) ? 0.5 * (a - c) / den : 0.0;
+                    bestDb = db;
+                    bestHz = (k + std::clamp(delta, -0.5, 0.5)) * df;
+                }
+            }
+        }
+        return (bestDb >= minLevelDbfs) ? bestHz : 0.0;
+    }
+
+    double TierRate(int t) const { return cfg_.sampleRate / (double)(1 << (2 * t)); }
+    int NumBands() const { return (int)bands_.size(); }
+    const std::vector<Band>& Bands() const { return bands_; }
+    const std::vector<BandMap>& Maps() const { return maps_; }
+    const float* LevelsDb() const { return levelsDb_.data(); }
+    const Config& Cfg() const { return cfg_; }
+    bool TierUsed(int t) const { return tierUsed_[t]; }
+    const Ring& TierRing(int t) const { return ring_[t]; }
+    const float* Window() const { return window_.data(); }
+    double PeakCal() const {
+        double s = 0;
+        for (float w : window_) s += w;
+        return 20.0 * log10(2.0 / s);
+    }
+    // For the GPU workload: the newest window of each tier, unwindowed, and
+    // whether the tier has moved on enough to be re-transformed.
+    bool TakeTierBlock(int t, float* out, bool force) {
+        if (!tierUsed_[t]) return false;
+        if (!force && fresh_[t] < hop_[t]) return false;
+        fresh_[t] = 0;
+        ring_[t].Latest(out, cfg_.fftSize);
+        return true;
+    }
+
+private:
+    Config cfg_;
+    bool configured_ = false;
+    std::vector<Band> bands_;
+    std::vector<BandMap> maps_;
+    std::vector<float> window_, re_, im_, scratch_, levelsDb_;
+    std::vector<float> power_[3];
+    Ring ring_[3];
+    HalfBand dec_[4];
+    int fresh_[3] = {0, 0, 0};
+    int hop_[3] = {1, 1, 1};
+    bool valid_[3] = {false, false, false};
+    bool tierUsed_[3] = {true, false, false};
+    RealFft fft_;
+};
+
+// ---- Display mapping and ballistics ----------------------------------------------------
+//
+// Level in dBFS -> bar height 0..1 across [floor, ceiling], then ballistics in
+// that (dB-linear) domain, which is how meters behave: the same number of dB
+// per second falls the same distance anywhere on the scale.
+//
+// Every coefficient is computed from dt, the time since the previous update:
+//   rise / exponential fall: y += (x - y) (1 - e^(-dt / tau))
+//   linear fall:             y  = max(x, y - rate dt)
+// so a frame that runs late moves further, by exactly the right amount.
+enum class ReleaseKind { Exponential, Linear };
+
+struct Ballistics {
+    double attackMs = 10.0;
+    ReleaseKind release = ReleaseKind::Exponential;
+    double releaseMs = 70.0;      // tau, for Exponential
+    double releaseDbPerSec = 20;  // for Linear
+};
+
+inline Ballistics BallisticsPreset(int preset) {
+    // 0 snappy (closest to the 1.4 feel), 1 smooth, 2 analyzer, 3 VU,
+    // 4 EBU / IEC 60268-10 Type II PPM, 5 DIN / Type I PPM.
+    Ballistics b;
+    switch (preset) {
+        case 1: b.attackMs = 25; b.releaseMs = 180; break;
+        case 2: b.attackMs = 10; b.release = ReleaseKind::Linear; b.releaseDbPerSec = 20; break;
+        case 3: b.attackMs = 65; b.releaseMs = 65; break;  // 300 ms to 99%
+        case 4: b.attackMs = 10; b.release = ReleaseKind::Linear; b.releaseDbPerSec = 24.0 / 2.8; break;
+        case 5: b.attackMs = 5; b.release = ReleaseKind::Linear; b.releaseDbPerSec = 20.0 / 1.5; break;
+        default: b.attackMs = 10; b.releaseMs = 70; break;
+    }
+    return b;
+}
+
+enum class Curve { Exponential, Knee, Power, Linear };
+
+inline float ApplyCurve(Curve c, float x) {
+    if (x <= 0.f) return 0.f;
+    switch (c) {
+        // Soft from the start, scaled so full scale still reaches the top.
+        case Curve::Exponential: return std::min(1.f, (1.f - expf(-2.f * x)) / (1.f - expf(-2.f)));
+        case Curve::Power: return std::min(1.f, powf(x, 0.6f));
+        case Curve::Linear: return std::min(1.f, x);
+        default: {
+            const float knee = 0.7f;
+            return (x <= knee) ? x : knee + (1.f - knee) * tanhf((x - knee) / (1.f - knee));
+        }
+    }
+}
+
+struct DisplayMap {
+    float floorDb = -72.f, ceilDb = -12.f;
+    float gainDb = 0.f;  // sensitivity + auto gain
+    Curve curve = Curve::Knee;
+    float ToNorm(float db) const {
+        float x = (db + gainDb - floorDb) / std::max(1.f, ceilDb - floorDb);
+        return std::clamp(ApplyCurve(curve, x), 0.f, 1.f);
+    }
+};
+
+// One state per band.
+inline float BallisticsStep(float y, float x, double dt, const Ballistics& b, float rangeDb) {
+    if (x > y) {
+        double a = 1.0 - exp(-dt * 1000.0 / std::max(0.1, b.attackMs));
+        return (float)(y + (x - y) * a);
+    }
+    if (b.release == ReleaseKind::Linear) {
+        float fall = (float)(b.releaseDbPerSec * dt / std::max(1.f, rangeDb));
+        return std::max(x, y - fall);
+    }
+    double a = 1.0 - exp(-dt * 1000.0 / std::max(0.1, b.releaseMs));
+    return (float)(y + (x - y) * a);
+}
+
+// Peak hold per bar: hangs for holdMs, then falls with gravity (accelerating,
+// like a dropped object) or at a constant rate.
+struct PeakHold {
+    float level = 0.f, timer = 0.f, vel = 0.f;
+};
+inline void PeakHoldStep(PeakHold& p, float x, double dt, double holdMs, bool gravity, float gPerSec2,
+                         float linPerSec) {
+    if (x >= p.level) {
+        p.level = x;
+        p.timer = 0.f;
+        p.vel = 0.f;
+        return;
+    }
+    p.timer += (float)dt;
+    if (p.timer * 1000.f < holdMs) return;
+    if (gravity) {
+        p.vel += gPerSec2 * (float)dt;
+        p.level -= p.vel * (float)dt;
+    } else {
+        p.level -= linPerSec * (float)dt;
+    }
+    if (p.level < x) {
+        p.level = x;
+        p.vel = 0.f;
+    }
+    if (p.level < 0.f) p.level = 0.f;
+}
+
+// ---- Biquad (transposed direct form II) --------------------------------------------------
+struct Biquad {
+    double b0 = 1, b1 = 0, b2 = 0, a1 = 0, a2 = 0;
+    double z1 = 0, z2 = 0;
+    inline double Run(double x) {
+        double y = b0 * x + z1;
+        z1 = b1 * x - a1 * y + z2;
+        z2 = b2 * x - a2 * y;
+        return y;
+    }
+    void Reset() { z1 = z2 = 0; }
+};
+
+// BS.1770 K-weighting for any sample rate, from the analogue prototypes (the
+// libebur128 / pyloudnorm derivation). At 48 kHz this reproduces the
+// coefficients printed in the Recommendation to about 1e-8.
+inline void KWeightingFilters(double fs, Biquad& shelf, Biquad& hp) {
+    {
+        const double f0 = 1681.974450955533, G = 3.999843853973347, Q = 0.7071752369554196;
+        double K = tan(kPi * f0 / fs);
+        double Vh = pow(10.0, G / 20.0);
+        double Vb = pow(Vh, 0.4996667741545416);
+        double a0 = 1.0 + K / Q + K * K;
+        shelf.b0 = (Vh + Vb * K / Q + K * K) / a0;
+        shelf.b1 = 2.0 * (K * K - Vh) / a0;
+        shelf.b2 = (Vh - Vb * K / Q + K * K) / a0;
+        shelf.a1 = 2.0 * (K * K - 1.0) / a0;
+        shelf.a2 = (1.0 - K / Q + K * K) / a0;
+    }
+    {
+        const double f0 = 38.13547087602444, Q = 0.5003270373238773;
+        double K = tan(kPi * f0 / fs);
+        double a0 = 1.0 + K / Q + K * K;
+        hp.b0 = 1.0;
+        hp.b1 = -2.0;
+        hp.b2 = 1.0;
+        hp.a1 = 2.0 * (K * K - 1.0) / a0;
+        hp.a2 = (1.0 - K / Q + K * K) / a0;
+    }
+}
+
+// ---- Loudness and true peak (ITU-R BS.1770-5 / EBU R128) --------------------------------
+//
+//   K-weighting -> mean square per channel -> sum with channel weights G_i
+//   L = -0.691 + 10 log10(sum G_i z_i)   LUFS
+// Momentary = 400 ms, short-term = 3 s (EBU Tech 3341), integrated = the mean
+// of every 400 ms block (75% overlap, so one every 100 ms) above the absolute
+// gate (-70 LUFS) and the relative gate (10 LU below the ungated mean).
+// Integrated uses a 0.1 LU histogram of block loudness, the libebur128 trick,
+// so memory and time stay constant however long a track runs.
+//
+// True peak: 4x oversampling through a 64-tap polyphase interpolator
+// (Kaiser-windowed sinc, cut off at the original Nyquist), the maximum
+// absolute value over every original and interpolated sample, in dBTP.
+class LoudnessMeter {
+public:
+    static constexpr int kMaxCh = 8;
+    static constexpr int kTpTaps = 16;  // per phase
+
+    void Configure(int fs, int channels, const float* weights) {
+        fs_ = std::max(8000, fs);
+        ch_ = std::clamp(channels, 1, kMaxCh);
+        for (int c = 0; c < ch_; c++) {
+            w_[c] = weights ? weights[c] : 1.f;
+            KWeightingFilters(fs_, shelf_[c], hp_[c]);
+        }
+        subLen_ = fs_ / 10;
+        // Interpolator.
+        const int L = 4, taps = L * kTpTaps;
+        double beta = 7.0;
+        auto bessel0 = [](double x) {
+            double s = 1.0, t = 1.0;
+            for (int k = 1; k < 50; k++) {
+                t *= (x / (2.0 * k)) * (x / (2.0 * k));
+                s += t;
+            }
+            return s;
+        };
+        double den = bessel0(beta);
+        for (int i = 0; i < taps; i++) {
+            double n = i - (taps - 1) / 2.0;
+            double x = n / L;
+            double h = (fabs(x) < 1e-12) ? 1.0 : sin(kPi * x) / (kPi * x);
+            double r = n / ((taps - 1) / 2.0);
+            h *= bessel0(beta * sqrt(std::max(0.0, 1.0 - r * r))) / den;
+            // Phase p uses taps i = p + L j.
+            tp_[i % L][i / L] = (float)h;
+        }
+        Reset();
+    }
+    void Reset() {
+        for (int c = 0; c < ch_; c++) {
+            shelf_[c].Reset();
+            hp_[c].Reset();
+            for (int j = 0; j < kTpTaps; j++) tpHist_[c][j] = 0.f;
+        }
+        tpPos_ = 0;
+        subAcc_ = 0.0;
+        subCount_ = 0;
+        for (int i = 0; i < 30; i++) sub_[i] = 0.0;
+        subHead_ = 0;
+        subFilled_ = 0;
+        for (int i = 0; i < kHist; i++) {
+            histCount_[i] = 0;
+            histEnergy_[i] = 0.0;
+        }
+        truePeak_ = 0.f;
+        blocks_ = 0;
+    }
+    // Interleaved frames.
+    void Process(const float* x, int frames, int stride) {
+        for (int f = 0; f < frames; f++) {
+            const float* s = x + (size_t)f * stride;
+            double e = 0.0;
+            for (int c = 0; c < ch_; c++) {
+                double v = hp_[c].Run(shelf_[c].Run(s[c]));
+                e += w_[c] * v * v;
+                // True peak: shift in the original sample, evaluate 4 phases.
+                tpHist_[c][tpPos_] = s[c];
+            }
+            for (int c = 0; c < ch_; c++) {
+                truePeak_ = std::max(truePeak_, fabsf(s[c]));
+                for (int p = 0; p < 4; p++) {
+                    float acc = 0.f;
+                    int idx = tpPos_;
+                    for (int j = 0; j < kTpTaps; j++) {
+                        acc += tp_[p][j] * tpHist_[c][idx];
+                        idx = (idx == 0) ? kTpTaps - 1 : idx - 1;
+                    }
+                    truePeak_ = std::max(truePeak_, fabsf(acc));
+                }
+            }
+            tpPos_ = (tpPos_ + 1 == kTpTaps) ? 0 : tpPos_ + 1;
+            subAcc_ += e;
+            if (++subCount_ >= subLen_) EndSubBlock();
+        }
+    }
+    double Momentary() const { return Window(4); }
+    double ShortTerm() const { return Window(30); }
+    double Integrated() const {
+        // Absolute gate already applied on entry; relative gate here.
+        double sumE = 0.0;
+        long long n = 0;
+        for (int i = 0; i < kHist; i++) {
+            sumE += histEnergy_[i];
+            n += histCount_[i];
+        }
+        if (n == 0) return -HUGE_VAL;
+        double ungated = -0.691 + 10.0 * log10(sumE / n);
+        double rel = ungated - 10.0;
+        int start = std::clamp((int)ceil((rel - kHistMin) * 10.0), 0, kHist);
+        sumE = 0.0;
+        n = 0;
+        for (int i = start; i < kHist; i++) {
+            sumE += histEnergy_[i];
+            n += histCount_[i];
+        }
+        if (n == 0) return -HUGE_VAL;
+        return -0.691 + 10.0 * log10(sumE / n);
+    }
+    double TruePeakDb() const { return 20.0 * log10(std::max(1e-10f, truePeak_)); }
+    long long Blocks() const { return blocks_; }
+
+private:
+    static constexpr int kHist = 800;  // -70 .. +10 LUFS in 0.1 LU bins
+    static constexpr double kHistMin = -70.0;
+
+    double Window(int subs) const {
+        if (subFilled_ < subs) return -HUGE_VAL;
+        double s = 0.0;
+        int i = subHead_;
+        for (int k = 0; k < subs; k++) {
+            i = (i == 0) ? 29 : i - 1;
+            s += sub_[i];
+        }
+        double ms = s / ((double)subs * subLen_);
+        return -0.691 + 10.0 * log10(std::max(ms, 1e-20));
+    }
+    void EndSubBlock() {
+        sub_[subHead_] = subAcc_;
+        subHead_ = (subHead_ + 1) % 30;
+        if (subFilled_ < 30) subFilled_++;
+        subAcc_ = 0.0;
+        subCount_ = 0;
+        if (subFilled_ >= 4) {
+            double l = Window(4);
+            if (l > kHistMin) {
+                int bin = std::clamp((int)((l - kHistMin) * 10.0), 0, kHist - 1);
+                histCount_[bin]++;
+                histEnergy_[bin] += pow(10.0, (l + 0.691) / 10.0);
+                blocks_++;
+            }
+        }
+    }
+
+    int fs_ = 48000, ch_ = 2, subLen_ = 4800;
+    float w_[kMaxCh] = {};
+    Biquad shelf_[kMaxCh], hp_[kMaxCh];
+    float tp_[4][kTpTaps] = {};
+    float tpHist_[kMaxCh][kTpTaps] = {};
+    int tpPos_ = 0;
+    float truePeak_ = 0.f;
+    double subAcc_ = 0.0;
+    int subCount_ = 0;
+    double sub_[30] = {};
+    int subHead_ = 0, subFilled_ = 0;
+    int histCount_[kHist] = {};
+    double histEnergy_[kHist] = {};
+    long long blocks_ = 0;
+};
+
+// Stereo correlation, r = sum LR / sqrt(sum L^2 sum R^2), each sum an
+// exponential average with time constant tau (SPAN averages over 500 ms).
+// +1 mono, 0 unrelated, -1 out of phase.
+class Correlation {
+public:
+    void Configure(int fs, double tauMs) {
+        k_ = 1.0 - exp(-1000.0 / (std::max(1.0, tauMs) * std::max(1, fs)));
+        Reset();
+    }
+    void Reset() { lr_ = ll_ = rr_ = 0.0; }
+    void Push(float l, float r) {
+        lr_ += (l * (double)r - lr_) * k_;
+        ll_ += (l * (double)l - ll_) * k_;
+        rr_ += (r * (double)r - rr_) * k_;
+    }
+    double Value() const {
+        double d = sqrt(ll_ * rr_);
+        return (d > 1e-12) ? std::clamp(lr_ / d, -1.0, 1.0) : 0.0;
+    }
+
+private:
+    double k_ = 0.0, lr_ = 0.0, ll_ = 0.0, rr_ = 0.0;
+};
+
+}  // namespace ttdsp
+
+// ---- NPU audio analysis (Workload = NPU) ----------------------------------------
+//
+// What the NPU can and can't do here. An NPU is a matrix-multiply engine with
+// no graphics pipeline: it can't rasterise a bar or present a frame, so
+// drawing always stays on Drawing Device. What it can take is the FFT, as long
+// as the FFT is written as matrix multiplies, which is the shape of work an
+// NPU is built for.
+//
+// The FFT is expressed as a "four-step" DFT. With N = N1 * N2 and the input
+// laid out as an N1 x N2 matrix (row-major, so no reshuffling of the samples):
+//
+//   Y = F1 . x          N1-point DFT down each column   (two real matmuls)
+//   Z = Y (*) T         twiddle factors, elementwise    (complex multiply)
+//   X = [Zre|Zim] . G   N2-point DFT along each row     (one real matmul)
+//
+// G packs the complex N2-point DFT as a real 2*N2 x 2*N2 block matrix, so the
+// last step is a single matmul that emits [Xre|Xim]. Bin k = k1 + N1*k2 lands
+// at row k1, column k2 (real) and N2 + k2 (imaginary). For N = 8192 that is
+// 64 x 128, and the constant matrices total about 350 KB.
+//
+// F1 and G carry 1/N1 and 1/N2, so the NPU computes X/N. Intel's NPU runs in
+// FP16, whose ceiling is 65504; unnormalised, an 8192-point bin can reach
+// 8192 times the input level and would overflow. The CPU multiplies N back
+// in, so everything downstream of VizFFT sees exactly the numbers it always
+// has.
+//
+// The model is built in memory as ONNX and handed to Intel's OpenVINO runtime,
+// which is how Intel exposes its NPU. OpenVINO is loaded at runtime through its
+// flat C API, so nothing here links against it and the mod still builds and
+// runs on machines without it. ONNX rather than OpenVINO's own IR because ONNX
+// carries its weights inline: IR would need a weights tensor created through
+// an element-type enum whose numbering has changed between OpenVINO releases.
+// Input and output tensors are the request's own, for the same reason.
+//
+// An honest note on cost, because this mod is built around measuring it: the
+// CPU FFT is already a fraction of a millisecond per block, roughly 90 blocks a
+// second at FFT Size 1024. Moving it to the NPU frees that CPU time but wakes
+// the NPU at the same rate, so whether package power goes down is something to
+// measure on your own machine, not something to assume. The log reports mean
+// and worst-case NPU time per block every 30 s for exactly that reason.
+namespace ttnpu {
+
+// ---- ONNX ModelProto writer --------------------------------------------------
+// Just enough protobuf to emit one ModelProto. Field numbers are from
+// onnx/onnx.proto: ModelProto{ir_version=1, producer_name=2, graph=7,
+// opset_import=8}, GraphProto{node=1, name=2, initializer=5, input=11,
+// output=12}, NodeProto{input=1, output=2, name=3, op_type=4, attribute=5},
+// AttributeProto{name=1, i=3, type=20}, TensorProto{dims=1, data_type=2,
+// name=8, raw_data=9}, ValueInfoProto{name=1, type=2}, TypeProto{tensor_type=1},
+// TypeProto.Tensor{elem_type=1, shape=2}, TensorShapeProto{dim=1},
+// Dimension{dim_value=1}, OperatorSetIdProto{domain=1, version=2}.
+struct Pb {
+    std::string b;
+    void Varint(uint64_t v) {
+        while (v >= 0x80) {
+            b.push_back((char)((v & 0x7F) | 0x80));
+            v >>= 7;
+        }
+        b.push_back((char)v);
+    }
+    void Key(uint32_t field, uint32_t wire) { Varint(((uint64_t)field << 3) | wire); }
+    void Int(uint32_t field, int64_t v) {
+        Key(field, 0);
+        Varint((uint64_t)v);
+    }
+    void Bytes(uint32_t field, const void* p, size_t n) {
+        Key(field, 2);
+        Varint(n);
+        b.append((const char*)p, n);
+    }
+    void Str(uint32_t field, const char* s) { Bytes(field, s, strlen(s)); }
+    void Msg(uint32_t field, const Pb& m) { Bytes(field, m.b.data(), m.b.size()); }
+};
+
+constexpr int64_t kOnnxFloat = 1;      // TensorProto.DataType.FLOAT
+constexpr int64_t kOnnxAttrInt = 2;    // AttributeProto.AttributeType.INT
+constexpr int64_t kOnnxIrVersion = 7;  // IR_VERSION_2020_5_8, the first to allow opset 13
+constexpr int64_t kOnnxOpset = 13;
+
+inline Pb OnnxInitializer(const char* name, int rows, int cols, const std::vector<float>& data) {
+    Pb t;
+    t.Int(1, rows);
+    t.Int(1, cols);
+    t.Int(2, kOnnxFloat);
+    t.Str(8, name);
+    // raw_data is little-endian by spec, which is the native order on every
+    // Windows target.
+    t.Bytes(9, data.data(), data.size() * sizeof(float));
+    return t;
+}
+
+inline Pb OnnxValueInfo(const char* name, int rows, int cols) {
+    Pb d0, d1, shape, tensorType, type, vi;
+    d0.Int(1, rows);
+    d1.Int(1, cols);
+    shape.Msg(1, d0);
+    shape.Msg(1, d1);
+    tensorType.Int(1, kOnnxFloat);
+    tensorType.Msg(2, shape);
+    type.Msg(1, tensorType);
+    vi.Str(1, name);
+    vi.Msg(2, type);
+    return vi;
+}
+
+inline Pb OnnxNode(const char* op, const char* in0, const char* in1, const char* out,
+                   bool hasAxis = false, int64_t axis = 0) {
+    Pb n;
+    n.Str(1, in0);
+    n.Str(1, in1);
+    n.Str(2, out);
+    n.Str(3, out);
+    n.Str(4, op);
+    if (hasAxis) {
+        Pb a;
+        a.Str(1, "axis");
+        a.Int(3, axis);
+        a.Int(20, kOnnxAttrInt);
+        n.Msg(5, a);
+    }
+    return n;
+}
+
+// Splits an FFT size into the N1 x N2 factors used by the four-step layout.
+// Near-square keeps every constant matrix small.
+inline bool SplitSize(int n, int* n1, int* n2) {
+    switch (n) {
+        case 1024: *n1 = 32; *n2 = 32; return true;
+        case 2048: *n1 = 32; *n2 = 64; return true;
+        case 4096: *n1 = 64; *n2 = 64; return true;
+        case 8192: *n1 = 64; *n2 = 128; return true;
+    }
+    return false;
+}
+
+// The whole model: input "x" [N1, N2] float, output "y" [N1, 2*N2] float.
+inline std::string BuildDftModel(int n1, int n2) {
+    const long long n = (long long)n1 * n2;
+    const double tau = 6.283185307179586476925;
+
+    // Angles are reduced with integer arithmetic before the trig call, so
+    // large index products don't lose precision in the argument.
+    std::vector<float> f1re((size_t)n1 * n1), f1im((size_t)n1 * n1);
+    for (int k1 = 0; k1 < n1; k1++) {
+        for (int j = 0; j < n1; j++) {
+            double ang = tau * (double)(((long long)k1 * j) % n1) / (double)n1;
+            f1re[(size_t)k1 * n1 + j] = (float)(cos(ang) / n1);
+            f1im[(size_t)k1 * n1 + j] = (float)(-sin(ang) / n1);
+        }
+    }
+
+    std::vector<float> tre((size_t)n1 * n2), tim((size_t)n1 * n2);
+    for (int k1 = 0; k1 < n1; k1++) {
+        for (int j = 0; j < n2; j++) {
+            double ang = tau * (double)(((long long)k1 * j) % n) / (double)n;
+            tre[(size_t)k1 * n2 + j] = (float)cos(ang);
+            tim[(size_t)k1 * n2 + j] = (float)(-sin(ang));
+        }
+    }
+
+    // G = [[F2re, F2im], [-F2im, F2re]], so [Zre | Zim] . G = [Xre | Xim].
+    const int g = 2 * n2;
+    std::vector<float> gm((size_t)g * g);
+    for (int j = 0; j < n2; j++) {
+        for (int k = 0; k < n2; k++) {
+            double ang = tau * (double)(((long long)j * k) % n2) / (double)n2;
+            float fr = (float)(cos(ang) / n2);
+            float fi = (float)(-sin(ang) / n2);
+            gm[(size_t)j * g + k] = fr;
+            gm[(size_t)j * g + n2 + k] = fi;
+            gm[(size_t)(n2 + j) * g + k] = -fi;
+            gm[(size_t)(n2 + j) * g + n2 + k] = fr;
+        }
+    }
+
+    Pb graph;
+    graph.Msg(1, OnnxNode("MatMul", "f1re", "x", "yre"));
+    graph.Msg(1, OnnxNode("MatMul", "f1im", "x", "yim"));
+    graph.Msg(1, OnnxNode("Mul", "yre", "tre", "a"));
+    graph.Msg(1, OnnxNode("Mul", "yim", "tim", "b"));
+    graph.Msg(1, OnnxNode("Sub", "a", "b", "zre"));
+    graph.Msg(1, OnnxNode("Mul", "yre", "tim", "c"));
+    graph.Msg(1, OnnxNode("Mul", "yim", "tre", "d"));
+    graph.Msg(1, OnnxNode("Add", "c", "d", "zim"));
+    graph.Msg(1, OnnxNode("Concat", "zre", "zim", "z", true, 1));
+    graph.Msg(1, OnnxNode("MatMul", "z", "g", "y"));
+    graph.Str(2, "tourne_table_dft");
+    graph.Msg(5, OnnxInitializer("f1re", n1, n1, f1re));
+    graph.Msg(5, OnnxInitializer("f1im", n1, n1, f1im));
+    graph.Msg(5, OnnxInitializer("tre", n1, n2, tre));
+    graph.Msg(5, OnnxInitializer("tim", n1, n2, tim));
+    graph.Msg(5, OnnxInitializer("g", g, g, gm));
+    graph.Msg(11, OnnxValueInfo("x", n1, n2));
+    graph.Msg(12, OnnxValueInfo("y", n1, g));
+
+    Pb opset;
+    opset.Str(1, "");
+    opset.Int(2, kOnnxOpset);
+
+    // Order matters for one reason: OpenVINO sniffs the format by reading the
+    // first three top-level fields and wants three different ones.
+    Pb model;
+    model.Int(1, kOnnxIrVersion);
+    model.Str(2, "TourneTable");
+    model.Msg(7, graph);
+    model.Msg(8, opset);
+    return model.b;
+}
+
+// Bin k of the four-step output, scaled back up to VizFFT's (unnormalised)
+// units. y is [N1, 2*N2] row-major.
+inline void UnpackBins(const float* y, int n1, int n2, std::vector<float>& re,
+                       std::vector<float>& im) {
+    const int n = n1 * n2;
+    const int stride = 2 * n2;
+    const float scale = (float)n;
+    for (int k = 0; k < n / 2; k++) {
+        int k1 = k % n1, k2 = k / n1;
+        re[k] = y[k1 * stride + k2] * scale;
+        im[k] = y[k1 * stride + n2 + k2] * scale;
+    }
+}
+
+// ---- OpenVINO C API, resolved at runtime ----------------------------------------
+// Signatures are copied from openvino/c/*.h. ov_status_e is a plain enum (0 =
+// OK). Every handle is opaque, so they are all void* here.
+struct OvDevices {
+    char** devices;
+    size_t size;
+};
+struct OvVersion {
+    const char* buildNumber;
+    const char* description;
+};
+struct OvApi {
+    HMODULE lib = nullptr;
+    int (*core_create)(void** core) = nullptr;
+    void (*core_free)(void* core) = nullptr;
+    int (*core_get_available_devices)(const void* core, OvDevices* devices) = nullptr;
+    void (*available_devices_free)(OvDevices* devices) = nullptr;
+    int (*core_read_model_from_memory_buffer)(const void* core, const char* model, size_t len,
+                                              const void* weights, void** outModel) = nullptr;
+    int (*core_compile_model)(const void* core, const void* model, const char* device,
+                              size_t propertyArgsSize, void** compiled, ...) = nullptr;
+    void (*model_free)(void* model) = nullptr;
+    int (*compiled_model_create_infer_request)(const void* compiled, void** request) = nullptr;
+    void (*compiled_model_free)(void* compiled) = nullptr;
+    int (*infer_request_get_input_tensor_by_index)(const void* request, size_t idx,
+                                                   void** tensor) = nullptr;
+    int (*infer_request_get_output_tensor_by_index)(const void* request, size_t idx,
+                                                    void** tensor) = nullptr;
+    int (*infer_request_infer)(void* request) = nullptr;
+    void (*infer_request_free)(void* request) = nullptr;
+    int (*tensor_data)(const void* tensor, void** data) = nullptr;
+    int (*tensor_get_byte_size)(const void* tensor, size_t* size) = nullptr;
+    void (*tensor_free)(void* tensor) = nullptr;
+    // Optional: absent from older runtimes, only used for nicer log lines.
+    int (*core_get_property)(const void* core, const char* device, const char* key,
+                             char** value) = nullptr;
+    void (*free_string)(const char* s) = nullptr;
+    const char* (*get_last_err_msg)() = nullptr;
+    int (*get_openvino_version)(OvVersion* v) = nullptr;
+    void (*version_free)(OvVersion* v) = nullptr;
+};
+
+struct Engine {
+    void* compiled = nullptr;
+    void* request = nullptr;
+    void* in = nullptr;
+    void* out = nullptr;
+    int n = 0, n1 = 0, n2 = 0;
+};
+
+// Shared state. The capture thread never takes this lock on its hot path: it
+// owns one Engine outright and only reaches for the lock when it needs a new
+// one, which is at start-up and on an FFT Size change.
+std::mutex g_mutex;
+std::condition_variable g_cv;
+std::thread* g_worker = nullptr;
+bool g_shutdown = false;
+bool g_enabled = false;
+bool g_runtimeRetry = false;  // set by Configure, consumed by the worker
+std::wstring g_runtimePath;  // copy of the setting, taken on the UI thread
+int g_wantSize = 0;          // FFT size the capture thread is asking for
+int g_builtSize = 0;         // size of the engine that currently exists, 0 if none
+int g_failedSize = 0;        // size whose build failed; not retried until settings change
+Engine* g_pending = nullptr; // built (or handed back after a pause), not in use
+std::wstring g_lastNotice;
+
+// Runtime and core: created by the worker, live for the process, and touched
+// by the worker thread only (Shutdown frees the core after joining it). The
+// DLLs are never unloaded -- OpenVINO's thread pool doesn't survive being
+// pulled out from under it, and the process exits right after the mod unloads
+// anyway.
+OvApi g_api;
+void* g_core = nullptr;
+bool g_runtimeAttempted = false;
+bool g_runtimeReady = false;
+std::wstring g_runtimeDir;
+std::wstring g_runtimeError;
+std::string g_deviceName;  // FULL_DEVICE_NAME, e.g. "Intel(R) AI Boost"
+
+// Hands a message to the UI thread for the settings-problems summary, once per
+// distinct message per settings change.
+inline void Notice(const std::wstring& msg) {
+    Wh_Log(L"[NPU] %s", msg.c_str());
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (msg == g_lastNotice) return;
+        g_lastNotice = msg;
+    }
+    HWND wnd = g_messageWnd;
+    if (!wnd) return;
+    auto* heap = new std::wstring(msg);
+    if (!PostMessage(wnd, WM_APP_HW_NOTICE, 0, (LPARAM)heap)) delete heap;
+}
+
+inline std::wstring Widen(const char* s) {
+    if (!s) return L"";
+    int len = MultiByteToWideChar(CP_UTF8, 0, s, -1, nullptr, 0);
+    if (len <= 1) return L"";
+    std::wstring w(len - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s, -1, w.data(), len);
+    return w;
+}
+
+inline std::wstring LastOvError(int status) {
+    WCHAR buf[64];
+    swprintf_s(buf, L"status %d", status);
+    std::wstring out = buf;
+    if (g_api.get_last_err_msg) {
+        const char* m = g_api.get_last_err_msg();
+        if (m && *m) {
+            std::wstring w = Widen(m);
+            // OpenVINO's messages carry a full C++ backtrace-ish preamble;
+            // the first line is the useful part.
+            size_t nl = w.find_first_of(L"\r\n");
+            if (nl != std::wstring::npos) w.resize(nl);
+            if (w.size() > 300) w.resize(300);
+            out += L": " + w;
+        }
+    }
+    return out;
+}
+
+inline bool DirHasRuntime(const std::wstring& dir) {
+    if (dir.empty()) return false;
+    DWORD attr = GetFileAttributesW((dir + L"\\openvino_c.dll").c_str());
+    return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+inline std::wstring EnvVar(PCWSTR name) {
+    WCHAR buf[MAX_PATH * 2];
+    DWORD n = GetEnvironmentVariableW(name, buf, ARRAYSIZE(buf));
+    return (n > 0 && n < ARRAYSIZE(buf)) ? std::wstring(buf, n) : std::wstring();
+}
+
+// Directories matching parent\pattern, newest-looking (highest name) first.
+inline std::vector<std::wstring> GlobDirs(const std::wstring& parent, PCWSTR pattern) {
+    std::vector<std::wstring> out;
+    if (parent.empty()) return out;
+    WIN32_FIND_DATAW fd;
+    HANDLE h = FindFirstFileW((parent + L"\\" + pattern).c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return out;
+    do {
+        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.')
+            out.push_back(parent + L"\\" + fd.cFileName);
+    } while (FindNextFileW(h, &fd));
+    FindClose(h);
+    std::sort(out.begin(), out.end(), [](const std::wstring& a, const std::wstring& b) {
+        return _wcsicmp(a.c_str(), b.c_str()) > 0;
+    });
+    return out;
+}
+
+// Every place OpenVINO's C runtime is commonly found, most specific first.
+inline std::vector<std::wstring> CandidateDirs(const std::wstring& userPath) {
+    std::vector<std::wstring> dirs;
+    auto addRoot = [&](const std::wstring& root) {
+        if (root.empty()) return;
+        dirs.push_back(root);                                   // the folder itself
+        dirs.push_back(root + L"\\runtime\\bin\\intel64\\Release");  // extracted archive
+        dirs.push_back(root + L"\\openvino\\libs");             // a site-packages folder
+        dirs.push_back(root + L"\\libs");                       // the openvino package folder
+    };
+
+    addRoot(userPath);
+    addRoot(EnvVar(L"INTEL_OPENVINO_DIR"));
+
+    for (PCWSTR base : {L"ProgramFiles(x86)", L"ProgramFiles", L"ProgramW6432"}) {
+        std::wstring pf = EnvVar(base);
+        for (const auto& d : GlobDirs(pf + L"\\Intel", L"openvino*")) addRoot(d);
+    }
+    // Not C:\Intel or C:\openvino*: any user can create folders at the root
+    // of C:, and a DLL loaded from one would run inside Windhawk. An archive
+    // extracted there still works through NPU Runtime Folder.
+
+    // pip: per-user and all-users CPython installs, plus `pip install --user`.
+    std::wstring localApp = EnvVar(L"LOCALAPPDATA");
+    for (const auto& py : GlobDirs(localApp + L"\\Programs\\Python", L"Python3*"))
+        dirs.push_back(py + L"\\Lib\\site-packages\\openvino\\libs");
+    for (PCWSTR base : {L"ProgramFiles", L"ProgramW6432"}) {
+        for (const auto& py : GlobDirs(EnvVar(base), L"Python3*"))
+            dirs.push_back(py + L"\\Lib\\site-packages\\openvino\\libs");
+    }
+    for (const auto& py : GlobDirs(EnvVar(L"APPDATA") + L"\\Python", L"Python3*"))
+        dirs.push_back(py + L"\\site-packages\\openvino\\libs");
+
+    // Finally PATH, the way setupvars.bat leaves things.
+    WCHAR found[MAX_PATH];
+    if (SearchPathW(nullptr, L"openvino_c.dll", nullptr, ARRAYSIZE(found), found, nullptr)) {
+        std::wstring p = found;
+        size_t slash = p.find_last_of(L"\\/");
+        if (slash != std::wstring::npos) dirs.push_back(p.substr(0, slash));
+    }
+    return dirs;
+}
+
+template <class T>
+inline bool Resolve(HMODULE lib, const char* name, T& fn) {
+    fn = (T)(void*)GetProcAddress(lib, name);
+    return fn != nullptr;
+}
+
+inline bool LoadRuntimeFrom(const std::wstring& dir, std::wstring* err) {
+    // The extracted archive keeps TBB (which openvino.dll imports) in a sibling
+    // tree rather than next to it; pip puts everything in one folder. Both
+    // directories are added to this process's DLL search for the loads below
+    // and for the plugins OpenVINO loads later. The cookies are kept for the
+    // life of the process, like the DLLs themselves.
+    AddDllDirectory(dir.c_str());
+    WCHAR tbb[MAX_PATH * 2];
+    if (GetFullPathNameW((dir + L"\\..\\..\\..\\3rdparty\\tbb\\bin").c_str(), ARRAYSIZE(tbb), tbb,
+                         nullptr)) {
+        DWORD attr = GetFileAttributesW(tbb);
+        if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY)) AddDllDirectory(tbb);
+    }
+
+    std::wstring dll = dir + L"\\openvino_c.dll";
+    HMODULE lib = LoadLibraryExW(dll.c_str(), nullptr,
+                                 LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
+                                     LOAD_LIBRARY_SEARCH_USER_DIRS);
+    if (!lib) {
+        WCHAR buf[96];
+        swprintf_s(buf, L"Windows error %lu", GetLastError());
+        *err = L"Found " + dll + L" but it would not load (" + buf +
+               L"). Usually a missing dependency: an incomplete copy, or a 32-bit/ARM build.";
+        return false;
+    }
+
+    OvApi api;
+    api.lib = lib;
+    bool ok = Resolve(lib, "ov_core_create", api.core_create) &&
+              Resolve(lib, "ov_core_free", api.core_free) &&
+              Resolve(lib, "ov_core_get_available_devices", api.core_get_available_devices) &&
+              Resolve(lib, "ov_available_devices_free", api.available_devices_free) &&
+              Resolve(lib, "ov_core_read_model_from_memory_buffer",
+                      api.core_read_model_from_memory_buffer) &&
+              Resolve(lib, "ov_core_compile_model", api.core_compile_model) &&
+              Resolve(lib, "ov_model_free", api.model_free) &&
+              Resolve(lib, "ov_compiled_model_create_infer_request",
+                      api.compiled_model_create_infer_request) &&
+              Resolve(lib, "ov_compiled_model_free", api.compiled_model_free) &&
+              Resolve(lib, "ov_infer_request_get_input_tensor_by_index",
+                      api.infer_request_get_input_tensor_by_index) &&
+              Resolve(lib, "ov_infer_request_get_output_tensor_by_index",
+                      api.infer_request_get_output_tensor_by_index) &&
+              Resolve(lib, "ov_infer_request_infer", api.infer_request_infer) &&
+              Resolve(lib, "ov_infer_request_free", api.infer_request_free) &&
+              Resolve(lib, "ov_tensor_data", api.tensor_data) &&
+              Resolve(lib, "ov_tensor_get_byte_size", api.tensor_get_byte_size) &&
+              Resolve(lib, "ov_tensor_free", api.tensor_free);
+    if (!ok) {
+        *err = L"The OpenVINO runtime in " + dir +
+               L" is too old: reading a model from memory needs OpenVINO 2023.1 or newer.";
+        return false;
+    }
+    Resolve(lib, "ov_core_get_property", api.core_get_property);
+    Resolve(lib, "ov_free", api.free_string);
+    Resolve(lib, "ov_get_last_err_msg", api.get_last_err_msg);
+    Resolve(lib, "ov_get_openvino_version", api.get_openvino_version);
+    Resolve(lib, "ov_version_free", api.version_free);
+
+    g_api = api;
+    g_runtimeDir = dir;
+    return true;
+}
+
+// Loads the runtime and creates the core, once per process. Runs on the
+// worker thread only. On failure the reason is kept, and a later settings
+// change (a corrected folder, say) gets one fresh attempt.
+inline bool EnsureRuntime(const std::wstring& userPath, std::wstring* err) {
+    if (g_runtimeReady) return true;
+    if (g_runtimeAttempted) {
+        *err = g_runtimeError;
+        return false;
+    }
+    g_runtimeAttempted = true;
+
+#if !defined(_WIN64)
+    std::wstring npu = ttdxcore::FindNpuName();
+    g_runtimeError =
+        L"NPU analysis needs a 64-bit Windhawk tool process, because OpenVINO only ships "
+        L"64-bit. This one is 32-bit (Windhawk 1.x runs tool mods that way). " +
+        (npu.empty() ? std::wstring(L"")
+                     : L"Windows does see your NPU (" + npu + L"), so it will work on a 64-bit host. ") +
+        L"Staying on the CPU.";
+    *err = g_runtimeError;
+    return false;
+#else
+    std::wstring loadErr;
+    bool loaded = false;
+    for (const auto& dir : CandidateDirs(userPath)) {
+        if (!DirHasRuntime(dir)) continue;
+        if (LoadRuntimeFrom(dir, &loadErr)) {
+            loaded = true;
+            break;
+        }
+    }
+    if (!loaded) {
+        std::wstring npu = ttdxcore::FindNpuName();
+        if (!loadErr.empty()) {
+            g_runtimeError = loadErr;
+        } else if (!userPath.empty()) {
+            g_runtimeError = L"No openvino_c.dll in \"" + userPath +
+                             L"\" (or its runtime\\bin\\intel64\\Release folder).";
+        } else {
+            g_runtimeError = L"The OpenVINO runtime isn't installed, or isn't anywhere this mod looks.";
+        }
+        g_runtimeError +=
+            npu.empty()
+                ? L" Windows doesn't report an NPU either - check Device Manager for a \"Neural "
+                  L"processors\" entry; if it's missing, install the Intel NPU driver and check the "
+                  L"BIOS for an NPU / AI Boost switch."
+                : L" Windows does see your NPU (" + npu +
+                      L"), so only the runtime is missing: extract the OpenVINO archive from "
+                      L"Intel (or pip install openvino) and point NPU Runtime Folder at it.";
+        g_runtimeError += L" Staying on the CPU.";
+        *err = g_runtimeError;
+        return false;
+    }
+
+    int st = g_api.core_create(&g_core);
+    if (st != 0 || !g_core) {
+        g_runtimeError = L"OpenVINO loaded from " + g_runtimeDir + L" but could not start (" +
+                         LastOvError(st) + L"). Staying on the CPU.";
+        *err = g_runtimeError;
+        g_core = nullptr;
+        return false;
+    }
+
+    OvDevices devices{};
+    bool hasNpu = false;
+    std::wstring deviceList;
+    if (g_api.core_get_available_devices(g_core, &devices) == 0) {
+        for (size_t i = 0; i < devices.size; i++) {
+            const char* d = devices.devices[i];
+            if (!d) continue;
+            if (!deviceList.empty()) deviceList += L", ";
+            deviceList += Widen(d);
+            if (strncmp(d, "NPU", 3) == 0) hasNpu = true;
+        }
+        g_api.available_devices_free(&devices);
+    }
+    if (!hasNpu) {
+        std::wstring npu = ttdxcore::FindNpuName();
+        g_runtimeError = L"OpenVINO (" + g_runtimeDir + L") is working but lists no NPU (it sees: " +
+                         (deviceList.empty() ? std::wstring(L"nothing") : deviceList) + L"). " +
+                         (npu.empty() ? std::wstring(L"Windows doesn't report one either - install the "
+                                                     L"Intel NPU driver and check the BIOS.")
+                                      : L"Windows does see " + npu +
+                                            L", so the NPU driver and this OpenVINO are likely "
+                                            L"mismatched: update the Intel NPU driver, or use the "
+                                            L"OpenVINO version its release notes name.") +
+                         L" Staying on the CPU.";
+        *err = g_runtimeError;
+        return false;
+    }
+
+    if (g_api.core_get_property && g_api.free_string) {
+        char* name = nullptr;
+        if (g_api.core_get_property(g_core, "NPU", "FULL_DEVICE_NAME", &name) == 0 && name) {
+            g_deviceName = name;
+            g_api.free_string(name);
+        }
+    }
+    std::wstring version;
+    if (g_api.get_openvino_version && g_api.version_free) {
+        OvVersion v{};
+        if (g_api.get_openvino_version(&v) == 0) {
+            version = Widen(v.buildNumber);
+            g_api.version_free(&v);
+        }
+    }
+    Wh_Log(L"[NPU] OpenVINO %s from %s, NPU: %s", version.c_str(), g_runtimeDir.c_str(),
+           g_deviceName.empty() ? L"(unnamed)" : Widen(g_deviceName.c_str()).c_str());
+    g_runtimeReady = true;
+    return true;
+#endif
+}
+
+inline void FreeEngine(Engine* e) {
+    if (!e) return;
+    if (e->in) g_api.tensor_free(e->in);
+    if (e->out) g_api.tensor_free(e->out);
+    if (e->request) g_api.infer_request_free(e->request);
+    if (e->compiled) g_api.compiled_model_free(e->compiled);
+    delete e;
+}
+
+// One inference. `windowed` may alias `re`: it is copied in before anything is
+// written back.
+inline bool Run(Engine* e, const float* windowed, std::vector<float>& re, std::vector<float>& im) {
+    void* inData = nullptr;
+    void* outData = nullptr;
+    if (g_api.tensor_data(e->in, &inData) != 0 || !inData) return false;
+    memcpy(inData, windowed, (size_t)e->n * sizeof(float));
+    if (g_api.infer_request_infer(e->request) != 0) return false;
+    if (g_api.tensor_data(e->out, &outData) != 0 || !outData) return false;
+    UnpackBins((const float*)outData, e->n1, e->n2, re, im);
+    return true;
+}
+
+// Compiles the model for one FFT size on the NPU and proves it against a known
+// answer before anything relies on it. Worker thread only.
+inline bool BuildEngine(int n, Engine** out, std::wstring* err) {
+    int n1 = 0, n2 = 0;
+    if (!SplitSize(n, &n1, &n2)) {
+        *err = L"Unsupported FFT size for the NPU path.";
+        return false;
+    }
+
+    LARGE_INTEGER f, t0, t1;
+    QueryPerformanceFrequency(&f);
+    QueryPerformanceCounter(&t0);
+
+    std::string onnx = BuildDftModel(n1, n2);
+    void* model = nullptr;
+    int st = g_api.core_read_model_from_memory_buffer(g_core, onnx.data(), onnx.size(), nullptr, &model);
+    if (st != 0 || !model) {
+        *err = L"OpenVINO rejected the FFT model (" + LastOvError(st) + L"). Staying on the CPU.";
+        return false;
+    }
+
+    auto* e = new Engine();
+    e->n = n;
+    e->n1 = n1;
+    e->n2 = n2;
+    // LATENCY: one request in flight at a time, which is exactly this workload.
+    // If a runtime refuses the hint, compile again with its defaults rather
+    // than give up over a tuning knob.
+    st = g_api.core_compile_model(g_core, model, "NPU", 2, &e->compiled, "PERFORMANCE_HINT",
+                                  "LATENCY");
+    if (st != 0 || !e->compiled) {
+        Wh_Log(L"[NPU] compile with LATENCY hint failed (%s), retrying with defaults",
+               LastOvError(st).c_str());
+        e->compiled = nullptr;
+        st = g_api.core_compile_model(g_core, model, "NPU", 0, &e->compiled);
+    }
+    g_api.model_free(model);
+    if (st != 0 || !e->compiled) {
+        e->compiled = nullptr;
+        FreeEngine(e);
+        *err = L"The NPU couldn't compile the FFT model (" + LastOvError(st) + L"). Staying on the CPU.";
+        return false;
+    }
+    if (g_api.compiled_model_create_infer_request(e->compiled, &e->request) != 0 || !e->request ||
+        g_api.infer_request_get_input_tensor_by_index(e->request, 0, &e->in) != 0 || !e->in ||
+        g_api.infer_request_get_output_tensor_by_index(e->request, 0, &e->out) != 0 || !e->out) {
+        FreeEngine(e);
+        *err = L"The NPU compiled the FFT model but wouldn't create a request for it. Staying on the CPU.";
+        return false;
+    }
+
+    // Shapes are fixed by the model, so a size mismatch means the runtime did
+    // something unexpected with the I/O precision; refuse rather than guess.
+    size_t inBytes = 0, outBytes = 0;
+    g_api.tensor_get_byte_size(e->in, &inBytes);
+    g_api.tensor_get_byte_size(e->out, &outBytes);
+    if (inBytes != (size_t)n * sizeof(float) || outBytes != (size_t)n * 2 * sizeof(float)) {
+        FreeEngine(e);
+        WCHAR buf[160];
+        swprintf_s(buf, L"Unexpected NPU tensor sizes (%zu in, %zu out). Staying on the CPU.", inBytes,
+                   outBytes);
+        *err = buf;
+        return false;
+    }
+
+    // Known-answer test: a cosine at bin 5 must come back as a single real
+    // line of height N/2 and nothing much anywhere else. This catches a wrong
+    // layout, a precision problem, or a driver that quietly returns zeros.
+    std::vector<float> probe(n), re(n, 0.f), im(n, 0.f);
+    for (int i = 0; i < n; i++) probe[i] = (float)cos(6.283185307179586 * 5.0 * i / n);
+    if (!Run(e, probe.data(), re, im)) {
+        FreeEngine(e);
+        *err = L"The NPU failed its first test run. Staying on the CPU.";
+        return false;
+    }
+    float half = n * 0.5f, worst = 0.f;
+    for (int k = 1; k < n / 2; k++) {
+        if (k == 5) continue;
+        worst = std::max(worst, sqrtf(re[k] * re[k] + im[k] * im[k]));
+    }
+    float peakErr = fabsf(re[5] - half) / half;
+    if (!(peakErr < 0.03f) || !(worst < 0.02f * half) || !(fabsf(im[5]) < 0.02f * half)) {
+        FreeEngine(e);
+        WCHAR buf[200];
+        swprintf_s(buf,
+                   L"The NPU's FFT didn't match the reference (peak off by %.1f%%, leakage %.1f%%). "
+                   L"Staying on the CPU.",
+                   peakErr * 100.f, worst / half * 100.f);
+        *err = buf;
+        return false;
+    }
+
+    QueryPerformanceCounter(&t1);
+    Wh_Log(L"[NPU] FFT %d ready on %s: compiled and verified in %.0f ms (peak error %.2f%%, "
+           L"leakage %.2f%%)",
+           n, g_deviceName.empty() ? L"NPU" : Widen(g_deviceName.c_str()).c_str(),
+           (double)(t1.QuadPart - t0.QuadPart) * 1000.0 / (double)f.QuadPart, peakErr * 100.f,
+           worst / half * 100.f);
+    *out = e;
+    return true;
+}
+
+inline void WorkerProc() {
+    SetThreadDescription(GetCurrentThread(), L"TourneTable-NPU");
+    std::unique_lock<std::mutex> lock(g_mutex);
+    for (;;) {
+        g_cv.wait(lock, [] {
+            return g_shutdown || (g_enabled && g_wantSize > 0 && g_wantSize != g_builtSize &&
+                                  g_wantSize != g_failedSize);
+        });
+        if (g_shutdown) break;
+
+        int n = g_wantSize;
+        std::wstring path = g_runtimePath;
+        if (g_runtimeRetry) {
+            // A settings change since the last failure: one fresh attempt at
+            // finding and loading the runtime.
+            g_runtimeRetry = false;
+            if (!g_runtimeReady) g_runtimeAttempted = false;
+        }
+        lock.unlock();
+
+        std::wstring err;
+        Engine* e = nullptr;
+        bool ok = EnsureRuntime(path, &err) && BuildEngine(n, &e, &err);
+
+        lock.lock();
+        if (g_shutdown) {
+            if (e) FreeEngine(e);
+            break;
+        }
+        if (ok) {
+            if (g_pending) FreeEngine(g_pending);
+            g_pending = e;
+            g_builtSize = n;
+            g_failedSize = 0;
+        } else {
+            g_failedSize = n;
+            lock.unlock();
+            Notice(err);
+            lock.lock();
+        }
+    }
+}
+
+// UI thread, from LoadSettings. Cheap; safe to call on every settings change.
+inline void Configure(bool enabled, const std::wstring& runtimePath) {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    bool changed = enabled != g_enabled || runtimePath != g_runtimePath;
+    g_enabled = enabled;
+    g_runtimePath = runtimePath;
+    if (changed) {
+        // A settings change is the user's way of saying "try again": clear the
+        // failure so the next block retries, and let the same notice show again.
+        g_failedSize = 0;
+        g_lastNotice.clear();
+        g_runtimeRetry = true;
+    }
+    if (enabled && !g_worker && !g_shutdown) g_worker = new std::thread(WorkerProc);
+    g_cv.notify_all();
+}
+
+// Capture-thread side. One per capture thread; owns its engine outright.
+struct Session {
+    Engine* engine = nullptr;
+    LONGLONG qpcFreq = 0;
+    LONGLONG statSince = 0;
+    LONGLONG statTotal = 0, statWorst = 0;
+    unsigned statCount = 0;
+};
+
+// Runs one FFT block on the NPU. Returns false whenever the CPU should do it
+// instead (not ready yet, not enabled, failed); never blocks on a compile.
+inline bool Analyze(Session& s, int n, const float* windowed, std::vector<float>& re,
+                    std::vector<float>& im) {
+    if (s.engine && s.engine->n != n) {
+        FreeEngine(s.engine);
+        s.engine = nullptr;
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_builtSize = g_pending ? g_pending->n : 0;
+    }
+    if (!s.engine) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (g_pending && g_pending->n == n) {
+            s.engine = g_pending;
+            g_pending = nullptr;
+        } else if (g_wantSize != n) {
+            g_wantSize = n;
+            g_cv.notify_all();
+        }
+        if (!s.engine) return false;
+    }
+
+    if (!s.qpcFreq) {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        s.qpcFreq = f.QuadPart;
+    }
+    LARGE_INTEGER t0, t1;
+    QueryPerformanceCounter(&t0);
+    if (!Run(s.engine, windowed, re, im)) {
+        FreeEngine(s.engine);
+        s.engine = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_builtSize = g_pending ? g_pending->n : 0;
+            g_failedSize = n;
+        }
+        Notice(L"An NPU inference call failed mid-stream (driver reset or device removed?). Back on "
+               L"the CPU; change any setting to retry.");
+        return false;
+    }
+    QueryPerformanceCounter(&t1);
+
+    LONGLONG dt = t1.QuadPart - t0.QuadPart;
+    if (!s.statSince) s.statSince = t1.QuadPart;
+    s.statTotal += dt;
+    s.statWorst = std::max(s.statWorst, dt);
+    s.statCount++;
+    if (t1.QuadPart - s.statSince >= 30 * s.qpcFreq) {
+        Wh_Log(L"[NPU] %u blocks in the last 30 s, mean %.3f ms, worst %.3f ms per block", s.statCount,
+               (double)s.statTotal * 1000.0 / (double)s.qpcFreq / (double)s.statCount,
+               (double)s.statWorst * 1000.0 / (double)s.qpcFreq);
+        s.statSince = t1.QuadPart;
+        s.statTotal = s.statWorst = 0;
+        s.statCount = 0;
+    }
+    return true;
+}
+
+// Capture thread exit (pause, device change, unload): hand the engine back so
+// resuming doesn't pay for another compile.
+inline void EndSession(Session& s) {
+    if (!s.engine) return;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (!g_pending && !g_shutdown) {
+        g_pending = s.engine;
+    } else {
+        FreeEngine(s.engine);
+        g_builtSize = g_pending ? g_pending->n : 0;
+    }
+    s.engine = nullptr;
+}
+
+// Unload. The capture thread must already have stopped.
+inline void Shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        g_shutdown = true;
+    }
+    g_cv.notify_all();
+    bool joined = true;
+    if (g_worker) {
+        // A compile in flight can't be cancelled; don't hold unload hostage to
+        // it. The process exits right after this, which ends the thread.
+        if (WaitForSingleObject(g_worker->native_handle(), 3000) == WAIT_OBJECT_0) {
+            g_worker->join();
+        } else {
+            g_worker->detach();
+            joined = false;
+        }
+        delete g_worker;
+        g_worker = nullptr;
+    }
+    if (!joined) return;
+    std::lock_guard<std::mutex> lock(g_mutex);
+    if (g_pending) {
+        FreeEngine(g_pending);
+        g_pending = nullptr;
+    }
+    if (g_core && g_api.core_free) {
+        g_api.core_free(g_core);
+        g_core = nullptr;
+    }
+}
+
+}  // namespace ttnpu
+
+// ---- Audio source ---------------------------------------------------------------------
+//
+// Up to 2.0 the mod always listened to the default playback device. Anyone who
+// routes audio through virtual devices (VB-Audio Matrix / Voicemeeter / VAIO
+// cables, an Ableton return on its own device, ...) had nothing to show, since
+// the default device was silent. Now any active endpoint can be the source:
+//
+//   * an output device, captured the way the default one always was
+//     (WASAPI loopback: what is being played to it), or
+//   * an input device: a microphone, a line-in, or the capture side of a
+//     virtual cable, read as an ordinary recording stream.
+//
+// The source is a short key string:
+//   ""  / "default_output"   the default playback device (the old behaviour)
+//   "default_input"          the default recording device
+//   "id:<endpoint id>"       one exact device (what the right-click menu stores)
+//   "name:<text>"            the first device whose name contains <text>
+//                            (what the Windhawk setting stores, since a person
+//                            can type a name but not an endpoint id)
+
+static const PROPERTYKEY kPKEY_DeviceFriendlyName = {
+    {0xa45c254e, 0xdf1c, 0x4efd, {0x80, 0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0}}, 14};
+
+std::wstring VizDeviceName(IMMDevice* d) {
+    std::wstring out;
+    ComPtr<IPropertyStore> ps;
+    if (!d || FAILED(d->OpenPropertyStore(STGM_READ, &ps)) || !ps) return out;
+    PROPVARIANT v;
+    PropVariantInit(&v);
+    if (SUCCEEDED(ps->GetValue(kPKEY_DeviceFriendlyName, &v)) && v.vt == VT_LPWSTR && v.pwszVal) out = v.pwszVal;
+    PropVariantClear(&v);
+    return out;
+}
+
+std::wstring VizDeviceId(IMMDevice* d) {
+    std::wstring out;
+    LPWSTR id = nullptr;
+    if (d && SUCCEEDED(d->GetId(&id)) && id) {
+        out = id;
+        CoTaskMemFree(id);
+    }
+    return out;
+}
+
+bool VizDeviceIsRender(IMMDevice* d) {
+    ComPtr<IMMEndpoint> ep;
+    EDataFlow flow = eRender;
+    if (d && SUCCEEDED(d->QueryInterface(__uuidof(IMMEndpoint), (void**)ep.GetAddressOf())) && ep)
+        ep->GetDataFlow(&flow);
+    return flow == eRender;
+}
+
+static bool ContainsNoCase(const std::wstring& hay, const std::wstring& needle) {
+    if (needle.empty()) return false;
+    auto it = std::search(hay.begin(), hay.end(), needle.begin(), needle.end(),
+                          [](wchar_t a, wchar_t b) { return towlower(a) == towlower(b); });
+    return it != hay.end();
+}
+
+struct VizAudioEndpoint {
+    std::wstring id, name;
+    bool render = true;
+};
+
+// Every active endpoint, outputs first. Used by the right-click menu.
+std::vector<VizAudioEndpoint> VizListAudioEndpoints(IMMDeviceEnumerator* e) {
+    std::vector<VizAudioEndpoint> out;
+    if (!e) return out;
+    for (EDataFlow flow : {eRender, eCapture}) {
+        ComPtr<IMMDeviceCollection> col;
+        if (FAILED(e->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, &col)) || !col) continue;
+        UINT n = 0;
+        col->GetCount(&n);
+        for (UINT i = 0; i < n; i++) {
+            ComPtr<IMMDevice> d;
+            if (FAILED(col->Item(i, &d)) || !d) continue;
+            VizAudioEndpoint ep;
+            ep.id = VizDeviceId(d.Get());
+            ep.name = VizDeviceName(d.Get());
+            ep.render = (flow == eRender);
+            if (ep.name.empty()) ep.name = ep.id;
+            out.push_back(ep);
+        }
+    }
+    return out;
+}
+
+// Resolves a source key to a device. Falls back to the default output (and
+// says so through *fellBack) when the asked-for device isn't there, so a
+// device that was unplugged or renamed leaves the visualizer working.
+ComPtr<IMMDevice> VizResolveAudioDevice(IMMDeviceEnumerator* e, const std::wstring& key, bool* loopback,
+                                        bool* fellBack) {
+    ComPtr<IMMDevice> d;
+    *fellBack = false;
+    *loopback = true;
+    if (!e) return d;
+    if (key == L"default_input") {
+        if (SUCCEEDED(e->GetDefaultAudioEndpoint(eCapture, eConsole, &d)) && d) {
+            *loopback = false;
+            return d;
+        }
+        *fellBack = true;
+    } else if (key.rfind(L"id:", 0) == 0) {
+        if (SUCCEEDED(e->GetDevice(key.c_str() + 3, &d)) && d) {
+            DWORD state = 0;
+            if (SUCCEEDED(d->GetState(&state)) && state == DEVICE_STATE_ACTIVE) {
+                *loopback = VizDeviceIsRender(d.Get());
+                return d;
+            }
+        }
+        d.Reset();
+        *fellBack = true;
+    } else if (key.rfind(L"name:", 0) == 0) {
+        std::wstring want = key.substr(5);
+        for (const auto& ep : VizListAudioEndpoints(e)) {
+            if (ContainsNoCase(ep.name, want) && SUCCEEDED(e->GetDevice(ep.id.c_str(), &d)) && d) {
+                *loopback = ep.render;
+                return d;
+            }
+        }
+        d.Reset();
+        *fellBack = true;
+    }
+    if (SUCCEEDED(e->GetDefaultAudioEndpoint(eRender, eConsole, &d))) *loopback = true;
+    return d;
+}
+
+// The source in effect, as the engine thread reads it. Written on the UI
+// thread by VizPublishAudioSource (from LoadSettings); a change flags a
+// reopen the same way a device change does.
+std::mutex g_audioSourceMutex;
+std::wstring g_audioSourceKeyShared;
+std::atomic<bool> g_audioOnFallback{false};
+
+std::wstring VizAudioSourceKey() {
+    std::lock_guard<std::mutex> lock(g_audioSourceMutex);
+    return g_audioSourceKeyShared;
+}
+
+// Whether a change of Windows' default device for `flow` affects the stream:
+// only when the source is that default, or the chosen device is missing and
+// the default output is standing in for it.
+bool VizSourceFollowsDefault(EDataFlow flow) {
+    std::wstring key = VizAudioSourceKey();
+    if (flow == eCapture) return key == L"default_input";
+    return key.empty() || key == L"default_output" || g_audioOnFallback.load(std::memory_order_relaxed);
+}
+
+// A readable name for a source key, for messages.
+std::wstring VizAudioSourceLabel(const std::wstring& key) {
+    if (key.empty() || key == L"default_output") return L"default output";
+    if (key == L"default_input") return L"default input";
+    if (key.rfind(L"name:", 0) == 0) return L"\"" + key.substr(5) + L"\"";
+    return L"the device picked from the right-click menu";
+}
+
+// Reported through the message window as an Audio settings warning (the
+// receiver frees the string).
+void VizPostAudioNotice(const std::wstring& msg) {
+    Wh_Log(L"[Audio] %s", msg.c_str());
+    HWND wnd = g_messageWnd;
+    if (!wnd) return;
+    auto* heap = new std::wstring(msg);
+    if (!PostMessage(wnd, WM_APP_HW_NOTICE, 1, (LPARAM)heap)) delete heap;
+}
+
 class VizEndpointNotificationClient : public IMMNotificationClient {
    public:
     virtual ~VizEndpointNotificationClient() = default;
@@ -2776,7 +5962,8 @@ class VizEndpointNotificationClient : public IMMNotificationClient {
         return E_NOINTERFACE;
     }
     HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(EDataFlow flow, ERole, LPCWSTR) override {
-        if (flow == eRender) g_deviceChanged.store(true, std::memory_order_relaxed);
+        if ((flow == eRender || flow == eCapture) && VizSourceFollowsDefault(flow))
+            g_deviceChanged.store(true, std::memory_order_relaxed);
         return S_OK;
     }
     HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override {
@@ -2799,14 +5986,158 @@ class VizEndpointNotificationClient : public IMMNotificationClient {
     LONG m_ref = 1;
 };
 
-bool VizInitAudioClient(IMMDeviceEnumerator* pEnum, ComPtr<IAudioClient>& pClient,
-                        ComPtr<IAudioCaptureClient>& pCapture, UINT32& sampleRate,
-                        UINT32& channels, bool& isFloat, HANDLE hEvent) {
+// ---- Audio engine: capture, analysis and what the renderer reads -----------------
+//
+// 1.5 ran two threads to get audio onto the screen. A capture thread woke on
+// every WASAPI event, about 100 times a second while anything played, and a
+// pacing thread woke once per frame to post the render tick. Every wake is a
+// core leaving a sleep state, which is the cost this mod has always been built
+// around, so 2.0 merges them: the pacing thread also owns the loopback client,
+// and once per frame it drains whatever audio has arrived, analyses it, and
+// posts the tick. Audio and video share one wake.
+//
+// That only works because loopback is drained by polling rather than by the
+// event, so the client is opened with a 500 ms buffer (1.5 asked for 20 ms,
+// which was fine for an event every 10 ms and is not for a frame every 33 ms
+// at a 30 FPS target). The event is still registered; it is what the thread
+// waits on while idle, because WASAPI only signals it when audio arrives.
+//
+// Idle has three steps now:
+//   playing       one wake per frame, as above.
+//   trickle       Pause When Silent reached: wake on audio or every 250 ms,
+//                 and the renderer's skip-unchanged-frames test means nothing
+//                 is presented, so DWM has nothing to compose.
+//   deep idle     5 s after that: the loopback stream itself is stopped and
+//                 the endpoint's peak meter is read 4 times a second instead.
+//                 A running capture stream registers an audio power request,
+//                 which can hold the PC out of sleep; a stopped one doesn't.
+
+enum class VizIdleState { Playing, Trickle, Deep };
+
+// IAudioMeterInformation (endpointvolume.h), declared here because the mingw
+// headers only forward-declare it. Methods in vtable order, from the Windows
+// SDK; only GetPeakValue is called.
+struct IVizAudioMeter : public IUnknown {
+    virtual HRESULT STDMETHODCALLTYPE GetPeakValue(float* pfPeak) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetMeteringChannelCount(UINT* pnChannelCount) = 0;
+    virtual HRESULT STDMETHODCALLTYPE GetChannelsPeakValues(UINT32 u32ChannelCount, float* afPeakValues) = 0;
+    virtual HRESULT STDMETHODCALLTYPE QueryHardwareSupport(DWORD* pdwHardwareSupportMask) = 0;
+};
+static const IID kIID_IAudioMeterInformation = {
+    0xC02216F6, 0x8C67, 0x4B5B, {0x9D, 0x00, 0xD0, 0x08, 0xE7, 0x3E, 0x00, 0x64}};
+
+// Precision bands, written by the engine thread once per frame, read by the
+// UI thread once per drawn frame. Same seqlock pattern as the 7 classic bands.
+struct VizBandFrame {
+    int count = 0;
+    float level[VIZ_BARS_MAX] = {};  // display height 0..1, after ballistics
+    float zone[3] = {};              // summed level per EQ zone (low / mid / high)
+    float zoneCount[3] = {};         // bands in each zone, for averages (Terminal meters)
+};
+std::atomic<uint32_t> g_bandFrameSeq{0};
+VizBandFrame g_bandFrame;
+
+void PublishBandFrame(const VizBandFrame& f) {
+    uint32_t seq = g_bandFrameSeq.load(std::memory_order_relaxed);
+    g_bandFrameSeq.store(seq + 1, std::memory_order_release);
+    std::atomic_thread_fence(std::memory_order_release);
+    g_bandFrame.count = f.count;
+    memcpy(g_bandFrame.level, f.level, sizeof(float) * (size_t)std::clamp(f.count, 0, VIZ_BARS_MAX));
+    memcpy(g_bandFrame.zone, f.zone, sizeof(f.zone));
+    memcpy(g_bandFrame.zoneCount, f.zoneCount, sizeof(f.zoneCount));
+    g_bandFrameSeq.store(seq + 2, std::memory_order_release);
+}
+
+void ReadBandFrame(VizBandFrame& dst) {
+    for (;;) {
+        uint32_t seq1 = g_bandFrameSeq.load(std::memory_order_acquire);
+        if (seq1 & 1) continue;
+        dst.count = std::clamp(g_bandFrame.count, 0, VIZ_BARS_MAX);
+        memcpy(dst.level, g_bandFrame.level, sizeof(float) * (size_t)dst.count);
+        memcpy(dst.zone, g_bandFrame.zone, sizeof(dst.zone));
+        memcpy(dst.zoneCount, g_bandFrame.zoneCount, sizeof(dst.zoneCount));
+        std::atomic_thread_fence(std::memory_order_acquire);
+        if (seq1 == g_bandFrameSeq.load(std::memory_order_relaxed)) return;
+    }
+}
+
+// What the engine thread needs from the settings, copied as one value on the
+// UI thread (LoadSettings) so the engine never reads half of a settings change.
+struct VizEngineConfig {
+    bool precision = true;
+    VizWorkload workload = VizWorkload::Hybrid;
+    ttdsp::SpectrumEngine::Config spec;
+    ttdsp::Ballistics ball;
+    ttdsp::DisplayMap disp;
+    float sensDb = 0.f;
+    bool autoGain = false;
+    float autoGainMaxDb = 12.f;
+    VizChannel channel = VizChannel::Mix;
+    bool wantDominant = false;
+    bool wantLoudness = false;
+    bool wantGonio = false;
+    bool beat = false;
+    bool loudnessResetOnTrack = true;
+};
+std::mutex g_engineCfgMutex;
+VizEngineConfig g_engineCfg;
+std::atomic<int> g_engineCfgGen{1};
+
+// GPU workload feed: the band layout (changes rarely) and the newest
+// unwindowed block of each tier (changes every frame). The UI thread uploads
+// both; the GPU does the rest.
+struct VizGpuFeed {
+    std::mutex m;
+    int layoutSerial = 0;
+    int n = 0;
+    double rate[3] = {48000, 12000, 3000};
+    bool used[3] = {true, false, false};
+    double peakCal = 0.0;
+    std::vector<ttdsp::SpectrumEngine::BandMap> maps;
+    std::vector<ttdsp::Band> bands;
+    std::vector<float> window;
+    std::vector<float> blocks;  // 3 x n
+    unsigned dirty = 0;         // tiers with a new block the UI hasn't taken
+} g_gpuFeed;
+
+// Loudness, true peak and correlation, for the readout.
+struct VizMeterValues {
+    double momentary = -HUGE_VAL, shortTerm = -HUGE_VAL, integrated = -HUGE_VAL;
+    double truePeak = -HUGE_VAL, correlation = 0.0;
+    bool valid = false;
+};
+std::mutex g_meterMutex;
+VizMeterValues g_meters;
+
+// Goniometer: the newest stereo samples as (side, mid) pairs.
+std::mutex g_gonioMutex;
+std::vector<float> g_gonioXY;
+std::atomic<uint32_t> g_gonioSerial{0};
+
+// Engine thread control.
+std::atomic<bool> g_captureWanted{false};
+std::atomic<bool> g_audioOpen{false};
+HANDLE g_engineWake = nullptr;    // auto-reset: settings, pause, resume, unload
+HANDLE g_engineClosed = nullptr;  // manual-reset: set while the stream is closed
+std::atomic<int> g_idleState{(int)VizIdleState::Playing};
+
+// Opens the chosen audio source (see VizResolveAudioDevice): an output
+// device by loopback, as 1.5 always did with the default one, or an input
+// device as a plain recording stream. Same buffer and outputs as before: the
+// channel mask for loudness weighting, and the device itself for the
+// deep-idle peak meter. *fellBack says the chosen device wasn't there.
+bool VizInitAudioClient(IMMDeviceEnumerator* pEnum, ComPtr<IMMDevice>& pDevOut,
+                        ComPtr<IAudioClient>& pClient, ComPtr<IAudioCaptureClient>& pCapture,
+                        UINT32& sampleRate, UINT32& channels, bool& isFloat, DWORD& channelMask,
+                        HANDLE hEvent, bool* loopbackOut, bool* fellBack) {
     pClient.Reset();
     pCapture.Reset();
+    pDevOut.Reset();
 
-    ComPtr<IMMDevice> pDev;
-    if (FAILED(pEnum->GetDefaultAudioEndpoint(eRender, eConsole, &pDev))) return false;
+    bool loopback = true;
+    ComPtr<IMMDevice> pDev = VizResolveAudioDevice(pEnum, VizAudioSourceKey(), &loopback, fellBack);
+    if (!pDev) return false;
+    *loopbackOut = loopback;
 
     ComPtr<IAudioClient> pC;
     if (FAILED(pDev->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
@@ -2823,11 +6154,14 @@ bool VizInitAudioClient(IMMDeviceEnumerator* pEnum, ComPtr<IAudioClient>& pClien
               (pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE &&
                reinterpret_cast<WAVEFORMATEXTENSIBLE*>(pwfx)->SubFormat ==
                    KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
+    channelMask = (pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+                      ? reinterpret_cast<WAVEFORMATEXTENSIBLE*>(pwfx)->dwChannelMask
+                      : 0;
 
-    HRESULT hr = pC->Initialize(
-        AUDCLNT_SHAREMODE_SHARED,
-        AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-        200000, 0, pwfx, nullptr);
+    // 500 ms, in 100 ns units.
+    HRESULT hr = pC->Initialize(AUDCLNT_SHAREMODE_SHARED,
+                                (loopback ? AUDCLNT_STREAMFLAGS_LOOPBACK : 0u) | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+                                5000000, 0, pwfx, nullptr);
     CoTaskMemFree(pwfx);
     if (FAILED(hr)) return false;
 
@@ -2841,404 +6175,709 @@ bool VizInitAudioClient(IMMDeviceEnumerator* pEnum, ComPtr<IAudioClient>& pClien
 
     pClient = pC;
     pCapture = pCap;
+    pDevOut = pDev;
     return true;
 }
 
-void VizCaptureThreadProc() {
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    BuildVizSeeds();
+class VizEngine {
+public:
+    // ---- Thread lifetime --------------------------------------------------------
+    void ThreadInit() {
+        BuildVizSeeds();
+        if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+                                    __uuidof(IMMDeviceEnumerator), (void**)enum_.GetAddressOf()))) {
+            enum_.Reset();
+        }
+        if (enum_) {
+            notify_ = new VizEndpointNotificationClient();
+            notifyRegistered_ = SUCCEEDED(enum_->RegisterEndpointNotificationCallback(notify_));
+        }
+        audioEvent_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        ring_.assign(RING_CAP, 0.f);
+    }
+    void ThreadExit() {
+        Close();
+        if (enum_ && notify_ && notifyRegistered_) enum_->UnregisterEndpointNotificationCallback(notify_);
+        if (notify_) notify_->Release();
+        notify_ = nullptr;
+        ttnpu::EndSession(npuSession_);
+        enum_.Reset();
+        if (audioEvent_) CloseHandle(audioEvent_);
+        audioEvent_ = nullptr;
+    }
+    HANDLE AudioEvent() const { return audioEvent_; }
+    bool IsOpen() const { return (bool)client_; }
+    bool IsStopped() const { return stopped_; }
 
-    ComPtr<IMMDeviceEnumerator> pEnum;
-    if (FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-                                __uuidof(IMMDeviceEnumerator), (void**)pEnum.GetAddressOf()))) {
-        g_captureRunning.store(false);
-        CoUninitialize();
-        return;
+    // Opens the stream if it isn't, or reopens it after a device change. Rate
+    // limited the way 1.5 was, so a device that keeps failing can't spin.
+    void EnsureOpen() {
+        bool changed = g_deviceChanged.exchange(false, std::memory_order_relaxed);
+        if (client_ && !changed) return;
+        ULONGLONG now = GetTickCount64();
+        if (now - lastReinit_ < 500) {
+            if (changed) g_deviceChanged.store(true, std::memory_order_relaxed);
+            return;
+        }
+        lastReinit_ = now;
+        Close();
+        if (!enum_) return;
+        UINT32 sr = 48000, ch = 2;
+        bool fl = true;
+        DWORD mask = 0;
+        bool loopback = true, fellBack = false;
+        std::wstring source = VizAudioSourceKey();
+        if (VizInitAudioClient(enum_.Get(), device_, client_, capture_, sr, ch, fl, mask, audioEvent_, &loopback,
+                               &fellBack)) {
+            sampleRate_ = sr;
+            channels_ = ch;
+            isFloat_ = fl;
+            channelMask_ = mask;
+            stopped_ = false;
+            meter_.Reset();
+            device_->Activate(kIID_IAudioMeterInformation, CLSCTX_ALL, nullptr, (void**)meter_.GetAddressOf());
+            ResetAnalysis();
+            configuredGen_ = 0;  // sample rate may have changed: rebuild the precision engine
+            g_audioOpen.store(true);
+            if (g_engineClosed) ResetEvent(g_engineClosed);
+            Wh_Log(L"[Audio] %s open (%s): %u Hz, %u ch, %s", loopback ? L"loopback" : L"capture",
+                   VizDeviceName(device_.Get()).c_str(), sr, ch, fl ? L"float" : L"int16");
+            // Said once per source: a missing device is worth one heads-up,
+            // not one per reconnect attempt.
+            if (fellBack && source != warnedSource_) {
+                warnedSource_ = source;
+                VizPostAudioNotice(L"The chosen audio source (" + VizAudioSourceLabel(source) +
+                                   L") isn't connected or enabled, so the visualizer is listening to the "
+                                   L"default output until it comes back.");
+            } else if (!fellBack) {
+                warnedSource_.clear();
+            }
+            g_audioOnFallback.store(fellBack, std::memory_order_relaxed);
+        }
     }
 
-    auto* notifyClient = new VizEndpointNotificationClient();
-    bool notifyRegistered = SUCCEEDED(pEnum->RegisterEndpointNotificationCallback(notifyClient));
+    void Close() {
+        if (client_) client_->Stop();
+        capture_.Reset();
+        client_.Reset();
+        meter_.Reset();
+        device_.Reset();
+        stopped_ = false;
+        ResetAnalysis();
+        g_audioOpen.store(false);
+        if (g_engineClosed) SetEvent(g_engineClosed);
+    }
 
-    ComPtr<IAudioClient> pClient;
-    ComPtr<IAudioCaptureClient> pCapture;
-    UINT32 sampleRate = 48000, channels = 2;
-    bool isFloat = true;
-
-    static constexpr int RING_CAP = VIZ_FFT_SIZE_MAX * 4;
-    std::vector<float> ringBuf(RING_CAP, 0.f);
-    int ringHead = 0, ringCount = 0;
-    std::vector<float> re, im;
-
-    float bandEnv[VIZ_NUM_BANDS] = {};
-    static constexpr float GRAVITY[VIZ_NUM_BANDS] = {0.018f, 0.020f, 0.022f, 0.025f,
-                                                     0.030f, 0.036f, 0.042f};
-
-    // Auto Gain state, owned entirely by this thread.
-    //
-    // Feed-forward, not feedback: the loudest band of each analysed block is
-    // measured BEFORE any boost is applied, so the gain is derived from the
-    // block's own level rather than from its own output, and cannot chase
-    // itself.
-    //
-    // What that peak is NOT is the signal as captured. It is read from
-    // rawBand[], which is already through sliderGain and the EQ multipliers, so
-    // both thresholds below are levels on the drawn bars, not on the input.
-    // They therefore move with Sensitivity and the EQ Preset, the same way the
-    // idle test they mirror always has.
-    //
-    // Boost only. The sensitivity curves already handle hot signal, so this is
-    // never allowed below 1.0 and cannot make an existing tuning worse at the
-    // loud end.
-    float agcPeakEnv = 0.f;
-    float agcGain = 1.f;
-    static constexpr float AGC_TARGET = 0.85f;    // where the loudest band should land
-    static constexpr float AGC_ATTACK = 0.35f;    // envelope rise: fast, so peaks aren't missed
-    static constexpr float AGC_RELEASE = 0.012f;  // envelope fall: slow, so quiet bars don't pump
-    static constexpr float AGC_GLIDE = 0.04f;     // how fast the applied gain chases the target
-
-    // Two floors, two jobs, deliberately not the same number.
-    //
-    // AGC_FLOOR is anti-windup for the tracker alone: under it the envelope
-    // stops moving, so a noise floor can never wind the gain up to its ceiling
-    // and there is no overshoot when audio returns.
-    //
-    // AGC_IDLE_AUDIBLE gates the idle-shutdown timer, and has to be the same
-    // number that test compares against. Below the knee mag == rawGained, so
-    // "un-boosted peak over 0.03" is what re-armed the timer before Auto Gain
-    // existed. Gating on the lower floor instead would let anything in
-    // [AGC_FLOOR, 0.03] hold the render loop awake once the boost carried it
-    // over the line, which is quiet-but-not-silent audio keeping the mod out
-    // of its idle path for as long as it plays.
-    static constexpr float AGC_FLOOR = 0.010f;
-    static constexpr float AGC_IDLE_AUDIBLE = 0.030f;
-
-    int currentFftSize = 0;
-    auto ValidFftSize = [](int n) -> int {
-        return (n == 1024 || n == 2048 || n == 4096 || n == 8192) ? n : 1024;
-    };
-    auto ApplyFftSize = [&](int newSize) {
-        currentFftSize = newSize;
-        BuildHannWindow(newSize);
-        BuildTwiddleFactors(newSize);
-        re.assign(newSize, 0.f);
-        im.assign(newSize, 0.f);
-        ringHead = 0;
-        ringCount = 0;
-        for (int b = 0; b < VIZ_NUM_BANDS; b++) {
-            bandEnv[b] = 0.f;
+    // Deep idle: stop the stream, keep the client (restarting it is instant).
+    void StopStream() {
+        if (client_ && !stopped_) {
+            client_->Stop();
+            stopped_ = true;
+            Wh_Log(L"[Idle] deep idle: loopback stopped, watching the peak meter");
         }
-        PublishBands(bandEnv);
-        BuildLogBins(sampleRate, newSize);
-    };
+    }
+    void StartStream() {
+        if (client_ && stopped_) {
+            client_->Start();
+            stopped_ = false;
+            lastPacketQpc_ = 0;
+            Wh_Log(L"[Idle] audio back: loopback restarted");
+        }
+    }
+    // The endpoint's own peak meter, 0..1. Reading it costs one COM call and
+    // needs no stream of ours to be running.
+    float MeterPeak() {
+        float p = 0.f;
+        if (meter_ && SUCCEEDED(meter_->GetPeakValue(&p))) return p;
+        return 1.f;  // no meter: never trust silence, so deep idle can't strand us
+    }
 
-    g_deviceChanged.store(false, std::memory_order_relaxed);
-    VizInitAudioClient(pEnum.Get(), pClient, pCapture, sampleRate, channels, isFloat,
-                       g_captureEvent);
-    ApplyFftSize(ValidFftSize(g_settings.fftSize));
+    // ---- Per frame ------------------------------------------------------------------
+    // Drains the loopback buffer, runs the analysis the settings ask for, and
+    // publishes everything the renderer reads. dt is the time since the last
+    // call, which the ballistics and the classic silence decay are scaled by.
+    void Frame(double dt) {
+        SyncConfig();
+        dt = std::clamp(dt, 0.0005, 0.25);
+        int got = client_ && !stopped_ ? Drain() : 0;
+        PublishScope();
+        if (cfg_.precision) PrecisionFrame(dt, got);
+        else ClassicFrame(dt, got);
+        if (cfg_.wantLoudness || cfg_.wantGonio) PublishMeters();
+        if (cfg_.wantGonio && got > 0) PublishGonio();
+    }
 
-    ULONGLONG lastReinitAttempt = GetTickCount64() - 1000;
+private:
+    static constexpr int RING_CAP = VIZ_FFT_SIZE_MAX * 4;
 
-    while (g_captureRunning.load(std::memory_order_relaxed)) {
-        if (g_captureEvent)
-            WaitForSingleObject(g_captureEvent, 20);
-        else
-            Sleep(8);
+    void ResetAnalysis() {
+        std::fill(ring_.begin(), ring_.end(), 0.f);
+        ringHead_ = ringCount_ = 0;
+        for (int b = 0; b < VIZ_NUM_BANDS; b++) bandEnv_[b] = 0.f;
+        PublishBands(bandEnv_);
+        currentFftSize_ = 0;
+        std::fill(std::begin(bandLevel_), std::end(bandLevel_), 0.f);
+        VizBandFrame empty;
+        PublishBandFrame(empty);
+        lastPacketQpc_ = 0;
+    }
 
-        bool needsReinit = g_deviceChanged.exchange(false, std::memory_order_relaxed) || !pClient;
-        if (needsReinit) {
-            ULONGLONG now = GetTickCount64();
-            if (now - lastReinitAttempt >= 500) {
-                lastReinitAttempt = now;
-                if (pClient) pClient->Stop();
-                ringHead = 0;
-                ringCount = 0;
-                for (int b = 0; b < VIZ_NUM_BANDS; b++) {
-                    bandEnv[b] = 0.f;
+    // Picks up a settings change. The precision engine also has to be rebuilt
+    // when the sample rate changes, which EnsureOpen signals by clearing the
+    // generation it last built for.
+    void SyncConfig() {
+        int gen = g_engineCfgGen.load(std::memory_order_acquire);
+        if (gen == configuredGen_) return;
+        configuredGen_ = gen;
+        {
+            std::lock_guard<std::mutex> lock(g_engineCfgMutex);
+            cfg_ = g_engineCfg;
+        }
+        cfg_.spec.sampleRate = (int)sampleRate_;
+        cfg_.spec.maxBands = VIZ_BARS_MAX;
+        if (cfg_.precision) {
+            spec_.Configure(cfg_.spec);
+            const auto& bands = spec_.Bands();
+            for (size_t b = 0; b < bands.size() && b < (size_t)VIZ_BARS_MAX; b++) {
+                double fc = bands[b].fc;
+                bandZone_[b] = (fc < 300.0) ? 0 : (fc < 2500.0) ? 1 : 2;
+                bandBass_[b] = fc < 150.0;
+            }
+            std::fill(std::begin(bandLevel_), std::end(bandLevel_), 0.f);
+            agcDb_ = 0.f;
+            loudEnvDb_ = -200.f;
+            if (cfg_.workload == VizWorkload::Gpu) {
+                std::lock_guard<std::mutex> lock(g_gpuFeed.m);
+                g_gpuFeed.layoutSerial++;
+                g_gpuFeed.n = spec_.Cfg().fftSize;
+                for (int t = 0; t < 3; t++) {
+                    g_gpuFeed.rate[t] = spec_.TierRate(t);
+                    g_gpuFeed.used[t] = spec_.TierUsed(t);
                 }
-                PublishBands(bandEnv);
-                if (VizInitAudioClient(pEnum.Get(), pClient, pCapture, sampleRate, channels,
-                                       isFloat, g_captureEvent))
-                    BuildLogBins(sampleRate, currentFftSize);
+                g_gpuFeed.peakCal = spec_.PeakCal();
+                g_gpuFeed.maps = spec_.Maps();
+                g_gpuFeed.bands = bands;
+                g_gpuFeed.window.assign(spec_.Window(), spec_.Window() + g_gpuFeed.n);
+                g_gpuFeed.blocks.assign((size_t)3 * g_gpuFeed.n, 0.f);
+                g_gpuFeed.dirty = 7;
             }
         }
-
-        int wantedFftSize = ValidFftSize(g_settings.fftSize);
-        if (wantedFftSize != currentFftSize) {
-            ApplyFftSize(wantedFftSize);
+        // Loudness weights from the channel mask: BS.1770 counts the
+        // surrounds 1.41 times, leaves LFE out, and treats everything else as
+        // a front channel.
+        float w[ttdsp::LoudnessMeter::kMaxCh];
+        for (UINT32 c = 0, bit = 0; c < (UINT32)ttdsp::LoudnessMeter::kMaxCh; c++) {
+            w[c] = 1.f;
+            if (!channelMask_) continue;
+            while (bit < 32 && !(channelMask_ & (1u << bit))) bit++;
+            DWORD sp = (bit < 32) ? (1u << bit) : 0;
+            bit++;
+            if (sp == SPEAKER_LOW_FREQUENCY) w[c] = 0.f;
+            else if (sp == SPEAKER_BACK_LEFT || sp == SPEAKER_BACK_RIGHT || sp == SPEAKER_SIDE_LEFT ||
+                     sp == SPEAKER_SIDE_RIGHT)
+                w[c] = 1.41f;
         }
+        loudness_.Configure((int)sampleRate_, (int)std::min<UINT32>(channels_, ttdsp::LoudnessMeter::kMaxCh), w);
+        correlation_.Configure((int)sampleRate_, 300.0);
+        lastTrackTick_ = g_nowPlayingChangedTick.load(std::memory_order_relaxed);
+    }
 
-        if (!pCapture) continue;
-
+    // ---- Drain ----------------------------------------------------------------------
+    // Returns the number of frames that arrived (silent packets included).
+    int Drain() {
         UINT32 packetSize = 0;
-        HRESULT hr = pCapture->GetNextPacketSize(&packetSize);
+        HRESULT hr = capture_->GetNextPacketSize(&packetSize);
         if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
             g_deviceChanged.store(true, std::memory_order_relaxed);
-            continue;
+            return 0;
         }
-        if (FAILED(hr) || packetSize == 0) {
-            for (int b = 0; b < VIZ_NUM_BANDS; b++) {
-                bandEnv[b] = std::max(0.f, bandEnv[b] - GRAVITY[b]);
-            }
-            PublishBands(bandEnv);
-            continue;
-        }
+        if (FAILED(hr)) return 0;
 
-        // Input Gain folded into the mono mixdown. Applying it here rather than
-        // further down means it reaches the Oscilloscope waveform too, which is
-        // read straight out of this ring buffer and so has never had a level
-        // control of its own. It also replaces the per-frame divide by channel
-        // count with a single multiply, so the feature costs slightly less than
-        // what the mixdown was already doing.
-        float inputGainLin = (g_settings.inputGainDb == 0.0f)
-                                 ? 1.0f
-                                 : powf(10.f, g_settings.inputGainDb / 20.f);
-        float monoScale = inputGainLin / (float)((channels > 0) ? channels : 1);
+        // Input Gain is folded into the mixdown, as in 1.5, so it reaches the
+        // scope, the bars and the meters alike.
+        float inputGainLin = (g_settings.inputGainDb == 0.0f) ? 1.0f : powf(10.f, g_settings.inputGainDb / 20.f);
+        UINT32 ch = std::max<UINT32>(1, channels_);
+        float monoScale = inputGainLin / (float)ch;
+        int total = 0;
+        blockPeak_ = 0.f;
 
         while (packetSize > 0) {
             BYTE* pData = nullptr;
             UINT32 numFrames = 0;
             DWORD flags = 0;
-            HRESULT hrBuf = pCapture->GetBuffer(&pData, &numFrames, &flags, nullptr, nullptr);
+            HRESULT hrBuf = capture_->GetBuffer(&pData, &numFrames, &flags, nullptr, nullptr);
             if (hrBuf == AUDCLNT_E_DEVICE_INVALIDATED) {
                 g_deviceChanged.store(true, std::memory_order_relaxed);
                 break;
             }
             if (FAILED(hrBuf)) break;
-
-            if (!(flags & AUDCLNT_BUFFERFLAGS_SILENT) && pData && numFrames > 0) {
-                if (isFloat) {
-                    float* src = reinterpret_cast<float*>(pData);
-                    for (UINT32 f = 0; f < numFrames; f++) {
-                        float mono = 0.f;
-                        for (UINT32 c = 0; c < channels; c++) mono += src[f * channels + c];
-                        mono *= monoScale;
-                        ringBuf[ringHead] = mono;
-                        ringHead = (ringHead + 1) % RING_CAP;
-                        if (ringCount < RING_CAP) ringCount++;
-                    }
-                } else {
-                    INT16* src = reinterpret_cast<INT16*>(pData);
-                    for (UINT32 f = 0; f < numFrames; f++) {
-                        float mono = 0.f;
-                        for (UINT32 c = 0; c < channels; c++)
-                            mono += src[f * channels + c] / 32768.f;
-                        mono *= monoScale;
-                        ringBuf[ringHead] = mono;
-                        ringHead = (ringHead + 1) % RING_CAP;
-                        if (ringCount < RING_CAP) ringCount++;
-                    }
-                }
+            bool silent = (flags & AUDCLNT_BUFFERFLAGS_SILENT) || !pData;
+            if (numFrames > 0) {
+                total += (int)numFrames;
+                ConvertPacket(silent ? nullptr : pData, numFrames, ch, inputGainLin, monoScale);
             }
-            pCapture->ReleaseBuffer(numFrames);
-            hr = pCapture->GetNextPacketSize(&packetSize);
+            capture_->ReleaseBuffer(numFrames);
+            hr = capture_->GetNextPacketSize(&packetSize);
             if (hr == AUDCLNT_E_DEVICE_INVALIDATED) {
                 g_deviceChanged.store(true, std::memory_order_relaxed);
                 break;
             }
             if (FAILED(hr)) break;
         }
+        LARGE_INTEGER q;
+        QueryPerformanceCounter(&q);
+        if (total > 0) lastPacketQpc_ = q.QuadPart;
+        return total;
+    }
 
-        while (ringCount >= currentFftSize) {
-            int readStart = (ringHead - ringCount + RING_CAP) % RING_CAP;
-
-            // Raw waveform snapshot for the oscilloscope shape. Skipped entirely
-            // unless that shape is actually selected, to avoid needless per-chunk work.
-            if (g_settings.shape == VizShape::Oscilloscope) {
-                int wstep = std::max(1, currentFftSize / VIZ_WAVE_SAMPLES);
-                float waveSnap[VIZ_WAVE_SAMPLES];
-                for (int w = 0; w < VIZ_WAVE_SAMPLES; w++) {
-                    int idx = (readStart + w * wstep) % RING_CAP;
-                    // agcGain is exactly 1.0 unless Auto Gain is on, so this is a
-                    // no-op multiply by default, and it only runs at all when the
-                    // Oscilloscope shape is selected. It carries the previous
-                    // block's gain, one block of lag, which at these sizes is
-                    // around 10 ms and not visible.
-                    //
-                    // Clamped because nothing downstream does it. The bars are
-                    // held at or under 1.0 by the sensitivity curve, but the
-                    // trace is drawn straight as center + sample * ampScale, so
-                    // an over-driven sample would be plotted off the panel with
-                    // no upper bound. Clipping flat is what a real scope does
-                    // with a signal it cannot fit.
-                    waveSnap[w] = std::clamp(ringBuf[idx] * agcGain, -1.0f, 1.0f);
+    // One packet: the classic mono ring (scope and classic bands), the
+    // precision engine's chosen channel, loudness, correlation, goniometer.
+    // A silent packet (pData null) is real silence of known length: it is fed
+    // to the precision engine and the meters as zeros, so they decay on time,
+    // while the classic ring, as in 1.5, is left alone.
+    void ConvertPacket(const BYTE* pData, UINT32 frames, UINT32 ch, float gain, float monoScale) {
+        const bool prec = cfg_.precision;
+        const bool loud = cfg_.wantLoudness;
+        const bool stereoWork = loud || cfg_.wantGonio;
+        if (prec) mono_.resize(frames);
+        if (stereoWork) {
+            inter_.resize((size_t)frames * ch);
+            stereo_.resize((size_t)frames * 2);
+        }
+        const float* f32 = reinterpret_cast<const float*>(pData);
+        const INT16* i16 = reinterpret_cast<const INT16*>(pData);
+        for (UINT32 f = 0; f < frames; f++) {
+            float l = 0.f, r = 0.f, sum = 0.f;
+            if (pData) {
+                for (UINT32 c = 0; c < ch; c++) {
+                    float v = isFloat_ ? f32[f * ch + c] : i16[f * ch + c] / 32768.f;
+                    sum += v;
+                    if (stereoWork) inter_[(size_t)f * ch + c] = v * gain;
+                    if (c == 0) l = v;
+                    if (c == 1) r = v;
                 }
-                PublishWaveform(waveSnap);
+                if (ch == 1) r = l;
+                float mono = sum * monoScale;
+                ring_[ringHead_] = mono;
+                ringHead_ = (ringHead_ + 1) % RING_CAP;
+                if (ringCount_ < RING_CAP) ringCount_++;
+                blockPeak_ = std::max(blockPeak_, fabsf(mono));
+                lastAudioTick_ = GetTickCount64();
+                scopeFlatPublished_ = false;
+            } else if (stereoWork) {
+                for (UINT32 c = 0; c < ch; c++) inter_[(size_t)f * ch + c] = 0.f;
             }
+            l *= gain;
+            r *= gain;
+            if (prec) {
+                float v;
+                switch (cfg_.channel) {
+                    case VizChannel::Left: v = l; break;
+                    case VizChannel::Right: v = r; break;
+                    case VizChannel::Mid: v = 0.5f * (l + r); break;
+                    case VizChannel::Side: v = 0.5f * (l - r); break;
+                    default: v = sum * monoScale; break;
+                }
+                mono_[f] = v;
+            }
+            if (stereoWork) {
+                stereo_[2 * f] = l;
+                stereo_[2 * f + 1] = r;
+                correlation_.Push(l, r);
+            }
+        }
+        if (prec) spec_.Push(mono_.data(), (int)frames);
+        if (loud) loudness_.Process(inter_.data(), (int)frames, (int)ch);
+        if (cfg_.wantGonio) {
+            // Keep the newest 2048 stereo frames.
+            const size_t keep = 2048;
+            for (UINT32 f = 0; f < frames; f++) {
+                gonioPending_.push_back(stereo_[2 * f]);
+                gonioPending_.push_back(stereo_[2 * f + 1]);
+            }
+            if (gonioPending_.size() > keep * 2)
+                gonioPending_.erase(gonioPending_.begin(), gonioPending_.end() - keep * 2);
+        }
+    }
 
-            for (int i = 0; i < currentFftSize; i++) {
-                re[i] = ringBuf[(readStart + i) % RING_CAP] * g_hannWindow[i];
-                im[i] = 0.f;
+    // ---- Oscilloscope trace (1.5, unchanged apart from where it lives) ---------------
+    void PublishScope() {
+        if (g_settings.shape != VizShape::Oscilloscope) return;
+        static constexpr double SCOPE_HOLD_MS = 60.0;
+        static constexpr double SCOPE_FADE_MS = 140.0;
+        double sinceAudioMs = (double)(GetTickCount64() - lastAudioTick_);
+        float staleFade = 1.0f;
+        if (sinceAudioMs > SCOPE_HOLD_MS)
+            staleFade = std::max(0.0f, 1.0f - (float)((sinceAudioMs - SCOPE_HOLD_MS) / SCOPE_FADE_MS));
+        if (staleFade <= 0.0f && scopeFlatPublished_) return;
+
+        auto ringAt = [&](int i) -> float {
+            int m = i % RING_CAP;
+            if (m < 0) m += RING_CAP;
+            return ring_[m];
+        };
+        int windowMs = std::clamp(g_settings.oscilloscopeWindowMs, 5, 250);
+        int span = (int)((double)sampleRate_ * (double)windowMs / 1000.0);
+        span = std::clamp(span, VIZ_WAVE_SAMPLES, RING_CAP / 2);
+        // Trigger on the nearest rising zero crossing before the window's
+        // natural start, so the trace holds still (see the 1.4 notes).
+        int start = ringHead_ - span;
+        int searchSpan = std::min(span / 2, RING_CAP - span - 1);
+        for (int k = 1; k <= searchSpan; k++) {
+            if (ringAt(start - k - 1) <= 0.f && ringAt(start - k) > 0.f) {
+                start -= k;
+                break;
             }
-            ringCount -= currentFftSize / 2;
-            VizFFT(re, im);
+        }
+        float waveSnap[VIZ_WAVE_SAMPLES];
+        float gain = cfg_.precision ? 1.0f : agcGain_;
+        for (int w = 0; w < VIZ_WAVE_SAMPLES; w++) {
+            int from = start + (int)((long long)w * span / VIZ_WAVE_SAMPLES);
+            int to = start + (int)((long long)(w + 1) * span / VIZ_WAVE_SAMPLES);
+            if (to <= from) to = from + 1;
+            float peak = 0.f;
+            for (int s = from; s < to; s++) {
+                float v = ringAt(s);
+                if (fabsf(v) > fabsf(peak)) peak = v;
+            }
+            waveSnap[w] = std::clamp(peak * gain * staleFade, -1.0f, 1.0f);
+        }
+        PublishWaveform(waveSnap);
+        scopeFlatPublished_ = (staleFade <= 0.0f);
+    }
+
+    // ---- Classic engine (1.4 / 1.5 numbers, unchanged) -----------------------------------
+    void ClassicFrame(double dt, int got) {
+        static constexpr float GRAVITY[VIZ_NUM_BANDS] = {0.018f, 0.020f, 0.022f, 0.025f,
+                                                         0.030f, 0.036f, 0.042f};
+        int wanted = (g_settings.fftSize == 1024 || g_settings.fftSize == 2048 || g_settings.fftSize == 4096 ||
+                      g_settings.fftSize == 8192)
+                         ? g_settings.fftSize
+                         : 1024;
+        if (wanted != currentFftSize_) {
+            currentFftSize_ = wanted;
+            BuildHannWindow(wanted);
+            BuildTwiddleFactors(wanted);
+            re_.assign(wanted, 0.f);
+            im_.assign(wanted, 0.f);
+            ringHead_ = ringCount_ = 0;
+            for (int b = 0; b < VIZ_NUM_BANDS; b++) bandEnv_[b] = 0.f;
+            PublishBands(bandEnv_);
+            BuildLogBins(sampleRate_, wanted);
+        }
+        if (got == 0) {
+            // 1.5 applied this once per capture wake, which with no audio was
+            // every 20 ms. Wakes are per frame now, so the step is scaled to
+            // the same 20 ms to keep the fall speed exactly as it was.
+            float k = (float)(dt / 0.020);
+            for (int b = 0; b < VIZ_NUM_BANDS; b++) bandEnv_[b] = std::max(0.f, bandEnv_[b] - GRAVITY[b] * k);
+            PublishBands(bandEnv_);
+            return;
+        }
+
+        static constexpr float AGC_TARGET = 0.85f, AGC_ATTACK = 0.35f, AGC_RELEASE = 0.012f,
+                               AGC_GLIDE = 0.04f, AGC_FLOOR = 0.010f, AGC_IDLE_AUDIBLE = 0.030f;
+        while (ringCount_ >= currentFftSize_) {
+            int readStart = (ringHead_ - ringCount_ + RING_CAP) % RING_CAP;
+            for (int i = 0; i < currentFftSize_; i++) {
+                re_[i] = ring_[(readStart + i) % RING_CAP] * g_hannWindow[i];
+                im_[i] = 0.f;
+            }
+            ringCount_ -= currentFftSize_ / 2;
+            bool analysedOnNpu = cfg_.workload == VizWorkload::Npu &&
+                                 ttnpu::Analyze(npuSession_, currentFftSize_, re_.data(), re_, im_);
+            if (!analysedOnNpu) VizFFT(re_, im_);
 
             float t_sens = g_settings.sensitivity / 100.0f;
-            float sliderGain = (t_sens <= 1.0f) ? 0.25f + t_sens * t_sens * 2.75f
-                                                : 3.0f + (t_sens - 1.0f) * 4.0f;
+            float sliderGain = (t_sens <= 1.0f) ? 0.25f + t_sens * t_sens * 2.75f : 3.0f + (t_sens - 1.0f) * 4.0f;
             auto eq = GetVizEQMultipliers(g_settings.eq);
-
-            static constexpr float BAND_SENSITIVITY[VIZ_NUM_BANDS] = {
-                0.30f, 0.22f, 0.12f, 0.06f, 0.030f, 0.018f, 0.010f};
-
-            // Pass one: the band levels as captured, with no auto boost applied.
-            // VIZ_NUM_BANDS is 7, so holding them costs a stack array and lets the
-            // gain be chosen from the whole block rather than band by band.
+            static constexpr float BAND_SENSITIVITY[VIZ_NUM_BANDS] = {0.30f, 0.22f, 0.12f, 0.06f,
+                                                                       0.030f, 0.018f, 0.010f};
             float rawBand[VIZ_NUM_BANDS];
             float blockPeak = 0.f;
             for (int b = 0; b < VIZ_NUM_BANDS; b++) {
                 int bStart = g_logBinStart[b];
                 int bEnd = g_logBinStart[b + 1];
                 if (bEnd <= bStart) bEnd = bStart + 1;
-
                 float sumSq = 0.f;
                 int count = 0;
                 for (int k = bStart; k < bEnd; k++) {
-                    sumSq += re[k] * re[k] + im[k] * im[k];
+                    sumSq += re_[k] * re_[k] + im_[k] * im_[k];
                     count++;
                 }
                 float rms = (count > 0) ? sqrtf(sumSq / (float)count) : 0.f;
-                float eqM = (VIZ_BAND_EQ_ZONE[b] == 0)   ? eq.low
-                            : (VIZ_BAND_EQ_ZONE[b] == 1) ? eq.mid
-                                                         : eq.high;
-                float rawGained = (rms / (currentFftSize * 0.5f)) / BAND_SENSITIVITY[b] *
-                                   sliderGain * eqM;
+                float eqM = (VIZ_BAND_EQ_ZONE[b] == 0) ? eq.low : (VIZ_BAND_EQ_ZONE[b] == 1) ? eq.mid : eq.high;
+                float rawGained = (rms / (currentFftSize_ * 0.5f)) / BAND_SENSITIVITY[b] * sliderGain * eqM;
                 rawBand[b] = std::max(0.f, rawGained);
                 blockPeak = std::max(blockPeak, rawBand[b]);
             }
-
-            // Auto Gain. blockPeak is the un-boosted level, so the silence test is
-            // honest regardless of where the gain currently sits. Through silence
-            // the envelope and the gain are both frozen rather than decayed: that
-            // stops the noise floor being lifted while nothing is playing, and it
-            // stops the loud overshoot that a decayed gain would produce the
-            // instant music comes back.
             bool blockAudible = (blockPeak >= AGC_FLOOR);
             bool blockIdleAudible = (blockPeak >= AGC_IDLE_AUDIBLE);
             if (g_settings.autoGain) {
                 if (blockAudible) {
-                    float k = (blockPeak > agcPeakEnv) ? AGC_ATTACK : AGC_RELEASE;
-                    agcPeakEnv += (blockPeak - agcPeakEnv) * k;
-
+                    float k = (blockPeak > agcPeakEnv_) ? AGC_ATTACK : AGC_RELEASE;
+                    agcPeakEnv_ += (blockPeak - agcPeakEnv_) * k;
                     float maxBoost = powf(10.f, g_settings.autoGainMaxDb / 20.f);
-                    float want = (agcPeakEnv > 1e-6f) ? (AGC_TARGET / agcPeakEnv) : maxBoost;
+                    float want = (agcPeakEnv_ > 1e-6f) ? (AGC_TARGET / agcPeakEnv_) : maxBoost;
                     want = std::clamp(want, 1.f, maxBoost);
-                    agcGain += (want - agcGain) * AGC_GLIDE;
+                    agcGain_ += (want - agcGain_) * AGC_GLIDE;
                 }
             } else {
-                agcPeakEnv = 0.f;
-                agcGain = 1.f;
+                agcPeakEnv_ = 0.f;
+                agcGain_ = 1.f;
             }
-
-            // Pass two: shaping and envelope, unchanged apart from the gain factor,
-            // which is exactly 1.0 whenever Auto Gain is off.
             float maxMag = 0.f;
             for (int b = 0; b < VIZ_NUM_BANDS; b++) {
-                float rawGained = rawBand[b] * agcGain;
-
+                float rawGained = rawBand[b] * agcGain_;
                 float mag;
                 switch (g_settings.sensitivityCurve) {
-                    case VizSensitivityCurve::Exponential:
-                        mag = 1.f - expf(-rawGained);
-                        break;
-                    case VizSensitivityCurve::Power:
-                        mag = std::min(1.f, powf(rawGained, 0.6f));
-                        break;
+                    case VizSensitivityCurve::Exponential: mag = 1.f - expf(-rawGained); break;
+                    case VizSensitivityCurve::Power: mag = std::min(1.f, powf(rawGained, 0.6f)); break;
                     case VizSensitivityCurve::Knee:
                     default: {
                         constexpr float knee = 0.7f;
-                        mag = (rawGained <= knee)
-                                  ? rawGained
-                                  : knee + (1.f - knee) * tanhf((rawGained - knee) / (1.f - knee));
+                        mag = (rawGained <= knee) ? rawGained
+                                                  : knee + (1.f - knee) * tanhf((rawGained - knee) / (1.f - knee));
                         break;
                     }
                 }
                 mag = std::max(0.f, std::min(1.f, mag));
-
-                bandEnv[b] = (mag >= bandEnv[b]) ? mag : std::max(0.f, bandEnv[b] - GRAVITY[b]);
-                maxMag = std::max(maxMag, bandEnv[b]);
+                bandEnv_[b] = (mag >= bandEnv_[b]) ? mag : std::max(0.f, bandEnv_[b] - GRAVITY[b]);
+                maxMag = std::max(maxMag, bandEnv_[b]);
             }
-            PublishBands(bandEnv);
-
-            // Idle shutdown is judged on the un-boosted level as well as the drawn
-            // one, against the same 0.03 the drawn test uses. Without the second
-            // clause, Auto Gain would carry anything it could lift over 0.03 into
-            // "audible" and hold the render loop awake, which is the whole power
-            // story gone. Because both clauses compare against the same number,
-            // this is numerically the original test: Auto Gain neither extends
-            // nor shortens how long the mod stays awake. With Auto Gain off it
-            // short-circuits to the original test outright.
-            if (maxMag > 0.03f && (!g_settings.autoGain || blockIdleAudible)) {
+            PublishBands(bandEnv_);
+            if (maxMag > 0.03f && (!g_settings.autoGain || blockIdleAudible))
                 g_lastAudibleTickMs.store(GetTickCount64(), std::memory_order_relaxed);
-            }
-
             if (g_settings.beatFlashEnabled) {
-                static float prevBassEnv = 0.f;
-                if (bandEnv[0] - prevBassEnv > 0.12f) {
-                    g_beatPulse.store(1.0f, std::memory_order_relaxed);
-                }
-                prevBassEnv = bandEnv[0];
+                if (bandEnv_[0] - prevBassEnv_ > 0.12f) g_beatPulse.store(1.0f, std::memory_order_relaxed);
+                prevBassEnv_ = bandEnv_[0];
             }
-
-            // Dominant-frequency readout: only searched when the setting is on,
-            // and only over the audible range actually representable at this
-            // sample rate/FFT size, so this never runs by default.
             if (g_settings.peakFreqEnabled) {
-                int nyquistBin = currentFftSize / 2;
-                int loBin = std::max(1, (int)(20.f * currentFftSize / (float)sampleRate));
-                int hiBin = std::min(nyquistBin - 1,
-                                     (int)(20000.f * currentFftSize / (float)sampleRate));
+                int nyquistBin = currentFftSize_ / 2;
+                int loBin = std::max(1, (int)(20.f * currentFftSize_ / (float)sampleRate_));
+                int hiBin = std::min(nyquistBin - 1, (int)(20000.f * currentFftSize_ / (float)sampleRate_));
                 int bestBin = -1;
                 float bestMag = 0.f;
                 for (int k = loBin; k <= hiBin; k++) {
-                    float mag = re[k] * re[k] + im[k] * im[k];
-                    if (mag > bestMag) { bestMag = mag; bestBin = k; }
+                    float mag = re_[k] * re_[k] + im_[k] * im_[k];
+                    if (mag > bestMag) {
+                        bestMag = mag;
+                        bestBin = k;
+                    }
                 }
-                if (bestBin > 0 && sqrtf(bestMag) / (currentFftSize * 0.5f) > 0.02f) {
-                    float hz = (float)bestBin * (float)sampleRate / (float)currentFftSize;
-                    g_dominantFreqHz.store(hz, std::memory_order_relaxed);
-                }
+                if (bestBin > 0 && sqrtf(bestMag) / (currentFftSize_ * 0.5f) > 0.02f)
+                    g_dominantFreqHz.store((float)bestBin * (float)sampleRate_ / (float)currentFftSize_,
+                                           std::memory_order_relaxed);
             }
         }
     }
 
-    if (pClient) pClient->Stop();
-    if (notifyRegistered) pEnum->UnregisterEndpointNotificationCallback(notifyClient);
-    notifyClient->Release();
-    CoUninitialize();
-}
+    // ---- Precision engine --------------------------------------------------------------
+    void PrecisionFrame(double dt, int got) {
+        LARGE_INTEGER q;
+        QueryPerformanceCounter(&q);
+        // Stream starved (nothing at all, not even silent packets, for more
+        // than 40 ms): that is silence too, so feed its length in as zeros and
+        // the spectrum decays on time instead of freezing on the last note.
+        if (got == 0 && client_ && !stopped_) {
+            double since = lastPacketQpc_ ? (double)(q.QuadPart - lastPacketQpc_) / (double)VizQpcFreq() : 1.0;
+            if (since > 0.040) {
+                int n = std::min((int)(dt * sampleRate_), cfg_.spec.fftSize);
+                zeros_.assign((size_t)std::max(0, n), 0.f);
+                if (n > 0) spec_.Push(zeros_.data(), n);
+            }
+        }
 
-void StartVizCaptureThread() {
-    if (g_captureRunning.load()) return;
-    if (g_captureThread) {
-        if (g_captureThread->joinable()) g_captureThread->join();
-        delete g_captureThread;
-        g_captureThread = nullptr;
+        if (cfg_.workload == VizWorkload::Gpu) {
+            // The GPU does the analysis. Here: hand over fresh blocks, and
+            // judge silence from the samples themselves.
+            {
+                std::lock_guard<std::mutex> lock(g_gpuFeed.m);
+                int n = g_gpuFeed.n;
+                if (n > 0 && g_gpuFeed.blocks.size() >= (size_t)3 * n) {
+                    for (int t = 0; t < 3; t++)
+                        if (spec_.TakeTierBlock(t, &g_gpuFeed.blocks[(size_t)t * n], false)) g_gpuFeed.dirty |= 1u << t;
+                }
+            }
+            if (got > 0 && blockPeak_ > 0.000316f)  // -70 dBFS
+                g_lastAudibleTickMs.store(GetTickCount64(), std::memory_order_relaxed);
+            return;
+        }
+
+        auto npu = [this](const float* windowed, int n, float* re, float* im) -> bool {
+            if (cfg_.workload != VizWorkload::Npu) return false;
+            npuRe_.resize(n);
+            npuIm_.resize(n);
+            if (!ttnpu::Analyze(npuSession_, n, windowed, npuRe_, npuIm_)) return false;
+            for (int k = 0; k < n / 2; k++) {
+                re[k] = npuRe_[k];
+                im[k] = npuIm_[k];
+            }
+            re[n / 2] = im[n / 2] = 0.f;  // the NPU model leaves out the Nyquist bin
+            return true;
+        };
+        bool fresh = spec_.Analyze(false, npu);
+
+        const int nb = std::min(spec_.NumBands(), VIZ_BARS_MAX);
+        const float* db = spec_.LevelsDb();
+        const float range = std::max(1.f, cfg_.disp.ceilDb - cfg_.disp.floorDb);
+        ttdsp::DisplayMap disp = cfg_.disp;
+        disp.gainDb = cfg_.sensDb + agcDb_;
+        float maxX = 0.f, rawMax = -300.f, bass = 0.f;
+        VizBandFrame& out = frame_;
+        out.count = nb;
+        out.zone[0] = out.zone[1] = out.zone[2] = 0.f;
+        out.zoneCount[0] = out.zoneCount[1] = out.zoneCount[2] = 0.f;
+        for (int b = 0; b < nb; b++) {
+            float x = disp.ToNorm(db[b]);
+            bandLevel_[b] = ttdsp::BallisticsStep(bandLevel_[b], x, dt, cfg_.ball, range);
+            out.level[b] = bandLevel_[b];
+            out.zone[bandZone_[b]] += bandLevel_[b];
+            out.zoneCount[bandZone_[b]] += 1.f;
+            maxX = std::max(maxX, x);
+            rawMax = std::max(rawMax, db[b]);
+            if (bandBass_[b]) bass = std::max(bass, x);
+        }
+
+        // Silence, judged on both the samples and the drawn level, so neither
+        // a quiet hiss nor a display range set very low can hold the mod awake.
+        bool audible = got > 0 && blockPeak_ > 0.000316f && maxX > 0.02f;
+        if (audible) g_lastAudibleTickMs.store(GetTickCount64(), std::memory_order_relaxed);
+
+        // Auto Gain: lift the loudest band toward 85% of the range. Boost
+        // only, held through silence, smoothed over about 0.4 s.
+        if (cfg_.autoGain) {
+            if (audible) {
+                float target = cfg_.disp.floorDb + 0.85f * range;
+                float loud = rawMax + cfg_.sensDb;
+                float k = 1.f - expf(-(float)dt / ((loud > loudEnvDb_) ? 0.03f : 2.0f));
+                loudEnvDb_ = (loudEnvDb_ < -150.f) ? loud : loudEnvDb_ + (loud - loudEnvDb_) * k;
+                float want = std::clamp(target - loudEnvDb_, 0.f, cfg_.autoGainMaxDb);
+                agcDb_ += (want - agcDb_) * (1.f - expf(-(float)dt / 0.4f));
+            }
+        } else {
+            agcDb_ = 0.f;
+        }
+
+        // Beat: bass pulling ahead of its own 60 ms average. A difference of
+        // two envelopes rather than "rose since the last block", so it fires
+        // the same way at any frame rate.
+        bassSlow_ += (bass - bassSlow_) * (1.f - expf(-(float)dt / 0.06f));
+        if (cfg_.beat && bass - bassSlow_ > 0.12f) g_beatPulse.store(1.0f, std::memory_order_relaxed);
+
+        if (cfg_.wantDominant && fresh) {
+            double hz = spec_.DominantHz(-70.0);
+            if (hz > 0.0) g_dominantFreqHz.store((float)hz, std::memory_order_relaxed);
+        }
+        PublishBandFrame(out);
     }
-    if (!g_captureEvent) g_captureEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    g_captureRunning.store(true);
-    g_captureThread = new std::thread(VizCaptureThreadProc);
-    HANDLE hCaptureThread = g_captureThread->native_handle();
-    SetThreadDescription(hCaptureThread, L"TourneTable-Capture");
+
+    void PublishMeters() {
+        // A new track starts a new integrated measurement.
+        ULONGLONG tick = g_nowPlayingChangedTick.load(std::memory_order_relaxed);
+        if (cfg_.loudnessResetOnTrack && tick != lastTrackTick_) {
+            lastTrackTick_ = tick;
+            loudness_.Reset();
+        }
+        VizMeterValues v;
+        v.momentary = loudness_.Momentary();
+        v.shortTerm = loudness_.ShortTerm();
+        v.integrated = loudness_.Integrated();
+        v.truePeak = loudness_.TruePeakDb();
+        v.correlation = correlation_.Value();
+        v.valid = true;
+        std::lock_guard<std::mutex> lock(g_meterMutex);
+        g_meters = v;
+    }
+
+    void PublishGonio() {
+        {
+            std::lock_guard<std::mutex> lock(g_gonioMutex);
+            size_t n = gonioPending_.size() / 2;
+            g_gonioXY.resize(n * 2);
+            // (side, mid) = ((L - R) / 2, (L + R) / 2): mono runs straight up.
+            for (size_t i = 0; i < n; i++) {
+                float l = gonioPending_[2 * i], r = gonioPending_[2 * i + 1];
+                g_gonioXY[2 * i] = 0.5f * (l - r);
+                g_gonioXY[2 * i + 1] = 0.5f * (l + r);
+            }
+        }
+        gonioPending_.clear();
+        g_gonioSerial.fetch_add(1, std::memory_order_release);
+    }
+
+    // WASAPI
+    ComPtr<IMMDeviceEnumerator> enum_;
+    VizEndpointNotificationClient* notify_ = nullptr;
+    bool notifyRegistered_ = false;
+    ComPtr<IMMDevice> device_;
+    ComPtr<IAudioClient> client_;
+    ComPtr<IAudioCaptureClient> capture_;
+    ComPtr<IVizAudioMeter> meter_;
+    HANDLE audioEvent_ = nullptr;
+    UINT32 sampleRate_ = 48000, channels_ = 2;
+    bool isFloat_ = true;
+    DWORD channelMask_ = 0;
+    bool stopped_ = false;
+    ULONGLONG lastReinit_ = 0;
+    std::wstring warnedSource_;  // the source last reported missing
+    LONGLONG lastPacketQpc_ = 0;
+    float blockPeak_ = 0.f;
+
+    // Shared by both engines: the classic mono ring also feeds the scope.
+    std::vector<float> ring_;
+    int ringHead_ = 0, ringCount_ = 0;
+    ULONGLONG lastAudioTick_ = 0;
+    bool scopeFlatPublished_ = false;
+
+    // Classic
+    std::vector<float> re_, im_;
+    int currentFftSize_ = 0;
+    float bandEnv_[VIZ_NUM_BANDS] = {};
+    float agcPeakEnv_ = 0.f, agcGain_ = 1.f, prevBassEnv_ = 0.f;
+    ttnpu::Session npuSession_;
+
+    // Precision
+    VizEngineConfig cfg_;
+    int configuredGen_ = 0;
+    ttdsp::SpectrumEngine spec_;
+    float bandLevel_[VIZ_BARS_MAX] = {};
+    unsigned char bandZone_[VIZ_BARS_MAX] = {};
+    bool bandBass_[VIZ_BARS_MAX] = {};
+    float agcDb_ = 0.f, loudEnvDb_ = -200.f, bassSlow_ = 0.f;
+    VizBandFrame frame_;
+    std::vector<float> mono_, zeros_, npuRe_, npuIm_;
+
+    // Meters
+    std::vector<float> inter_, stereo_, gonioPending_;
+    ttdsp::LoudnessMeter loudness_;
+    ttdsp::Correlation correlation_;
+    ULONGLONG lastTrackTick_ = 0;
+};
+
+// The capture "thread" is now a state of the engine thread. These keep their
+// 1.5 names and meaning for the callers (pause on fullscreen, resume, unload):
+// Start asks for the stream, Stop asks for it to be closed and waits until it
+// is, then clears the bars, exactly as joining the old thread did.
+void StartVizCaptureThread() {
+    g_captureWanted.store(true);
+    if (g_engineWake) SetEvent(g_engineWake);
 }
 
 void StopVizCaptureThread() {
-    g_captureRunning.store(false);
-    if (g_captureEvent) SetEvent(g_captureEvent);
-    if (g_captureThread) {
-        if (g_captureThread->joinable()) g_captureThread->join();
-        delete g_captureThread;
-        g_captureThread = nullptr;
-    }
-    if (g_captureEvent) {
-        CloseHandle(g_captureEvent);
-        g_captureEvent = nullptr;
-    }
+    g_captureWanted.store(false);
+    if (g_engineWake) SetEvent(g_engineWake);
+    if (g_engineClosed && g_audioOpen.load()) WaitForSingleObject(g_engineClosed, 1500);
     float zeroBands[VIZ_NUM_BANDS] = {};
     PublishBands(zeroBands);
+    VizBandFrame empty;
+    PublishBandFrame(empty);
 }
 
+int VizEffectiveBarCount();
+
 void UpdateVisualizerTargets() {
-    const int vizBars = std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
+    const int vizBars = VizEffectiveBarCount();
 
     float bands[VIZ_NUM_BANDS];
     ReadBands(bands);
@@ -3273,12 +6912,28 @@ void UpdateVisualizerTargets() {
                 float hz = 700.f * (powf(10.f, mel / 2595.f) - 1.f);
                 return HzToBandPos(hz) / (float)(VIZ_NUM_BANDS - 1);
             }
+            case VizFreqScale::Bark:
+            case VizFreqScale::Erb: {
+                ttdsp::FreqScale s = (g_settings.freqScale == VizFreqScale::Bark) ? ttdsp::FreqScale::Bark
+                                                                                   : ttdsp::FreqScale::Erb;
+                double u0 = ttdsp::ScaleFwd(s, 20.0), u1 = ttdsp::ScaleFwd(s, 20000.0);
+                float hz = (float)ttdsp::ScaleInv(s, u0 + pos * (u1 - u0));
+                return HzToBandPos(hz) / (float)(VIZ_NUM_BANDS - 1);
+            }
             default:  // Log -- matches the original band-index-linear mapping
                 return pos;
         }
     };
 
-    float t = (float)GetTickCount64() * 0.001f;
+    // Smooth Mode swaps the animation clock (see VizClockSeconds). With it
+    // off, phaseOf(rate) is exactly the 1.4 expression t * rate.
+    const bool smoothClock = g_smoothActive.load(std::memory_order_relaxed);
+    const double clock = smoothClock ? VizClockSeconds() : 0.0;
+    float t = smoothClock ? 0.f : (float)GetTickCount64() * 0.001f;
+    auto phaseOf = [&](float rate) -> float {
+        return smoothClock ? VizClockPhase(clock, (double)rate, 2.0 * 3.14159265358979323846)
+                           : t * rate;
+    };
     float center = (vizBars - 1) * 0.5f;
 
     for (int i = 0; i < vizBars; i++) {
@@ -3287,6 +6942,7 @@ void UpdateVisualizerTargets() {
 
         switch (g_settings.shape) {
             case VizShape::Stereo:
+            case VizShape::Terminal:
                 target = sampleBands(warpT(freqT)) * eqForT(warpT(freqT));
                 break;
             case VizShape::Mountain: {
@@ -3304,7 +6960,7 @@ void UpdateVisualizerTargets() {
             }
             case VizShape::Wave: {
                 float phase = (float)i * (2.f * VIZ_PI / (float)vizBars);
-                float wave = 0.55f + 0.45f * sinf(t * 3.5f - phase);
+                float wave = 0.55f + 0.45f * sinf(phaseOf(3.5f) - phase);
                 float energy = sampleBands(warpT(freqT)) * eqForT(warpT(freqT));
                 target = std::max(0.f, std::min(1.f, energy * wave + masterPeak * 0.15f));
                 break;
@@ -3312,10 +6968,11 @@ void UpdateVisualizerTargets() {
             case VizShape::Breathe: {
                 if (i == 0) {
                     float k = (masterPeak > g_vizBreatheEnv) ? 0.04f : 0.015f;
+                    if (smoothClock) k = VizEaseForFrame(k);
                     g_vizBreatheEnv += (masterPeak - g_vizBreatheEnv) * k;
                 }
                 float rate = 0.55f + VIZ_SEEDS[i % VIZ_BARS_MAX] * 0.18f;
-                float inhale = 0.5f + 0.5f * sinf(t * rate + VIZ_SEEDS[i % VIZ_BARS_MAX] * 1.2f);
+                float inhale = 0.5f + 0.5f * sinf(phaseOf(rate) + VIZ_SEEDS[i % VIZ_BARS_MAX] * 1.2f);
                 target = std::max(0.f, std::min(1.f, inhale * (0.12f + g_vizBreatheEnv * 0.88f)));
                 break;
             }
@@ -3326,12 +6983,238 @@ void UpdateVisualizerTargets() {
                 target = sampleBands(warpT(freqT)) * eqForT(warpT(freqT));
                 break;
             case VizShape::Oscilloscope:
+            case VizShape::Goniometer:
                 target = 0.f;  // drawn directly from the raw waveform buffer, not per-bar targets
                 break;
         }
 
         g_vizTarget[i] = std::max(0.f, std::min(1.f, target));
     }
+}
+
+// ---- Bar levels for the frame being drawn ------------------------------------------
+//
+// Both renderers draw from the same two arrays: g_vizPeak (each bar's height,
+// 0..1) and g_vizPeakHold (its peak cap). This is the one place they are
+// worked out, for either engine, so Direct2D and Direct3D 11 can't drift
+// apart.
+//
+//   Classic:   UpdateVisualizerTargets interpolates the 7 bands, then each bar
+//              eases toward its target with the per-shape attack / decay, and
+//              the caps fall 0.012 per frame. Numbers exactly as in 1.5.
+//   Precision: each bar already has its own band with real ballistics, so the
+//              Shape mapping is applied directly and the caps hold, then fall
+//              with gravity, on elapsed time.
+
+ttdsp::PeakHold g_peakState[VIZ_BARS_MAX];
+float g_frameDt = 1.0f / 60.0f;  // seconds since the previous drawn frame (UI thread)
+VizBandFrame g_drawBands;        // the UI thread's copy of the latest precision bands
+
+int VizEffectiveBarCount() {
+    if (g_settings.engine == VizEngineKind::Precision && g_settings.bandLayout != VizBandLayout::Scale &&
+        g_settings.layoutBandCount > 0)
+        return std::clamp(g_settings.layoutBandCount, 1, VIZ_BARS_MAX);
+    return std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
+}
+
+// Wave and Breathe modulation for bar i, from the high-resolution clock. Used
+// by the CPU mapping below and uploaded per frame for the GPU one.
+float VizShapeMod(int i, int n, double clock) {
+    if (g_settings.shape == VizShape::Wave) {
+        float phase = (float)i * (2.f * VIZ_PI / (float)std::max(1, n));
+        return 0.55f + 0.45f * sinf(VizClockPhase(clock, 3.5, 2.0 * 3.14159265358979323846) - phase);
+    }
+    if (g_settings.shape == VizShape::Breathe) {
+        float seed = VIZ_SEEDS[i % VIZ_BARS_MAX];
+        double rate = 0.55 + seed * 0.18;
+        return 0.5f + 0.5f * sinf(VizClockPhase(clock, rate, 2.0 * 3.14159265358979323846) + seed * 1.2f);
+    }
+    return 1.0f;
+}
+
+void UpdatePrecisionTargets(int vizBars) {
+    ReadBandFrame(g_drawBands);
+    const VizBandFrame& f = g_drawBands;
+    const int nb = f.count;
+    float master = 0.f;
+    for (int b = 0; b < nb; b++) master = std::max(master, f.level[b]);
+
+    // Breathe's slow envelope, on elapsed time: the 1.5 per-frame constants
+    // 0.04 / 0.015 at 60 FPS are time constants of 0.41 s / 1.10 s.
+    {
+        float tau = (master > g_vizBreatheEnv) ? 0.408f : 1.103f;
+        g_vizBreatheEnv += (master - g_vizBreatheEnv) * (1.f - expf(-g_frameDt / tau));
+    }
+    auto sample = [&](float t) -> float {
+        if (nb <= 0) return 0.f;
+        float pos = std::clamp(t, 0.f, 1.f) * (float)(nb - 1);
+        int lo = (int)pos;
+        int hi = std::min(lo + 1, nb - 1);
+        float fr = pos - (float)lo;
+        return f.level[lo] * (1.f - fr) + f.level[hi] * fr;
+    };
+    const double clock = VizClockSeconds();
+    float center = (vizBars - 1) * 0.5f;
+    for (int i = 0; i < vizBars; i++) {
+        float freqT = (vizBars > 1) ? (float)i / (float)(vizBars - 1) : 0.5f;
+        float target = 0.f;
+        switch (g_settings.shape) {
+            case VizShape::Mountain: {
+                float dist = fabsf((float)i - center) / std::max(1.f, center);
+                target = (sample(dist) + master * (0.2f - dist * 0.12f)) * (1.6f - dist * 0.9f);
+                break;
+            }
+            case VizShape::Mirror: {
+                float mirT = 1.f - fabsf((float)i - center) / std::max(1.f, center);
+                target = (sample(mirT) + master * (0.1f + mirT * 0.12f)) * 1.3f;
+                break;
+            }
+            case VizShape::Wave:
+                target = sample(freqT) * VizShapeMod(i, vizBars, clock) + master * 0.15f;
+                break;
+            case VizShape::Breathe:
+                target = VizShapeMod(i, vizBars, clock) * (0.12f + g_vizBreatheEnv * 0.88f);
+                break;
+            case VizShape::Oscilloscope:
+            case VizShape::Goniometer:
+                target = 0.f;
+                break;
+            default:
+                target = sample(freqT);
+                break;
+        }
+        g_vizTarget[i] = std::clamp(target, 0.f, 1.f);
+    }
+}
+
+void VizComputeBarFrame() {
+    const int barCount = VizEffectiveBarCount();
+    if (g_settings.engine == VizEngineKind::Precision) {
+        UpdatePrecisionTargets(barCount);
+        const bool gravity = g_settings.peakFall == VizPeakFall::Gravity;
+        for (int i = 0; i < barCount; i++) {
+            g_vizPeak[i] = g_vizTarget[i];
+            if (g_settings.peakHoldEnabled) {
+                // Gravity 2 bar-heights / s^2 drops a full-height cap in 1 s;
+                // linear falls a full height in 1.4 s, close to 1.5's
+                // 0.012 per 60 FPS frame.
+                ttdsp::PeakHoldStep(g_peakState[i], g_vizPeak[i], g_frameDt, (double)g_settings.peakHoldMs,
+                                    gravity, 2.0f, 0.72f);
+                g_vizPeakHold[i] = g_peakState[i].level;
+            } else {
+                g_peakState[i] = ttdsp::PeakHold();
+                g_vizPeakHold[i] = 0.f;
+            }
+        }
+        return;
+    }
+
+    UpdateVisualizerTargets();
+    float attack = 0.55f, decay = 0.18f;
+    switch (g_settings.shape) {
+        case VizShape::Stereo: attack = 0.72f; decay = 0.22f; break;
+        case VizShape::Mirror: attack = 0.52f; decay = 0.20f; break;
+        case VizShape::Wave: attack = 0.34f; decay = 0.17f; break;
+        case VizShape::Breathe: attack = 0.20f; decay = 0.11f; break;
+        default: break;
+    }
+    if (g_settings.smoothing > 0) {
+        float smoothFactor = 1.0f - (g_settings.smoothing / 100.0f) * 0.9f;
+        attack *= smoothFactor;
+        decay *= smoothFactor;
+    }
+    attack = VizEaseForFrame(attack);
+    decay = VizEaseForFrame(decay);
+    for (int i = 0; i < barCount; i++) {
+        float tgt = g_vizTarget[i], cur = g_vizPeak[i];
+        float next = cur + (tgt - cur) * ((tgt > cur) ? attack : decay);
+        g_vizPeak[i] = (fabsf(next - cur) > 0.0005f) ? next : tgt;
+        float fac = std::max(0.f, g_vizPeak[i]);
+        if (g_settings.peakHoldEnabled) {
+            g_vizPeakHold[i] =
+                (fac >= g_vizPeakHold[i]) ? fac : std::max(0.f, g_vizPeakHold[i] - 0.012f * g_frameScale);
+        } else {
+            g_vizPeakHold[i] = 0.f;
+        }
+    }
+}
+
+// Copies what the engine thread needs out of the settings, as one value, and
+// tells it. UI thread, from LoadSettings.
+void VizPublishEngineConfig() {
+    VizEngineConfig c;
+    c.precision = g_settings.engine == VizEngineKind::Precision;
+    c.workload = g_settings.workload;
+    // GPU analysis needs both the Precision engine and the Direct3D 11
+    // renderer; without either it is Hybrid (LoadSettings has said why).
+    if (c.workload == VizWorkload::Gpu &&
+        (!c.precision || g_settings.renderer != VizRenderer::D3D11 || g_settings.shape == VizShape::Terminal))
+        c.workload = VizWorkload::Hybrid;
+    auto& s = c.spec;
+    s.fftSize = g_settings.fftSize;
+    if (c.workload == VizWorkload::Gpu) s.fftSize = std::min(s.fftSize, 4096);  // GPU FFT limit
+    s.maxTier = g_settings.bassDetail;
+    s.window = (ttdsp::WindowKind)(int)g_settings.window;
+    s.layout = (ttdsp::BandLayout)(int)g_settings.bandLayout;
+    s.scale = (ttdsp::FreqScale)(int)g_settings.freqScale;
+    s.octaveFraction = g_settings.octaveFraction;
+    s.fmin = g_settings.minFreq;
+    s.fmax = g_settings.maxFreq;
+    s.a4 = g_settings.tuningA4;
+    s.bars = std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
+    s.weighting = (ttdsp::Weighting)(int)g_settings.weighting;
+    s.tiltDbPerOct = g_settings.tiltDbPerOct;
+    s.detector = (ttdsp::Detector)(int)g_settings.detector;
+    s.levelRef = (ttdsp::LevelRef)(int)g_settings.levelRef;
+    // EQ Preset as dB per zone, from the 1.4 multipliers.
+    auto eq = GetVizEQMultipliers(g_settings.eq);
+    s.zoneDb[0] = 20.0 * log10(std::max(0.01f, eq.low));
+    s.zoneDb[1] = 20.0 * log10(std::max(0.01f, eq.mid));
+    s.zoneDb[2] = 20.0 * log10(std::max(0.01f, eq.high));
+
+    if (g_settings.ballistics == VizBallisticsPreset::Custom) {
+        c.ball.attackMs = g_settings.attackMs;
+        c.ball.release = ttdsp::ReleaseKind::Linear;
+        c.ball.releaseDbPerSec = g_settings.releaseDbPerSec;
+    } else {
+        c.ball = ttdsp::BallisticsPreset((int)g_settings.ballistics);
+    }
+    // Motion Smoothing slows whichever ballistics are in use, up to 6x.
+    double slow = 1.0 + g_settings.smoothing / 20.0;
+    c.ball.attackMs *= slow;
+    c.ball.releaseMs *= slow;
+    c.ball.releaseDbPerSec /= slow;
+
+    c.disp.floorDb = (float)g_settings.dbFloor;
+    c.disp.ceilDb = (float)g_settings.dbCeiling;
+    c.disp.curve = (ttdsp::Curve)(int)g_settings.sensitivityCurve;
+    // Sensitivity keeps its 0-300 range and its default of 150: here it is a
+    // gain of 0.2 dB per step around the default, -30 to +30 dB.
+    c.sensDb = (g_settings.sensitivity - 150) * 0.2f;
+    c.autoGain = g_settings.autoGain;
+    c.autoGainMaxDb = g_settings.autoGainMaxDb;
+    c.channel = g_settings.channel;
+    bool readout = g_settings.peakFreqEnabled;
+    c.wantDominant = readout && (g_settings.readout == VizReadout::Frequency || g_settings.readout == VizReadout::Both);
+    c.wantLoudness = readout && g_settings.readout != VizReadout::Frequency;
+    c.wantGonio = g_settings.shape == VizShape::Goniometer;
+    c.beat = g_settings.beatFlashEnabled;
+    c.loudnessResetOnTrack = g_settings.loudnessResetOnTrack;
+    {
+        std::lock_guard<std::mutex> lock(g_engineCfgMutex);
+        g_engineCfg = c;
+    }
+    g_engineCfgGen.fetch_add(1, std::memory_order_acq_rel);
+    // Audio source: a different one reopens the stream on the engine thread.
+    {
+        std::lock_guard<std::mutex> lock(g_audioSourceMutex);
+        std::wstring key = g_settings.audioSourceKey == L"default_output" ? L"" : g_settings.audioSourceKey;
+        if (key != g_audioSourceKeyShared) {
+            g_audioSourceKeyShared = key;
+            g_deviceChanged.store(true, std::memory_order_relaxed);
+        }
+    }
+    if (g_engineWake) SetEvent(g_engineWake);
 }
 
 struct RGBA { BYTE a, r, g, b; };
@@ -3359,12 +7242,162 @@ RGBA HSVtoRGB(float h, float s, float v, BYTE alpha) {
     return {alpha, (BYTE)((r + m) * 255.f), (BYTE)((g + m) * 255.f), (BYTE)((b + m) * 255.f)};
 }
 
+// ---- Drawing Device -------------------------------------------------------------
+//
+// The 1.4 build created its device on "whatever D3D picks", which is adapter 0.
+// On a desktop that is normally the GPU the monitor hangs off, but on a laptop
+// with a hybrid GPU, or a desktop with the iGPU left enabled, it can be the
+// other one -- and then every frame is rendered on one GPU and copied across
+// to the one that scans it out. That copy is the classic source of uneven
+// frame times on integrated graphics, so Auto now asks the question directly:
+// which adapter owns the output this widget is on?
+
+bool VizAdapterIsSoftware(const DXGI_ADAPTER_DESC1& d) {
+    // The flag covers WARP; the IDs cover the Basic Render Driver on systems
+    // where it doesn't set the flag.
+    return (d.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) != 0 ||
+           (d.VendorId == 0x1414 && d.DeviceId == 0x8c);
+}
+
+bool VizAdapterIsIntegrated(const DXGI_ADAPTER_DESC1& d) {
+    int fromDxcore = ttdxcore::IsIntegrated(d.AdapterLuid);
+    if (fromDxcore >= 0) return fromDxcore == 1;
+    // Pre-2004 Windows: integrated GPUs report little or no dedicated memory
+    // (Intel 128 MB; AMD APUs a BIOS carve-out, usually 512 MB). An APU with a
+    // bigger carve-out reads as discrete here, which only changes what Smooth
+    // Mode's Auto does -- On still forces it.
+    return d.DedicatedVideoMemory <= (SIZE_T)512 * 1024 * 1024;
+}
+
+bool VizLuidEqual(const LUID& a, const LUID& b) {
+    return a.LowPart == b.LowPart && a.HighPart == b.HighPart;
+}
+
+// The hardware adapter with an output on `monitor`, or null.
+ComPtr<IDXGIAdapter1> VizAdapterForMonitor(IDXGIFactory1* factory, HMONITOR monitor) {
+    for (UINT i = 0;; i++) {
+        ComPtr<IDXGIAdapter1> adapter;
+        if (factory->EnumAdapters1(i, &adapter) == DXGI_ERROR_NOT_FOUND) break;
+        if (!adapter) continue;
+        DXGI_ADAPTER_DESC1 d;
+        if (FAILED(adapter->GetDesc1(&d)) || VizAdapterIsSoftware(d)) continue;
+        for (UINT j = 0;; j++) {
+            ComPtr<IDXGIOutput> output;
+            if (adapter->EnumOutputs(j, &output) == DXGI_ERROR_NOT_FOUND) break;
+            if (!output) continue;
+            DXGI_OUTPUT_DESC od;
+            if (SUCCEEDED(output->GetDesc(&od)) && od.Monitor == monitor) return adapter;
+        }
+    }
+    return nullptr;
+}
+
+// The first integrated (or discrete) hardware adapter, in the order Windows
+// itself uses for its power-saving / high-performance GPU preference.
+ComPtr<IDXGIAdapter1> VizAdapterOfKind(IDXGIFactory1* factory, bool wantIntegrated) {
+    ComPtr<IDXGIFactory6> factory6;
+    if (SUCCEEDED(factory->QueryInterface(IID_PPV_ARGS(&factory6))) && factory6) {
+        DXGI_GPU_PREFERENCE pref = wantIntegrated ? DXGI_GPU_PREFERENCE_MINIMUM_POWER
+                                                  : DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE;
+        for (UINT i = 0;; i++) {
+            ComPtr<IDXGIAdapter1> adapter;
+            if (FAILED(factory6->EnumAdapterByGpuPreference(i, pref, IID_PPV_ARGS(&adapter))) ||
+                !adapter)
+                break;
+            DXGI_ADAPTER_DESC1 d;
+            if (FAILED(adapter->GetDesc1(&d)) || VizAdapterIsSoftware(d)) continue;
+            if (VizAdapterIsIntegrated(d) == wantIntegrated) return adapter;
+        }
+        return nullptr;
+    }
+    // Windows 10 before 1803: no preference ordering, so classify each one.
+    for (UINT i = 0;; i++) {
+        ComPtr<IDXGIAdapter1> adapter;
+        if (factory->EnumAdapters1(i, &adapter) == DXGI_ERROR_NOT_FOUND) break;
+        if (!adapter) continue;
+        DXGI_ADAPTER_DESC1 d;
+        if (FAILED(adapter->GetDesc1(&d)) || VizAdapterIsSoftware(d)) continue;
+        if (VizAdapterIsIntegrated(d) == wantIntegrated) return adapter;
+    }
+    return nullptr;
+}
+
+struct VizAdapterChoice {
+    ComPtr<IDXGIAdapter1> adapter;  // null with warp=false means "let D3D pick"
+    bool warp = false;
+    std::wstring warning;           // set when the request couldn't be honoured
+};
+
+HMONITOR VizTargetMonitor() {
+    HMONITOR monitor = GetMonitorById(g_settings.monitor - 1);
+    if (!monitor) monitor = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTONEAREST);
+    return monitor;
+}
+
+VizAdapterChoice VizPickRenderAdapter(IDXGIFactory1* factory, VizRenderDevice want,
+                                      HMONITOR monitor) {
+    VizAdapterChoice choice;
+    if (want == VizRenderDevice::Cpu || g_settings.workload == VizWorkload::Cpu) {
+        choice.warp = true;
+        return choice;
+    }
+    if (want == VizRenderDevice::Integrated || want == VizRenderDevice::Discrete) {
+        bool integrated = (want == VizRenderDevice::Integrated);
+        choice.adapter = VizAdapterOfKind(factory, integrated);
+        if (!choice.adapter) {
+            choice.warning =
+                integrated
+                    ? L"No integrated GPU was found, so drawing is on Auto instead. On a desktop "
+                      L"the iGPU is often switched off in the BIOS, and F / KF processors don't "
+                      L"have one at all."
+                    : L"No discrete GPU was found, so drawing is on Auto instead.";
+        }
+    }
+    if (!choice.adapter) choice.adapter = VizAdapterForMonitor(factory, monitor);
+    return choice;
+}
+
+void VizUpdateSmoothActive() {
+    bool on = g_settings.smoothMode == VizSmoothMode::On ||
+              (g_settings.smoothMode == VizSmoothMode::Auto && g_renderAdapter.valid &&
+               (g_renderAdapter.integrated || g_renderAdapter.warp));
+    bool was = g_smoothActive.exchange(on);
+    if (was != on) Wh_Log(L"[Hardware] Smooth Mode %s", on ? L"on" : L"off");
+}
+
 bool InitDirectX() {
     HRESULT hr;
 
+    // The factory comes first now: picking an adapter needs it.
+    hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&g_dxgiFactory));
+    if (FAILED(hr)) return false;
+
+    VizAdapterChoice choice =
+        VizPickRenderAdapter(g_dxgiFactory.Get(), g_settings.renderDevice, VizTargetMonitor());
+
     UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-    hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0,
-                           D3D11_SDK_VERSION, &g_d3dDevice, nullptr, nullptr);
+    if (choice.warp) {
+        hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, flags, nullptr, 0,
+                               D3D11_SDK_VERSION, &g_d3dDevice, nullptr, nullptr);
+    } else if (choice.adapter) {
+        // An explicit adapter requires DRIVER_TYPE_UNKNOWN.
+        hr = D3D11CreateDevice(choice.adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, flags,
+                               nullptr, 0, D3D11_SDK_VERSION, &g_d3dDevice, nullptr, nullptr);
+    } else {
+        hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, flags, nullptr, 0,
+                               D3D11_SDK_VERSION, &g_d3dDevice, nullptr, nullptr);
+    }
+    if (FAILED(hr) && !choice.warp) {
+        // Last resort rather than no visualizer at all: a GPU in the middle of
+        // a driver update, or a remote session without one.
+        Wh_Log(L"D3D11CreateDevice on hardware failed: 0x%08X, falling back to WARP", hr);
+        hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, flags, nullptr, 0,
+                               D3D11_SDK_VERSION, &g_d3dDevice, nullptr, nullptr);
+        if (SUCCEEDED(hr)) {
+            if (!choice.warning.empty()) choice.warning += L"\r\n      ";
+            choice.warning += L"The GPU wouldn't create a device, so drawing fell back to the CPU.";
+        }
+    }
     if (FAILED(hr)) {
         Wh_Log(L"D3D11CreateDevice failed: 0x%08X", hr);
         return false;
@@ -3380,8 +7413,41 @@ bool InitDirectX() {
         }
     }
 
-    hr = CreateDXGIFactory2(0, IID_PPV_ARGS(&g_dxgiFactory));
-    if (FAILED(hr)) return false;
+    // Record what the device actually landed on.
+    g_renderAdapter = VizRenderAdapterInfo();
+    {
+        ComPtr<IDXGIAdapter> used;
+        ComPtr<IDXGIAdapter1> used1;
+        DXGI_ADAPTER_DESC1 d;
+        if (SUCCEEDED(g_dxgiDevice->GetAdapter(&used)) && used && SUCCEEDED(used.As(&used1)) &&
+            SUCCEEDED(used1->GetDesc1(&d))) {
+            g_renderAdapter.valid = true;
+            g_renderAdapter.luid = d.AdapterLuid;
+            g_renderAdapter.name = d.Description;
+            g_renderAdapter.warp = VizAdapterIsSoftware(d);
+            g_renderAdapter.integrated = !g_renderAdapter.warp && VizAdapterIsIntegrated(d);
+        }
+    }
+    Wh_Log(L"[Hardware] drawing on %s (%s)",
+           g_renderAdapter.name.empty() ? L"unknown adapter" : g_renderAdapter.name.c_str(),
+           g_renderAdapter.warp         ? L"CPU / WARP"
+           : g_renderAdapter.integrated ? L"integrated GPU"
+                                        : L"discrete GPU");
+    if (g_renderAdapter.valid && !g_renderAdapter.warp) {
+        ComPtr<IDXGIAdapter1> owner = VizAdapterForMonitor(g_dxgiFactory.Get(), VizTargetMonitor());
+        DXGI_ADAPTER_DESC1 od;
+        if (owner && SUCCEEDED(owner->GetDesc1(&od)) &&
+            !VizLuidEqual(od.AdapterLuid, g_renderAdapter.luid)) {
+            Wh_Log(L"[Hardware] note: the monitor is driven by %s, so each frame is copied across "
+                   L"GPUs. Drawing Device = Auto avoids that.",
+                   od.Description);
+        }
+    }
+    if (!choice.warning.empty()) {
+        ReportSettingWarning(L"Hardware", L"Drawing Device", choice.warning);
+        FlushSettingsIssues();
+    }
+    VizUpdateSmoothActive();
 
     hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, IID_PPV_ARGS(&g_d2dFactory));
     if (FAILED(hr)) return false;
@@ -3393,13 +7459,85 @@ bool InitDirectX() {
         D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND, D2D1_CAP_STYLE_ROUND);
     g_d2dFactory->CreateStrokeStyle(&capProps, nullptr, 0, &g_roundCapStrokeStyle);
 
-    DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
-                        (IUnknown**)g_dwriteFactory.GetAddressOf());
+    // Device-independent, so a device rebuild keeps it.
+    if (!g_dwriteFactory) {
+        DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory),
+                            (IUnknown**)g_dwriteFactory.GetAddressOf());
+    }
 
     return true;
 }
 
+// Would the current settings put the device on a different adapter than the
+// one it is on? Asked on settings and display changes; a fresh factory, so a
+// GPU that was just plugged in, enabled or removed is seen.
+bool VizRenderDeviceNeedsRebuild() {
+    if (!g_d3dDevice) return false;
+    ComPtr<IDXGIFactory2> factory;
+    if (FAILED(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)))) return false;
+    VizAdapterChoice choice =
+        VizPickRenderAdapter(factory.Get(), g_settings.renderDevice, VizTargetMonitor());
+    if (choice.warp != g_renderAdapter.warp) return true;
+    if (choice.warp || !choice.adapter) return false;
+    DXGI_ADAPTER_DESC1 d;
+    if (FAILED(choice.adapter->GetDesc1(&d))) return false;
+    return !g_renderAdapter.valid || !VizLuidEqual(d.AdapterLuid, g_renderAdapter.luid);
+}
+
+void ReleaseSwapChainResources();
+bool CreateSwapChainResources();
+void RenderVisualizer();
+namespace ttgfx {
+void ReleaseDevice();
+void ReleaseSurface();
+void OnSettingsChanged();
+void PresentBlank();
+}  // namespace ttgfx
+
+// Tears the whole D3D/D2D stack down and builds it again on whatever adapter
+// the settings now resolve to. UI thread only. Used for a Drawing Device
+// change and for recovering from a lost device (driver update, TDR, a hybrid
+// laptop switching GPUs), which the 1.4 build had no answer to -- the
+// visualizer simply froze until the mod was restarted.
+void VizRebuildRenderDevice(PCWSTR reason) {
+    Wh_Log(L"[Hardware] rebuilding the render device: %s", reason);
+    g_lastDeviceRebuildTick = GetTickCount64();
+
+    ReleaseSwapChainResources();
+    ttgfx::ReleaseDevice();
+    g_roundCapStrokeStyle.Reset();
+    g_d2dDevice.Reset();
+    g_d2dFactory.Reset();
+    g_dxgiDevice.Reset();
+    g_d3dDevice.Reset();
+    g_dxgiFactory.Reset();
+
+    if (!InitDirectX()) {
+        Wh_Log(L"[Hardware] InitDirectX failed during rebuild");
+        return;
+    }
+    if (g_overlayWnd && CreateSwapChainResources() && !g_fullscreenPaused.load()) {
+        RenderVisualizer();
+    }
+}
+
+// Called with the results of a frame's EndDraw and Present. Device loss shows
+// up there first; the rebuild itself is posted rather than run inline, since
+// this is called from inside the render path.
+void VizCheckDeviceLost(HRESULT hrEndDraw, HRESULT hrPresent) {
+    bool lost = hrEndDraw == D2DERR_RECREATE_TARGET || hrPresent == DXGI_ERROR_DEVICE_REMOVED ||
+                hrPresent == DXGI_ERROR_DEVICE_RESET;
+    if (!lost || !g_messageWnd) return;
+    if (!g_deviceRebuildQueued.exchange(true)) {
+        HRESULT reason = g_d3dDevice ? g_d3dDevice->GetDeviceRemovedReason() : S_OK;
+        Wh_Log(L"[Hardware] device lost (EndDraw 0x%08X, Present 0x%08X, reason 0x%08X)", hrEndDraw,
+               hrPresent, reason);
+        PostMessage(g_messageWnd, WM_APP_REBUILD_DEVICE, 1, 0);
+    }
+}
+
 void UninitDirectX() {
+    ttgfx::ReleaseDevice();
     g_dwriteTextFormat.Reset();
     g_dwriteFactory.Reset();
     g_roundCapStrokeStyle.Reset();
@@ -3413,6 +7551,8 @@ void UninitDirectX() {
 }
 
 bool RecreateVisualResources();
+
+float VizReadoutWidthEstimate();
 
 // Geometry of the visualizer, resolved once and used both to size the swap
 // chain and to draw into it.
@@ -3579,6 +7719,257 @@ bool DragModifierHeld() {
     return false;
 }
 
+// ---- Terminal shape -----------------------------------------------------------------
+//
+// The visualizer drawn as text: a grid of character cells in a monospace
+// font, each cell one glyph in one of five colours. Three styles:
+//
+//   Columns    every bar a column of glyphs (Terminal Column Glyph), turning
+//              the hot colour above Hot Threshold, with the peak cap as a
+//              glyph of its own. The cava / btop look.
+//   Waterfall  a spectrogram in characters: each row is one moment, each
+//              column one band, the glyph picked from Terminal Glyph Ramp by
+//              level, newest row on top, scrolling at Terminal Scroll Rate.
+//   Meters     text meters, "Bass:    [||||||        48%]", for bass, mid,
+//              treble and the loudest band.
+//
+// The grid is built here on the CPU from the same per-bar levels the other
+// shapes draw (so every engine, layout and ballistics setting applies), then
+// drawn by the Direct3D 11 renderer from a baked glyph atlas in one instanced
+// call, or by Direct2D as text runs.
+
+constexpr int VIZ_TERM_MAX_CELLS = 65536;
+
+struct VizTermGrid {
+    int cols = 0, rows = 0;
+    std::vector<uint32_t> cells;  // char | colour << 8; colours: 0 dim, 1 low, 2 high, 3 label, 4 peak
+};
+VizTermGrid g_termGrid;
+std::vector<float> g_termHistory;  // waterfall: rows x cols levels, row 0 newest
+float g_termScrollAcc = 0.f;
+
+// Cell size for the terminal font, in whole pixels so glyphs land 1:1.
+ComPtr<IDWriteTextFormat> g_termFormat;
+std::wstring g_termFormatFont;
+float g_termFormatPx = -1.f;
+int g_termCellW = 8, g_termCellH = 16;
+
+bool VizTermEnsureFormat() {
+    float px = (float)std::clamp(g_settings.termFontSize, 6, 96) * g_dpiScale;
+    if (g_termFormat && g_termFormatFont == g_settings.termFont && g_termFormatPx == px) return true;
+    g_termFormat.Reset();
+    if (!g_dwriteFactory) return false;
+    if (FAILED(g_dwriteFactory->CreateTextFormat(g_settings.termFont.c_str(), nullptr, DWRITE_FONT_WEIGHT_NORMAL,
+                                                 DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL, px, L"en-us",
+                                                 &g_termFormat)))
+        return false;
+    g_termFormat->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+    g_termFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+    g_termFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
+    g_termFormatFont = g_settings.termFont;
+    g_termFormatPx = px;
+    // Cell = the advance of "M" and the font's line height, rounded up. For a
+    // proportional font every glyph still gets an M-wide cell, which reads as
+    // monospaced; a real monospace font is the intended use.
+    ComPtr<IDWriteTextLayout> lay;
+    DWRITE_TEXT_METRICS m{};
+    if (SUCCEEDED(g_dwriteFactory->CreateTextLayout(L"M", 1, g_termFormat.Get(), 1000.f, 1000.f, &lay)) && lay &&
+        SUCCEEDED(lay->GetMetrics(&m))) {
+        g_termCellW = std::max(1, (int)ceilf(m.widthIncludingTrailingWhitespace - 0.01f));
+        g_termCellH = std::max(1, (int)ceilf(m.height - 0.01f));
+    } else {
+        g_termCellW = std::max(1, (int)ceilf(px * 0.6f));
+        g_termCellH = std::max(1, (int)ceilf(px * 1.2f));
+    }
+    return true;
+}
+
+void VizTermGridSize(int* cols, int* rows) {
+    if (g_settings.termStyle == VizTermStyle::Meters) {
+        *cols = std::clamp(g_settings.termMeterColumns, 20, 200);
+        *rows = 4;
+    } else {
+        *cols = VizEffectiveBarCount();
+        *rows = std::clamp(g_settings.termRows, 2, 128);
+    }
+    while (*cols * *rows > VIZ_TERM_MAX_CELLS && *rows > 2) (*rows)--;
+}
+
+// The grid's size in pixels: what the layout reserves for this shape instead
+// of a bar group. Bar Width, Gap and Max Size don't apply; the font does.
+void VizTermBox(float* w, float* h) {
+    int cols = 0, rows = 0;
+    VizTermGridSize(&cols, &rows);
+    VizTermEnsureFormat();
+    *w = (float)(cols * g_termCellW);
+    *h = (float)(rows * g_termCellH);
+}
+
+static inline uint32_t TermCell(wchar_t c, int color) {
+    uint32_t ch = (c >= 32 && c < 127) ? (uint32_t)c : (uint32_t)'?';
+    return ch | ((uint32_t)color << 8);
+}
+
+// Levels for the Meters style: bass / mid / treble as the average drawn level
+// of each EQ zone, and "Volume" as the loudest band.
+void VizTermMeterLevels(float out[4]) {
+    if (g_settings.engine == VizEngineKind::Precision) {
+        const VizBandFrame& f = g_drawBands;
+        float mx = 0.f;
+        for (int b = 0; b < f.count; b++) mx = std::max(mx, f.level[b]);
+        for (int z = 0; z < 3; z++) out[z] = (f.zoneCount[z] > 0.f) ? f.zone[z] / f.zoneCount[z] : 0.f;
+        out[3] = mx;
+    } else {
+        float b[VIZ_NUM_BANDS];
+        ReadBands(b);
+        float n[3] = {0, 0, 0};
+        out[0] = out[1] = out[2] = out[3] = 0.f;
+        for (int i = 0; i < VIZ_NUM_BANDS; i++) {
+            out[VIZ_BAND_EQ_ZONE[i]] += b[i];
+            n[VIZ_BAND_EQ_ZONE[i]] += 1.f;
+            out[3] = std::max(out[3], b[i]);
+        }
+        for (int z = 0; z < 3; z++) out[z] = n[z] > 0.f ? out[z] / n[z] : 0.f;
+    }
+    for (int i = 0; i < 4; i++) out[i] = std::clamp(out[i], 0.f, 1.f);
+}
+
+void VizBuildTermGrid() {
+    VizTermGrid& g = g_termGrid;
+    VizTermGridSize(&g.cols, &g.rows);
+    g.cells.assign((size_t)g.cols * g.rows, TermCell(L' ', 0));
+    const float hot = std::clamp(g_settings.termHotThreshold, 1, 100) / 100.0f;
+    auto at = [&](int c, int r) -> uint32_t& { return g.cells[(size_t)r * g.cols + c]; };
+
+    if (g_settings.termStyle == VizTermStyle::Meters) {
+        static const wchar_t* kLabels[4] = {L"Bass:", L"Mid:", L"Treble:", L"Volume:"};
+        float lv[4];
+        VizTermMeterLevels(lv);
+        const int labelW = 9, barN = std::max(1, g.cols - labelW - 6);
+        for (int r = 0; r < 4; r++) {
+            int c = 0;
+            for (const wchar_t* p = kLabels[r]; *p && c < labelW; p++) at(c++, r) = TermCell(*p, 3);
+            c = labelW;
+            at(c++, r) = TermCell(L'[', 1);
+            int filled = (int)lroundf(lv[r] * barN);
+            for (int j = 0; j < barN; j++)
+                at(c++, r) = (j < filled) ? TermCell(g_settings.termColumnGlyph, ((j + 1) > hot * barN) ? 2 : 1)
+                                          : TermCell(L' ', 0);
+            wchar_t pct[8];
+            swprintf_s(pct, L"%3d%%", (int)lroundf(lv[r] * 100.f));
+            for (const wchar_t* p = pct; *p && c < g.cols - 1; p++) at(c++, r) = TermCell(*p, 1);
+            if (c < g.cols) at(c, r) = TermCell(L']', 1);
+        }
+        return;
+    }
+
+    if (g_settings.termStyle == VizTermStyle::Waterfall) {
+        const std::wstring& ramp = g_settings.termRamp;
+        const int nr = (int)ramp.size();
+        size_t need = (size_t)g.cols * g.rows;
+        if (g_termHistory.size() != need) {
+            g_termHistory.assign(need, 0.f);
+            g_termScrollAcc = 0.f;
+        }
+        // Scroll by whole rows at the configured rate; the newest row always
+        // shows the current levels, so the top line stays live between steps.
+        g_termScrollAcc += g_frameDt * (float)std::clamp(g_settings.termScrollRate, 1, 120);
+        int steps = std::min((int)g_termScrollAcc, g.rows);
+        g_termScrollAcc -= (float)(int)g_termScrollAcc;
+        if (steps > 0) {
+            memmove(&g_termHistory[(size_t)steps * g.cols], &g_termHistory[0],
+                    sizeof(float) * (size_t)(g.rows - steps) * g.cols);
+        }
+        for (int c = 0; c < g.cols; c++) g_termHistory[c] = std::max(0.f, g_vizPeak[c]);
+        for (int r = 0; r < g.rows; r++) {
+            for (int c = 0; c < g.cols; c++) {
+                float v = g_termHistory[(size_t)r * g.cols + c];
+                if (nr <= 0 || v < 0.02f) continue;
+                int idx = std::clamp((int)(v * (nr - 1) + 0.5f), 0, nr - 1);
+                wchar_t ch = ramp[idx];
+                if (ch == L' ') continue;
+                at(c, r) = TermCell(ch, v > hot ? 2 : (idx == 0 ? 0 : 1));
+            }
+        }
+        return;
+    }
+
+    // Columns.
+    for (int c = 0; c < g.cols; c++) {
+        float v = std::max(0.f, g_vizPeak[c]) * g.rows;
+        int full = std::min(g.rows, (int)v);
+        float frac = v - (float)full;
+        for (int k = 0; k < full; k++) {
+            int r = g.rows - 1 - k;
+            at(c, r) = TermCell(g_settings.termColumnGlyph, ((float)(k + 1) / g.rows > hot) ? 2 : 1);
+        }
+        if (full < g.rows && frac >= 0.5f) {
+            int r = g.rows - 1 - full;
+            at(c, r) = TermCell(L'.', ((float)(full + 1) / g.rows > hot) ? 2 : 1);
+        }
+        if (g_settings.peakHoldEnabled) {
+            int pr = (int)lroundf(g_vizPeakHold[c] * g.rows);
+            if (pr > full && pr >= 1 && pr <= g.rows) at(c, g.rows - pr) = TermCell(g_settings.termPeakGlyph, 4);
+        }
+    }
+}
+
+// Terminal palette as straight-alpha floats, in cell colour order.
+void VizTermPalette(float out[5][4]) {
+    const BYTE* c[5][4] = {
+        {&g_settings.termDimA, &g_settings.termDimR, &g_settings.termDimG, &g_settings.termDimB},
+        {&g_settings.termLowA, &g_settings.termLowR, &g_settings.termLowG, &g_settings.termLowB},
+        {&g_settings.termHighA, &g_settings.termHighR, &g_settings.termHighG, &g_settings.termHighB},
+        {&g_settings.termLabelA, &g_settings.termLabelR, &g_settings.termLabelG, &g_settings.termLabelB},
+        {&g_settings.peakHoldA, &g_settings.peakHoldR, &g_settings.peakHoldG, &g_settings.peakHoldB}};
+    for (int i = 0; i < 5; i++) {
+        out[i][0] = *c[i][1] / 255.f;
+        out[i][1] = *c[i][2] / 255.f;
+        out[i][2] = *c[i][3] / 255.f;
+        out[i][3] = *c[i][0] / 255.f;
+    }
+}
+
+// Direct2D fallback: each row as runs of same-coloured text.
+void VizDrawTermGridD2D(float originX, float originY) {
+    if (!VizTermEnsureFormat() || !g_barBrush) return;
+    const VizTermGrid& g = g_termGrid;
+    float pal[5][4];
+    VizTermPalette(pal);
+    D2D1_TEXT_ANTIALIAS_MODE prev = g_dc->GetTextAntialiasMode();
+    g_dc->SetTextAntialiasMode(g_settings.textPixel ? D2D1_TEXT_ANTIALIAS_MODE_ALIASED
+                                                    : D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+    std::wstring run;
+    for (int r = 0; r < g.rows; r++) {
+        int c = 0;
+        while (c < g.cols) {
+            uint32_t cell = g.cells[(size_t)r * g.cols + c];
+            if ((cell & 127u) <= 32u) {
+                c++;
+                continue;
+            }
+            int color = (int)((cell >> 8) & 7u);
+            int start = c;
+            run.clear();
+            while (c < g.cols) {
+                uint32_t k = g.cells[(size_t)r * g.cols + c];
+                bool blank = (k & 127u) <= 32u;
+                if (!blank && (int)((k >> 8) & 7u) != color) break;
+                run.push_back(blank ? L' ' : (wchar_t)(k & 127u));
+                c++;
+            }
+            while (!run.empty() && run.back() == L' ') run.pop_back();
+            int ci = std::min(color, 4);
+            g_barBrush->SetColor(D2D1::ColorF(pal[ci][0], pal[ci][1], pal[ci][2], pal[ci][3]));
+            float x = originX + start * g_termCellW, y = originY + r * g_termCellH;
+            g_dc->DrawText(run.c_str(), (UINT32)run.size(), g_termFormat.Get(),
+                           D2D1::RectF(x, y, x + (float)(run.size() + 1) * g_termCellW, y + g_termCellH),
+                           g_barBrush.Get());
+        }
+    }
+    g_dc->SetTextAntialiasMode(prev);
+}
+
 // Hit-tests against the bounds of the last drawn frame (already tracked for
 // the occlusion check), so "over the visualizer" means the box as it's
 // actually being shown right now, including mid-drag.
@@ -3594,16 +7985,18 @@ bool PointInVisualizerBounds(POINT pt) {
 bool ComputeVizLayout(VizLayout* out) {
     if (!out) return false;
 
-    int barCount  = std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
-    float barW    = (float)std::max(1, g_settings.barWidth) * g_dpiScale;
-    float barGap  = (float)std::max(0, g_settings.barGap) * g_dpiScale;
-    float maxSize = (float)std::max(2, g_settings.barMaxSize) * g_dpiScale;
+    int barCount  = VizEffectiveBarCount();
+    float barW    = std::max(1.f, VizPx((float)std::max(1, g_settings.barWidth)));
+    float barGap  = VizPx((float)std::max(0, g_settings.barGap));
+    float maxSize = std::max(2.f, VizPx((float)std::max(2, g_settings.barMaxSize)));
 
     bool horizontal = (g_settings.orientation == VizOrientation::Horizontal);
     float barsThickness = barCount * barW + (barCount - 1) * barGap;
 
     float totalWidth, totalHeight;
-    if (g_settings.shape == VizShape::Radial) {
+    if (g_settings.shape == VizShape::Terminal) {
+        VizTermBox(&totalWidth, &totalHeight);
+    } else if (g_settings.shape == VizShape::Radial || g_settings.shape == VizShape::Goniometer) {
         totalWidth = totalHeight = maxSize * 2.0f;
     } else {
         totalWidth  = horizontal ? barsThickness : maxSize;
@@ -3631,11 +8024,17 @@ bool ComputeVizLayout(VizLayout* out) {
 
     float blockX = waLeft + (workWidth  - totalWidth)  * (hPercent / 100.0f);
     float blockY = waTop  + (workHeight - totalHeight) * (vPercent / 100.0f);
+    // Pixel Snap: the block on a whole pixel. With the sizes above already
+    // whole, every bar edge and the panel then sit exactly on the grid.
+    if (g_settings.pixelSnap) {
+        blockX = roundf(blockX);
+        blockY = roundf(blockY);
+    }
 
-    float padL = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingL * g_dpiScale : 0.f;
-    float padR = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingR * g_dpiScale : 0.f;
-    float padT = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingT * g_dpiScale : 0.f;
-    float padB = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingB * g_dpiScale : 0.f;
+    float padL = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingL) : 0.f;
+    float padR = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingR) : 0.f;
+    float padT = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingT) : 0.f;
+    float padB = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingB) : 0.f;
 
     // Safety margin so nothing gets clipped at the edges of the smaller target:
     // stroked shapes (oscilloscope, radial) centre their line on the path and so
@@ -3674,10 +8073,22 @@ bool ComputeVizLayout(VizLayout* out) {
     if (g_settings.nowPlayingEnabled) {
         float npOffX = reserveFor(std::abs(EffectiveNowPlayingOffsetX()) + npPanel);
         float npOffY = reserveFor(std::abs(EffectiveNowPlayingOffsetY()) + npPanel);
-        textTop    = std::max(textTop, fontPx * 1.6f + 8.0f * g_dpiScale + npOffY);
+        if (g_settings.npPlacement == VizNpPlacement::Above) {
+            float lines = (g_settings.npLayout == VizNpLayout::TwoLines) ? 2.7f : 1.6f;
+            textTop = std::max(textTop, fontPx * lines + 8.0f * g_dpiScale + npOffY);
+            textAnchorSide = std::max(textAnchorSide, 100.0f * g_dpiScale);
+        } else {
+            // Inside the panel: only an offset can take it past the edge.
+            textTop = std::max(textTop, npOffY);
+        }
         textBottom = std::max(textBottom, npOffY);
-        textAnchorSide = std::max(textAnchorSide, 100.0f * g_dpiScale);
         extraSide  = std::max(extraSide, npOffX);
+    }
+    if (g_settings.progressEnabled && g_settings.progressPlacement != VizProgressPlacement::PanelBottom) {
+        float need = (float)(std::max(1, g_settings.progressHeight) + g_settings.progressGap) * g_dpiScale +
+                     2.0f * g_dpiScale;
+        if (g_settings.progressPlacement == VizProgressPlacement::Above) textTop += need;
+        else textBottom = std::max(textBottom, need);
     }
     if (g_settings.peakFreqEnabled) {
         float pfOffX = reserveFor(std::abs(EffectivePeakFreqOffsetX()) + pfPanel);
@@ -3694,6 +8105,10 @@ bool ComputeVizLayout(VizLayout* out) {
             textBottom = std::max(textBottom, pfOffY);
         }
         textAnchorSide = std::max(textAnchorSide, 60.0f * g_dpiScale);
+        // A loudness readout is a whole line of figures: reserve enough either
+        // side for it to sit centred on the bars without being clipped.
+        float wide = VizReadoutWidthEstimate();
+        if (wide > 0.f) textAnchorSide = std::max(textAnchorSide, (wide - totalWidth) * 0.5f + 8.0f * g_dpiScale);
         extraSide = std::max(extraSide, pfOffX);
     }
 
@@ -3767,6 +8182,17 @@ bool CreateSwapChainResources() {
     hr = g_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &g_dc);
     if (FAILED(hr)) return false;
 
+    // Sprite batches arrived with Windows 10 1607. Without them Smooth Mode
+    // still paces and bakes the background; bars just draw the 1.4 way.
+    g_dc3.Reset();
+    g_spriteBatch.Reset();
+    if (SUCCEEDED(g_dc.As(&g_dc3)) && g_dc3) {
+        if (FAILED(g_dc3->CreateSpriteBatch(&g_spriteBatch))) {
+            g_spriteBatch.Reset();
+            g_dc3.Reset();
+        }
+    }
+
     ComPtr<IDXGISurface2> surface;
     hr = g_swapChain->GetBuffer(0, IID_PPV_ARGS(&surface));
     if (FAILED(hr)) return false;
@@ -3789,7 +8215,13 @@ bool CreateSwapChainResources() {
     hr = g_compositionDevice->CreateTargetForHwnd(g_overlayWnd, TRUE, &g_compositionTarget);
     if (FAILED(hr)) return false;
 
+    hr = g_compositionDevice->CreateVisual(&g_rootVisual);
+    if (FAILED(hr)) return false;
+
     hr = g_compositionDevice->CreateVisual(&g_compositionVisual);
+    if (FAILED(hr)) return false;
+
+    hr = g_rootVisual->AddVisual(g_compositionVisual.Get(), TRUE, nullptr);
     if (FAILED(hr)) return false;
 
     hr = g_compositionVisual->SetContent(g_swapChain.Get());
@@ -3802,7 +8234,7 @@ bool CreateSwapChainResources() {
     g_compositionVisual->SetOffsetX(layout.originX);
     g_compositionVisual->SetOffsetY(layout.originY);
 
-    hr = g_compositionTarget->SetRoot(g_compositionVisual.Get());
+    hr = g_compositionTarget->SetRoot(g_rootVisual.Get());
     if (FAILED(hr)) return false;
 
     hr = g_compositionDevice->Commit();
@@ -3906,14 +8338,16 @@ bool GetVizTravelRange(float* travelX, float* travelY) {
     MONITORINFO mi{.cbSize = sizeof(mi)};
     if (!GetMonitorInfo(monitor, &mi)) return false;
 
-    int barCount = std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
-    float barW = (float)std::max(1, g_settings.barWidth) * g_dpiScale;
-    float barGap = (float)std::max(0, g_settings.barGap) * g_dpiScale;
-    float maxSize = (float)std::max(2, g_settings.barMaxSize) * g_dpiScale;
+    int barCount = VizEffectiveBarCount();
+    float barW = std::max(1.f, VizPx((float)std::max(1, g_settings.barWidth)));
+    float barGap = VizPx((float)std::max(0, g_settings.barGap));
+    float maxSize = std::max(2.f, VizPx((float)std::max(2, g_settings.barMaxSize)));
     bool horizontal = (g_settings.orientation == VizOrientation::Horizontal);
     float barsThickness = barCount * barW + (barCount - 1) * barGap;
     float totalWidth, totalHeight;
-    if (g_settings.shape == VizShape::Radial) {
+    if (g_settings.shape == VizShape::Terminal) {
+        VizTermBox(&totalWidth, &totalHeight);
+    } else if (g_settings.shape == VizShape::Radial || g_settings.shape == VizShape::Goniometer) {
         totalWidth = totalHeight = maxSize * 2.0f;
     } else {
         totalWidth  = horizontal ? barsThickness : maxSize;
@@ -3968,8 +8402,10 @@ void EndDrag() {
     Wh_Log(L"[Drag] END moved=%d finalHV=(%.2f,%.2f) overrideActive=%d",
            (int)g_dragMoved, finalH, finalV, (int)g_dragOverrideActive.load(std::memory_order_relaxed));
 
+    // Deferred like the other hook paths: a WH_MOUSE_LL callback holds up all
+    // input until it returns, so no storage write happens in here.
     if (g_dragMoved) {
-        PersistOverrideState();
+        RequestPositionOverrideSave();
     }
 }
 
@@ -4031,7 +8467,7 @@ bool KeyMoveDirection(DWORD vk, int* dx, int* dy) {
 // hook thread, and read by nothing else.
 VizMoveTarget g_keyMoveTarget = VizMoveTarget::Visualizer;
 
-void NudgeVisualizerPx(int dxPx, int dyPx) {
+void NudgeVisualizerPx(float dxPx, float dyPx) {
     float travelX = 0.f, travelY = 0.f;
     if (!GetVizTravelRange(&travelX, &travelY)) return;
 
@@ -4041,8 +8477,8 @@ void NudgeVisualizerPx(int dxPx, int dyPx) {
     float v = active ? g_dragOverrideV.load(std::memory_order_relaxed)
                      : g_settings.verticalPosition;
 
-    if (dxPx && travelX > 1.0f) h = std::clamp(h + (dxPx / travelX) * 100.0f, 0.0f, 100.0f);
-    if (dyPx && travelY > 1.0f) v = std::clamp(v + (dyPx / travelY) * 100.0f, 0.0f, 100.0f);
+    if (dxPx != 0.f && travelX > 1.0f) h = std::clamp(h + (dxPx / travelX) * 100.0f, 0.0f, 100.0f);
+    if (dyPx != 0.f && travelY > 1.0f) v = std::clamp(v + (dyPx / travelY) * 100.0f, 0.0f, 100.0f);
 
     g_dragOverrideH.store(h, std::memory_order_relaxed);
     g_dragOverrideV.store(v, std::memory_order_relaxed);
@@ -4172,8 +8608,14 @@ LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     bool fast = g_settings.keyMoveFastKey != VIZ_MOD_NONE &&
                                 ModKeysHeld(g_settings.keyMoveFastKey);
                     int step = fast ? g_settings.keyMoveFastStep : g_settings.keyMoveStep;
+                    // Fine: a fraction of a pixel. Only the visualizer can sit
+                    // between pixels; the strip and the text move whole pixels.
+                    bool fine = !fast && (g_settings.keyMoveFine ||
+                                          (g_settings.keyMoveFineKey != VIZ_MOD_NONE &&
+                                           ModKeysHeld(g_settings.keyMoveFineKey)));
+                    float vstep = fine ? g_settings.keyMoveFineStep : (float)step;
                     if (g_keyMoveTarget == VizMoveTarget::Visualizer) {
-                        NudgeVisualizerPx(dx * step, dy * step);
+                        NudgeVisualizerPx(dx * vstep, dy * vstep);
                     } else if (g_keyMoveTarget == VizMoveTarget::MediaControls) {
                         NudgeMediaControlsPx(dx * step, dy * step);
                     } else {
@@ -4219,7 +8661,54 @@ LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
     return CallNextHookEx(nullptr, nCode, wParam, lParam);
 }
 
+// True when what is under `pt` is the desktop the visualizer lives on (its
+// WorkerW / Progman layer), not an application window covering it. Window
+// lookup and class names only, no messages: this runs inside a low-level
+// mouse hook, where anything slow holds up all input.
+bool VizDesktopUnderPoint(POINT pt) {
+    HWND h = WindowFromPoint(pt);
+    if (!h) return false;
+    HWND root = GetAncestor(h, GA_ROOT);
+    if (!root) root = h;
+    WCHAR cls[32] = {};
+    GetClassNameW(root, cls, ARRAYSIZE(cls));
+    return wcscmp(cls, L"WorkerW") == 0 || wcscmp(cls, L"Progman") == 0;
+}
+
+std::atomic<bool> g_userPaused{false};  // Pause Visualizer, from the right-click menu
+bool g_menuButtonDown = false;          // hook thread only
+
+// Right-click over the visualizer opens the quick-settings menu (Interaction,
+// Right-Click Menu). The press and release are both swallowed, so the
+// desktop's own menu doesn't open as well; a drag bound to the right button
+// with its modifier held keeps priority.
+bool VizMenuHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
+    if (g_settings.contextMenu == VizContextMenu::Off) return false;
+    if (wParam == WM_RBUTTONDOWN) {
+        g_menuButtonDown = false;
+        if (g_settings.dragEnabled && g_settings.dragButton == VizDragButton::Right && DragModifierHeld())
+            return false;
+        if (g_settings.contextMenu == VizContextMenu::CtrlRightClick && !(GetAsyncKeyState(VK_CONTROL) & 0x8000))
+            return false;
+        // Hidden for a fullscreen app or a covering window: nothing to click.
+        if (g_fullscreenPaused.load(std::memory_order_relaxed) && !g_userPaused.load(std::memory_order_relaxed))
+            return false;
+        if (!PointInVisualizerBounds(info->pt) || !VizDesktopUnderPoint(info->pt)) return false;
+        g_menuButtonDown = true;
+        return true;
+    }
+    if (wParam == WM_RBUTTONUP && g_menuButtonDown) {
+        g_menuButtonDown = false;
+        if (g_messageWnd) PostMessage(g_messageWnd, WM_APP_CONTEXT_MENU, (WPARAM)info->pt.x, (LPARAM)info->pt.y);
+        return true;
+    }
+    return false;
+}
+
 LRESULT CALLBACK DragMouseHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode == HC_ACTION && !g_unloading.load(std::memory_order_relaxed) &&
+        VizMenuHook(wParam, (const MSLLHOOKSTRUCT*)lParam))
+        return 1;
     if (nCode == HC_ACTION && !g_unloading.load(std::memory_order_relaxed) &&
         g_settings.dragEnabled) {
         MSLLHOOKSTRUCT* info = (MSLLHOOKSTRUCT*)lParam;
@@ -4283,6 +8772,7 @@ DWORD g_inputHookThreadId = 0;
 // low-level hook whose thread doesn't service messages promptly, so this
 // thread does nothing but pump.
 DWORD WINAPI InputHookThreadProc(LPVOID) {
+    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     HINSTANCE hInst = (HINSTANCE)GetCurrentModuleHandle();
 
     g_dragMouseHook = SetWindowsHookEx(WH_MOUSE_LL, DragMouseHookProc, hInst, 0);
@@ -4358,6 +8848,7 @@ void CaptureWallpaperBitmap() {
     g_dc->Clear(D2D1::ColorF(0, 0, 0, 0));
     g_dc->EndDraw();
     g_swapChain->Present(1, 0);
+    ttgfx::PresentBlank();
     DwmFlush();
 
     HWND hParent = GetParent(g_overlayWnd);
@@ -4428,12 +8919,28 @@ void ReleaseVisualResources() {
         g_bgGeoCacheRadii[2] = g_bgGeoCacheRadii[3] = -1.f;
     g_borderCacheBorderSize = -1;
     g_nowPlayingBrush.Reset();
+    g_npArtistBrush.Reset();
+    g_progressBrush.Reset();
     g_textPanelBrush.Reset();
+    // Smooth Mode caches. Every settings change and wallpaper re-bake comes
+    // through here, so none of them needs its own invalidation for colors,
+    // fonts or blur -- only for geometry, which is checked per frame.
+    g_plateBitmap.Reset();
+    g_plateRect = D2D1::RectF(0, 0, 0, 0);
+    g_spriteAtlas.Reset();
+    g_spriteAtlasKey = VizAtlasKey();
+    g_npLayoutCache.Reset();
+    g_pfLayoutCache.Reset();
+    ttgfx::OnSettingsChanged();
 }
 
 void ReleaseSwapChainResources() {
     ReleaseVisualResources();
+    ttgfx::ReleaseSurface();
+    g_spriteBatch.Reset();
+    g_dc3.Reset();
     g_compositionVisual.Reset();
+    g_rootVisual.Reset();
     g_compositionTarget.Reset();
     g_compositionDevice.Reset();
     g_dc.Reset();
@@ -4519,6 +9026,8 @@ bool RecreateVisualResources() {
         }
     }
 
+    if (g_settings.progressEnabled) g_dc->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 1), &g_progressBrush);
+
     if (g_settings.nowPlayingEnabled || g_settings.peakFreqEnabled) {
         // One scratch brush shared by both text panels and both their borders.
         // Each use sets its colour first -- four separate brushes would be four
@@ -4530,6 +9039,7 @@ bool RecreateVisualResources() {
             D2D1::ColorF(g_settings.nowPlayingR / 255.0f, g_settings.nowPlayingG / 255.0f,
                         g_settings.nowPlayingB / 255.0f, g_settings.nowPlayingA / 255.0f);
         g_dc->CreateSolidColorBrush(npColor, &g_nowPlayingBrush);
+        g_dc->CreateSolidColorBrush(D2D1::ColorF(1, 1, 1, 1), &g_npArtistBrush);
 
         int fontSize = std::max(6, g_settings.nowPlayingFontSize);
         if (g_dwriteFactory && (!g_dwriteTextFormat || g_dwriteTextFormatFontSize != fontSize ||
@@ -4671,17 +9181,46 @@ struct TextPanelStyle {
 // fadeAlpha scales the whole thing, so a panel fades in and out with the Now
 // Playing text instead of popping.
 void DrawOverlayText(PCWSTR text, UINT32 len, const D2D1_RECT_F& box, ID2D1Brush* textBrush,
-                     const TextPanelStyle& style, float fadeAlpha) {
+                     const TextPanelStyle& style, float fadeAlpha,
+                     VizTextLayoutCache* cache = nullptr, bool noWrap = false) {
     bool wantFill = style.fillA > 0;
     bool wantBorder = style.borderSize > 0 && style.borderA > 0;
 
     ComPtr<IDWriteTextLayout> layout;
+
+    // Smooth Mode passes a cache: the layout is rebuilt only when the string or
+    // the box changes, and then serves both the panel measurement and the
+    // draw. Drawing a layout at the box origin is what DrawText does
+    // internally, so the result is identical.
+    if (cache && g_dwriteFactory && g_dwriteTextFormat) {
+        float boxW = box.right - box.left;
+        float boxH = box.bottom - box.top;
+        bool same = cache->layout && cache->w == boxW && cache->h == boxH &&
+                    cache->text.size() == len && wmemcmp(cache->text.data(), text, len) == 0;
+        if (!same) {
+            cache->Reset();
+            if (SUCCEEDED(g_dwriteFactory->CreateTextLayout(text, len, g_dwriteTextFormat.Get(), boxW,
+                                                            boxH, &cache->layout)) &&
+                cache->layout) {
+                // A readout line is never broken over two lines: the box is
+                // only one line tall, so a wrapped second line would be lost.
+                if (noWrap) cache->layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                cache->text.assign(text, len);
+                cache->w = boxW;
+                cache->h = boxH;
+            } else {
+                cache->Reset();
+            }
+        }
+        layout = cache->layout;
+    }
+
     if ((wantFill || wantBorder) && g_dwriteFactory && g_textPanelBrush) {
         float boxW = box.right - box.left;
         float boxH = box.bottom - box.top;
         DWRITE_TEXT_METRICS m{};
-        if (SUCCEEDED(g_dwriteFactory->CreateTextLayout(text, len, g_dwriteTextFormat.Get(),
-                                                        boxW, boxH, &layout)) &&
+        if ((layout || SUCCEEDED(g_dwriteFactory->CreateTextLayout(
+                           text, len, g_dwriteTextFormat.Get(), boxW, boxH, &layout))) &&
             layout && SUCCEEDED(layout->GetMetrics(&m)) && m.width > 0.f && m.height > 0.f) {
             float pad = (float)style.padding * g_dpiScale;
             D2D1_RECT_F r = D2D1::RectF(box.left + m.left - pad, box.top + m.top - pad,
@@ -4729,6 +9268,2697 @@ bool RectsApproxEqual(const D2D1_RECT_F& a, const D2D1_RECT_F& b) {
            eq(a.right, b.right) && eq(a.bottom, b.bottom);
 }
 
+// ---- Smooth Mode: background plate --------------------------------------------
+
+// The three background layers, drawn into any context. The 1.4 path calls this
+// on the frame's own context every frame; Smooth Mode calls it once into the
+// cached plate.
+void VizDrawBackgroundLayers(ID2D1DeviceContext* dc, ID2D1Geometry* bgGeo, ID2D1Geometry* ring,
+                             ID2D1Brush* fill, ID2D1Brush* border) {
+    if (g_blurredBitmap && bgGeo) {
+        dc->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), bgGeo), nullptr);
+        // The cached blur is already box-sized and box-aligned, so this
+        // is a straight 1:1 blit with no scaling or resampling.
+        dc->DrawBitmap(g_blurredBitmap.Get());
+        dc->PopLayer();
+    }
+    if (bgGeo && fill) dc->FillGeometry(bgGeo, fill);
+    if (ring && border) dc->FillGeometry(ring, border);
+}
+
+// Renders the background into g_plateBitmap. The plate covers the panel's
+// pixel-aligned bounds plus a 2 px margin for the antialiased edge, and is
+// drawn back at an integer position, so the per-frame blit never resamples.
+//
+// It renders on a context of its own rather than by retargeting the frame's
+// context, because it can be called mid-frame, possibly inside the auto-hide
+// fade layer, where switching targets isn't allowed.
+bool VizBakeBackgroundPlate(const D2D1_RECT_F& bgRect, ID2D1Geometry* bgGeo, ID2D1Geometry* ring) {
+    if (!g_d2dDevice || !g_backgroundBrush) return false;
+
+    D2D1_RECT_F pr = D2D1::RectF(floorf(bgRect.left) - 2.f, floorf(bgRect.top) - 2.f,
+                                 ceilf(bgRect.right) + 2.f, ceilf(bgRect.bottom) + 2.f);
+    UINT w = (UINT)std::max(1.f, pr.right - pr.left);
+    UINT h = (UINT)std::max(1.f, pr.bottom - pr.top);
+
+    ComPtr<ID2D1DeviceContext> bake;
+    if (FAILED(g_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &bake))) return false;
+
+    // Same size as last time (a drag, say) reuses the bitmap.
+    ComPtr<ID2D1Bitmap1> bmp = g_plateBitmap;
+    if (!bmp || bmp->GetPixelSize().width != w || bmp->GetPixelSize().height != h) {
+        D2D1_BITMAP_PROPERTIES1 props = {};
+        props.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        props.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+        props.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET;
+        bmp.Reset();
+        if (FAILED(bake->CreateBitmap(D2D1::SizeU(w, h), nullptr, 0, props, &bmp))) return false;
+    }
+
+    // Brushes are made on the bake context with the frame brushes' colors,
+    // which RecreateVisualResources set from the settings.
+    ComPtr<ID2D1SolidColorBrush> fill, border;
+    bake->CreateSolidColorBrush(g_backgroundBrush->GetColor(), &fill);
+    if (g_borderBrush) bake->CreateSolidColorBrush(g_borderBrush->GetColor(), &border);
+
+    bake->SetTarget(bmp.Get());
+    bake->BeginDraw();
+    bake->Clear(D2D1::ColorF(0, 0, 0, 0));
+    bake->SetTransform(D2D1::Matrix3x2F::Translation(-pr.left, -pr.top));
+    VizDrawBackgroundLayers(bake.Get(), bgGeo, ring, fill.Get(), border.Get());
+    HRESULT hr = bake->EndDraw();
+    bake->SetTarget(nullptr);
+    if (FAILED(hr)) {
+        g_plateBitmap.Reset();
+        return false;
+    }
+    g_plateBitmap = bmp;
+    g_plateRect = pr;
+    return true;
+}
+
+// ---- Smooth Mode: batched bars --------------------------------------------------
+//
+// The atlas holds one antialiased bar shape, white, with a transparent pixel of
+// padding all round. For bars it is stored as three strips along the bar's
+// length: the leading cap (padding, the rounded corners, one solid row), a
+// three-row solid middle, and the trailing cap. Each bar is then three sprites:
+// the caps drawn 1:1 at the bar's ends and one middle row stretched to fill the
+// rest, all in one draw call with per-bar color.
+//
+// Two details keep it looking like the 1.4 path rather than a sprite approxi-
+// mation. Each cap strip carries one solid row past the corner, so even a
+// square-cornered bar has its end edge inside the texture, where bilinear
+// filtering gives it a subpixel-accurate antialiased edge as it moves. And the
+// shape is baked at the bars' common subpixel offset across the bar, so when
+// bar positions share it (whole-pixel bar width and gap, which is every
+// 100% / 200% scale setup) the sprites land on whole pixels and the sides come
+// out exactly as D2D's own antialiasing draws them.
+
+bool VizEnsureSpriteAtlas(const VizAtlasKey& key) {
+    if (!g_dc3 || !g_spriteBatch || !g_d2dDevice || !g_d2dFactory) return false;
+    if (g_spriteAtlas && key == g_spriteAtlasKey) return true;
+    g_spriteAtlas.Reset();
+
+    const float t = std::max(1.0f, key.thick);
+    const float maxR = t * 0.5f;
+    const float rTL = std::min(key.rTL, maxR), rTR = std::min(key.rTR, maxR);
+    const float rBR = std::min(key.rBR, maxR), rBL = std::min(key.rBL, maxR);
+
+    VizAtlasLayout L;
+    L.pad = 1;
+    L.mid = 3;
+    D2D1_RECT_F shape;
+    UINT bmpW, bmpH;
+    if (key.kind == 1) {
+        // A dot is drawn whole: one sprite each, no stretching.
+        L.capA = L.capB = 0;
+        L.across = L.along = (UINT)ceilf(t) + 2 * L.pad;
+        shape = D2D1::RectF((float)L.pad, (float)L.pad, L.pad + t, L.pad + t);
+        bmpW = bmpH = L.across;
+    } else if (key.horizontal) {
+        // Upright bars: caps are top (TL/TR) and bottom (BL/BR).
+        L.capA = (UINT)ceilf(std::max(rTL, rTR));
+        L.capB = (UINT)ceilf(std::max(rBL, rBR));
+        L.across = (UINT)ceilf(t + key.frac) + 2 * L.pad;
+        L.along = L.pad + L.capA + L.mid + L.capB + L.pad;
+        shape = D2D1::RectF(L.pad + key.frac, (float)L.pad, L.pad + key.frac + t,
+                            (float)(L.along - L.pad));
+        bmpW = L.across;
+        bmpH = L.along;
+    } else {
+        // Sideways bars: caps are left (TL/BL) and right (TR/BR).
+        L.capA = (UINT)ceilf(std::max(rTL, rBL));
+        L.capB = (UINT)ceilf(std::max(rTR, rBR));
+        L.across = (UINT)ceilf(t + key.frac) + 2 * L.pad;
+        L.along = L.pad + L.capA + L.mid + L.capB + L.pad;
+        shape = D2D1::RectF((float)L.pad, L.pad + key.frac, (float)(L.along - L.pad),
+                            L.pad + key.frac + t);
+        bmpW = L.along;
+        bmpH = L.across;
+    }
+
+    ComPtr<ID2D1DeviceContext> bake;
+    if (FAILED(g_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &bake))) return false;
+    D2D1_BITMAP_PROPERTIES1 props = {};
+    props.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    props.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+    props.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET;
+    ComPtr<ID2D1Bitmap1> atlas;
+    if (FAILED(bake->CreateBitmap(D2D1::SizeU(bmpW, bmpH), nullptr, 0, props, &atlas))) return false;
+    ComPtr<ID2D1SolidColorBrush> white;
+    if (FAILED(bake->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &white))) return false;
+
+    bake->SetTarget(atlas.Get());
+    bake->BeginDraw();
+    bake->Clear(D2D1::ColorF(0, 0, 0, 0));
+    // The same routine the 1.4 path draws each bar with, so corner shapes and
+    // radius clamping match exactly.
+    FillRoundedRectPerCorner(bake.Get(), g_d2dFactory.Get(), shape, white.Get(), rTL, rTR, rBR, rBL);
+    HRESULT hr = bake->EndDraw();
+    bake->SetTarget(nullptr);
+    if (FAILED(hr)) return false;
+
+    g_spriteAtlas = atlas;
+    g_spriteAtlasKey = key;
+    g_spriteAtlasLayout = L;
+    return true;
+}
+
+inline D2D1_COLOR_F VizPremultiplied(BYTE a, BYTE r, BYTE g, BYTE b) {
+    // Sprite colors multiply the (premultiplied) atlas texel component by
+    // component, so they have to be premultiplied too for a translucent bar
+    // color to blend correctly.
+    float fa = a / 255.0f;
+    return D2D1::ColorF(r / 255.0f * fa, g / 255.0f * fa, b / 255.0f * fa, fa);
+}
+
+inline void VizClearSprites() {
+    g_spriteDst.clear();
+    g_spriteSrc.clear();
+    g_spriteCol.clear();
+}
+
+inline void VizPushSprite(const D2D1_RECT_F& dst, const D2D1_RECT_U& src, const D2D1_COLOR_F& col) {
+    g_spriteDst.push_back(dst);
+    g_spriteSrc.push_back(src);
+    g_spriteCol.push_back(col);
+}
+
+// Queues the three sprites for one bar whose rectangle is r -- the same
+// rectangle the 1.4 path would fill. `horizontal` is the Orientation setting
+// (upright bars in a horizontal row).
+void VizQueueBarSprites(const D2D1_RECT_F& r, bool horizontal, const D2D1_COLOR_F& col) {
+    const VizAtlasLayout& L = g_spriteAtlasLayout;
+    const float frac = g_spriteAtlasKey.frac;
+    const float pad = (float)L.pad;
+    // Effective cap lengths include the one solid row each strip carries.
+    const float ca = (float)L.capA + 1.f;
+    const float cb = (float)L.capB + 1.f;
+
+    float a0 = horizontal ? r.top : r.left;     // start along the bar's length
+    float a1 = horizontal ? r.bottom : r.right; // end along the bar's length
+    float len = a1 - a0;
+    if (len <= 0.01f) return;
+    float s = (ca + cb > len) ? len / (ca + cb) : 1.f;
+
+    float c0 = (horizontal ? r.left : r.top) - frac - pad;  // atlas column/row 0
+    float c1 = c0 + (float)L.across;
+
+    UINT leadEnd = L.pad + L.capA + 1;  // exclusive
+    UINT bodyRow = leadEnd;             // the middle of the three solid rows
+    UINT trailStart = bodyRow + 1;
+
+    auto dstRect = [&](float along0, float along1) {
+        return horizontal ? D2D1::RectF(c0, along0, c1, along1) : D2D1::RectF(along0, c0, along1, c1);
+    };
+    auto srcRect = [&](UINT along0, UINT along1) {
+        D2D1_RECT_U u;
+        if (horizontal) {
+            u.left = 0; u.right = L.across; u.top = along0; u.bottom = along1;
+        } else {
+            u.left = along0; u.right = along1; u.top = 0; u.bottom = L.across;
+        }
+        return u;
+    };
+
+    VizPushSprite(dstRect(a0 - pad * s, a0 + ca * s), srcRect(0, leadEnd), col);
+    float bodyFrom = a0 + ca * s, bodyTo = a1 - cb * s;
+    if (bodyTo - bodyFrom > 0.001f) VizPushSprite(dstRect(bodyFrom, bodyTo), srcRect(bodyRow, bodyRow + 1), col);
+    VizPushSprite(dstRect(a1 - cb * s, a1 + pad * s), srcRect(trailStart, L.along), col);
+}
+
+// One dot centred on (cx, cy).
+void VizQueueDotSprite(float cx, float cy, float dotR, const D2D1_COLOR_F& col) {
+    const VizAtlasLayout& L = g_spriteAtlasLayout;
+    float x0 = cx - dotR - (float)L.pad, y0 = cy - dotR - (float)L.pad;
+    D2D1_RECT_U src = {0, 0, L.across, L.along};
+    VizPushSprite(D2D1::RectF(x0, y0, x0 + (float)L.across, y0 + (float)L.along), src, col);
+}
+
+// Draws everything queued, in one call.
+void VizFlushSprites() {
+    UINT32 n = (UINT32)g_spriteDst.size();
+    if (!n || !g_dc3 || !g_spriteBatch || !g_spriteAtlas) return;
+    g_spriteBatch->Clear();
+    if (FAILED(g_spriteBatch->AddSprites(n, g_spriteDst.data(), g_spriteSrc.data(), g_spriteCol.data(),
+                                         nullptr, sizeof(D2D1_RECT_F), sizeof(D2D1_RECT_U),
+                                         sizeof(D2D1_COLOR_F), 0))) {
+        return;
+    }
+    // Sprite batches only draw in aliased mode. The atlas already carries the
+    // antialiasing, and bilinear sampling carries it across subpixel positions.
+    D2D1_ANTIALIAS_MODE prev = g_dc->GetAntialiasMode();
+    g_dc->SetAntialiasMode(D2D1_ANTIALIAS_MODE_ALIASED);
+    g_dc3->DrawSpriteBatch(g_spriteBatch.Get(), 0, n, g_spriteAtlas.Get(),
+                           D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, D2D1_SPRITE_OPTIONS_NONE);
+    g_dc->SetAntialiasMode(prev);
+}
+
+// ---- Direct3D 11 renderer (Renderer = Direct3D 11) -----------------------------------
+//
+// Why a second renderer, when Smooth Mode already batched the bars. Direct2D
+// tessellates on the CPU and validates and saves Direct3D state around every
+// batch; for a few hundred moving shapes that per-call CPU work, not the
+// GPU, is what the 1.5 measurements kept pointing at. This renderer draws
+// every bar, dot, cap, spoke and scope segment as an instanced quad from one
+// tiny vertex shader that reads the bar heights straight from a buffer: the
+// CPU writes about 16 KB per frame (two floats per bar) and issues a handful
+// of draw calls, whatever the bar count. The pixel shader computes exact
+// antialiased coverage analytically, so edges look like Direct2D's.
+//
+// Three further savings come from how the frame reaches the screen:
+//
+//   * Skip unchanged frames. A hash of everything that decides the picture
+//     (bar heights to a quarter pixel, colours, the trace) is compared with
+//     the last frame presented; if nothing moved, nothing is drawn or
+//     presented, so DWM has nothing to recompose. During steady or quiet
+//     passages and every idle state that is most frames.
+//   * Two surfaces instead of one. The animated swap chain covers only the
+//     panel, not the room reserved around it for text; the text lives on the
+//     old full-size surface, which is redrawn only when the text or its fade
+//     changes. DWM's per-frame work scales with the area that changes.
+//   * Opaque panel. When the panel can't show anything behind it (Blur on, or
+//     a fully opaque colour), its swap chain is created with alpha ignored and
+//     the rounded corners come from a DirectComposition clip. DWM then copies
+//     instead of blending, which Chromium measured as 3.12 W against 2.28 W.
+//
+// The same shaders also carry the GPU Workload: four compute passes run the
+// whole precision analysis on the GPU and write the bar buffer the vertex
+// shader reads, so nothing comes back to the CPU but an 8-byte stats block,
+// read two frames late without waiting.
+namespace ttgfx {
+
+static const char kShaderSource[] =
+R"HLSL(#define TT_CBUFFER(n, r) cbuffer n : register(r)
+#define TT_CBUFFER_END
+#define REG(r) : register(r)
+#define SEM(s) : s
+#define NUMTHREADS(x, y, z) [numthreads(x, y, z)]
+#define GROUPSHARED groupshared
+#define NOINTERP nointerpolation
+#define BARRIER GroupMemoryBarrierWithGroupSync()
+#define OUT(T) out T
+// ---- Constant buffers --------------------------------------------------------
+// Mirrored field for field by VizGfxFrameCB / VizGfxPassCB / VizGfxCsCB on the
+// C++ side; every row is 16 bytes so HLSL packing and C++ layout agree.
+
+TT_CBUFFER(FrameCB, b0) {
+    float2 fViewport;  // swap chain size, px
+    float2 fBlock;     // bar group top-left, px
+    float fBarW, fBarGap, fMaxSize, fIdleSize;
+    float4 fRadii;     // bar corners TL TR BR BL, px
+    float4 fDotRadii;  // dot corners TL TR BR BL, px
+    uint fBarCount, fShape, fVertical, fAnchor;     // anchor: 0 top, 1 middle, 2 bottom
+    uint fColorMode, fFlags, fMaxDots, fDotSlots;  // flags: 1 peak caps, 2 beat flash, 4 multiband scope
+    float4 fC1, fGrad1, fC2, fPeakColor, fBeatColor;  // straight alpha, 0..1
+    float fBeatIntensity, fRainbowBase, fSceneAlpha, fCapThickness;
+    float fDotStep, fDotR, fInnerR, fStrokeW;
+    float2 fCenter;
+    float fAmpScale, fSweepLen;
+    float fScopeCenter, fSweepOrigin, fWStep, fGonioR;
+    float4 fPlateRect;
+    float4 fScopeColor;
+    float fGonioDot, fCorrY, fCorrH, fCorr;
+    // Terminal shape: palette (dim, low, high, label, peak), grid origin and
+    // cell size in px, grid and glyph-atlas dimensions.
+    float4 fTermColors[5];
+    float4 fTermGeom;   // origin x, origin y, cell width, cell height
+    float4 fTermAtlas;  // atlas width, atlas height, -, -
+    uint fTermCols, fTermRows, fTermAtlasCols, fTermPad;
+}
+TT_CBUFFER_END
+
+TT_CBUFFER(PassCB, b1) {
+    uint pPass, pCount, pPad0, pPad1;
+}
+TT_CBUFFER_END
+
+TT_CBUFFER(CsCB, b2) {
+    uint cN, cHalf, cLog2Half, cNumBands;
+    uint cNumBars, cTierCount, cTierList, cDetector;  // tier list: 2 bits per dispatched group;
+                                                     // tier count: bits 8-10 = tiers in use
+    float cFloorDb, cRangeDb, cSensDb, cDt;
+    float cAttackMs, cReleaseMs, cReleaseDbPerSec, cAutoGainMaxDb;
+    uint cReleaseLinear, cCurve, cShape, cAutoGain;
+    float cPeakHoldMs, cGravity, cLinFall, cBarRangePx;
+    uint cPeakGravity, cDomOn, cPad1, cPad2;
+    float cTierRate0, cTierRate1, cTierRate2, cPeakCal;
+    float cFmin, cFmax, cBreatheUp, cBreatheDown;  // breathe env taus, seconds
+}
+TT_CBUFFER_END
+// ---- Resources -----------------------------------------------------------------
+
+// Drawing (vertex / pixel shaders).
+StructuredBuffer<float2> gBars REG(t0);     // per bar: level 0..1, peak cap 0..1
+StructuredBuffer<float4> gGlobals REG(t1);  // [0] beat pulse, master peak, breathe env, -
+                                            // [1] EQ-zone energy low, mid, high, -
+StructuredBuffer<float> gWave REG(t2);      // oscilloscope trace, 256 samples, -1..1
+StructuredBuffer<float4> gPoints REG(t3);   // goniometer: side, mid, alpha, -
+Texture2D<float4> gPlate REG(t4);           // baked background panel, premultiplied
+SamplerState gSamp REG(s0);
+StructuredBuffer<uint> gCells REG(t10);     // Terminal: one cell per glyph, char | colour << 8
+Texture2D<float4> gGlyphs REG(t11);         // Terminal: printable ASCII baked white, premultiplied
+
+// Analysis (compute shaders, Workload = GPU).
+StructuredBuffer<float> gTierIn REG(t5);     // 3 x N newest samples, one block per tier
+StructuredBuffer<float> gWindow REG(t6);     // N window coefficients
+StructuredBuffer<float4> gBandDesc REG(t7);  // per band: tier + 4 * EQ zone, k0, k1, centre Hz
+StructuredBuffer<float4> gBandOff REG(t8);   // per band: RMS offset dB, peak offset dB, w0, w1
+StructuredBuffer<float> gShapeMod REG(t9);   // per bar: wave / breathe modulation from the CPU
+RWStructuredBuffer<float> gPower REG(u0);    // 3 x (N/2 + 1) power spectra
+RWStructuredBuffer<float4> gBandState REG(u1);  // per band: level, raw dB, fast, slow
+RWStructuredBuffer<float2> gBarsOut REG(u2);    // = gBars
+RWStructuredBuffer<float4> gBarAux REG(u3);     // per bar: peak, hold timer, fall velocity, -
+RWStructuredBuffer<float4> gGlobalsOut REG(u4); // = gGlobals, plus [2] auto gain state
+RWStructuredBuffer<uint> gStats REG(u5);        // [0] dominant Hz (float bits), [1] max delta px (bits)
+
+#define TT_PI 3.14159265358979f
+
+// ---- Shared helpers ------------------------------------------------------------
+
+float4 Hsv(float h, float s, float v, float a) {
+    h = h - 360.0f * floor(h / 360.0f);
+    float c = v * s;
+    float hp = h / 60.0f;
+    float x = c * (1.0f - abs(hp - 2.0f * floor(hp / 2.0f) - 1.0f));
+    float m = v - c;
+    float r = 0.0f, g = 0.0f, b = 0.0f;
+    if (h < 60.0f) { r = c; g = x; }
+    else if (h < 120.0f) { r = x; g = c; }
+    else if (h < 180.0f) { g = c; b = x; }
+    else if (h < 240.0f) { g = x; b = c; }
+    else if (h < 300.0f) { r = x; b = c; }
+    else { r = c; b = x; }
+    return float4(r + m, g + m, b + m, a);
+}
+
+float4 BeatFlash(float4 col) {
+    if ((fFlags & 2u) == 0u) return col;
+    float pulse = gGlobals[0].x;
+    if (pulse <= 0.001f) return col;
+    float blend = min(1.0f, pulse * fBeatIntensity * fBeatColor.w);
+    return float4(col.x + (fBeatColor.x - col.x) * blend, col.y + (fBeatColor.y - col.y) * blend,
+                  col.z + (fBeatColor.z - col.z) * blend, col.w);
+}
+
+// The Color Mode rules, exactly as the Direct2D path applies them per bar.
+// Modes: 0 solid, 1 gradient, 2 reactive, 3 accent, 4 album, 5 dynamic album,
+// 6 acrylic, 7 rainbow, 8 Tourne. Accent / album / Tourne arrive already
+// resolved into fC1 / fGrad1 / fC2.
+float4 BarColor(uint i, float fac, bool radial) {
+    uint n = fBarCount;
+    float t = (n > 1u) ? (float)i / (float)(n - 1u) : 0.0f;
+    float4 col = fC1;
+    uint m = fColorMode;
+    if (m == 1u || m == 8u) col = lerp(fGrad1, fC2, t);
+    else if (m == 2u) col = lerp(fGrad1, fC2, fac);
+    else if (m == 5u && !radial) col = lerp(fGrad1, fC2, min(1.0f, t * 0.6f + fac * 0.4f));
+    else if (m == 7u) {
+        float tr = radial ? (float)i / (float)max(n, 1u) : t;
+        col = Hsv(fRainbowBase + tr * 360.0f, 0.85f, 1.0f, fC1.w);
+    }
+    if (m == 6u) col = float4(fC1.x, fC1.y, fC1.z, min(180.0f, floor(180.0f * fac)) / 255.0f);
+    return BeatFlash(col);
+}
+
+float4 ScopeColor() {
+    float4 col = fScopeColor;
+    if ((fFlags & 4u) != 0u) {
+        float4 z = gGlobals[1];
+        float total = z.x + z.y + z.z;
+        if (total > 0.001f) {
+            col = float4((1.0f * z.x + 0.4706f * z.y + 0.3529f * z.z) / total,
+                         (0.3529f * z.x + 0.8627f * z.y + 0.7059f * z.z) / total,
+                         (0.2353f * z.x + 0.3529f * z.y + 1.0f * z.z) / total, 1.0f);
+        } else {
+            col = float4(0.4706f, 0.8627f, 0.3529f, 1.0f);
+        }
+    }
+    return BeatFlash(col);
+}
+
+float4 Premul(float4 c) { return float4(c.x * c.w, c.y * c.w, c.z * c.w, c.w); }
+
+// ---- Drawing -------------------------------------------------------------------
+//
+// Every primitive is one instanced quad. The vertex shader works out where it
+// goes from the bar state and the frame constants (the same geometry rules as
+// the Direct2D path), the pixel shader computes exact antialiased coverage from
+// a signed distance: saturate(0.5 - d) is the true area coverage for an
+// axis-aligned edge at any subpixel position, and within a hair of it for the
+// rounded corners and the capsules.
+
+struct Prim {
+    uint kind;    // 0 rounded rect, 1 capsule, 2 textured plate, 3 skip, 4 glyph
+    float4 a;     // rect: left top right bottom / capsule: ax ay bx by
+    float4 radii; // rect: TL TR BR BL / capsule: x = radius
+    float4 color; // straight alpha
+};
+
+Prim NoPrim() {
+    Prim p;
+    p.kind = 3u;
+    p.a = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    p.radii = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    p.color = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    return p;
+}
+
+Prim RectPrim(float l, float t, float r, float b, float4 radii, float4 color) {
+    Prim p;
+    p.kind = 0u;
+    p.a = float4(l, t, r, b);
+    p.radii = radii;
+    p.color = color;
+    if (r - l <= 0.0f || b - t <= 0.0f) p.kind = 3u;
+    return p;
+}
+
+Prim CapsulePrim(float ax, float ay, float bx, float by, float radius, float4 color) {
+    Prim p;
+    p.kind = 1u;
+    p.a = float4(ax, ay, bx, by);
+    p.radii = float4(radius, 0.0f, 0.0f, 0.0f);
+    p.color = color;
+    return p;
+}
+
+float BarRange() { return max(0.0f, fMaxSize - fIdleSize); }
+
+Prim BarPrim(uint i) {
+    if (i >= fBarCount) return NoPrim();
+    float fac = max(0.0f, gBars[i].x);
+    float size = fIdleSize + fac * BarRange();
+    float lead = (float)i * (fBarW + fBarGap);
+    float4 col = BarColor(i, fac, false);
+    if (fVertical == 0u) {
+        float x = fBlock.x + lead;
+        float y0, y1;
+        if (fAnchor == 0u) { y0 = fBlock.y; y1 = fBlock.y + size; }
+        else if (fAnchor == 1u) { y0 = fBlock.y + (fMaxSize - size) * 0.5f; y1 = y0 + size; }
+        else { y0 = fBlock.y + (fMaxSize - size); y1 = fBlock.y + fMaxSize; }
+        return RectPrim(x, y0, x + fBarW, y1, fRadii, col);
+    }
+    float y = fBlock.y + lead;
+    float x0, x1;
+    if (fAnchor == 0u) { x1 = fBlock.x + fMaxSize; x0 = x1 - size; }
+    else if (fAnchor == 1u) { float cx = fBlock.x + fMaxSize * 0.5f; x0 = cx - size * 0.5f; x1 = cx + size * 0.5f; }
+    else { x0 = fBlock.x; x1 = fBlock.x + size; }
+    return RectPrim(x0, y, x1, y + fBarW, fRadii, col);
+}
+
+Prim CapPrim(uint i) {
+    if (i >= fBarCount || (fFlags & 1u) == 0u) return NoPrim();
+    float hold = fIdleSize + gBars[i].y * BarRange();
+    if (hold <= 0.5f) return NoPrim();
+    float lead = (float)i * (fBarW + fBarGap);
+    float h = fCapThickness * 0.5f;
+    float4 z = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    if (fVertical == 0u) {
+        float x = fBlock.x + lead;
+        float cy;
+        if (fAnchor == 0u) cy = fBlock.y + hold;
+        else if (fAnchor == 1u) cy = fBlock.y + (fMaxSize - hold) * 0.5f;
+        else cy = fBlock.y + (fMaxSize - hold);
+        return RectPrim(x, cy - h, x + fBarW, cy + h, z, fPeakColor);
+    }
+    float y = fBlock.y + lead;
+    float cx;
+    if (fAnchor == 0u) cx = fBlock.x + fMaxSize - hold;
+    else if (fAnchor == 1u) cx = fBlock.x + fMaxSize * 0.5f - hold * 0.5f;
+    else cx = fBlock.x + hold;
+    return RectPrim(cx - h, y, cx + h, y + fBarW, z, fPeakColor);
+}
+
+// One dot. Slots per bar: Middle anchor uses 2 * maxDots + 1 (centre, then
+// alternating up / down pairs), the other anchors maxDots.
+Prim DotPrim(uint id) {
+    uint slots = max(fDotSlots, 1u);
+    uint i = id / slots;
+    uint s = id - i * slots;
+    if (i >= fBarCount) return NoPrim();
+    float fac = max(0.0f, gBars[i].x);
+    float colSize = fIdleSize + fac * BarRange();
+    if (colSize < 0.5f) return NoPrim();
+    int numDots = (fDotStep > 0.5f) ? (int)(colSize / fDotStep) : 1;
+    numDots = max(1, numDots);
+    uint d = s;
+    bool second = false;  // Middle: the downward (or leftward) dot of a pair
+    if (fAnchor == 1u && s > 0u) { d = (s + 1u) / 2u; second = (s & 1u) == 0u; }
+    if ((int)d >= numDots) return NoPrim();
+    float r = fDotR;
+    float lead = (float)i * fDotStep + r;
+    float fd = (float)d * fDotStep;
+    float cx, cy;
+    if (fVertical == 0u) {
+        cx = fBlock.x + lead;
+        if (fAnchor == 0u) {
+            cy = fBlock.y + fd + r;
+            if (cy - r > fBlock.y + fMaxSize) return NoPrim();
+        } else if (fAnchor == 1u) {
+            float c = fBlock.y + fMaxSize * 0.5f;
+            if (d == 0u) cy = c;
+            else if (!second) { cy = c - fd; if (cy - r < fBlock.y) return NoPrim(); }
+            else { cy = c + fd; if (cy + r > fBlock.y + fMaxSize) return NoPrim(); }
+        } else {
+            cy = fBlock.y + fMaxSize - fd - r;
+            if (cy + r < fBlock.y) return NoPrim();
+        }
+    } else {
+        cy = fBlock.y + lead;
+        if (fAnchor == 0u) {
+            cx = fBlock.x + fMaxSize - fd - r;
+            if (cx + r < fBlock.x) return NoPrim();
+        } else if (fAnchor == 1u) {
+            float c = fBlock.x + fMaxSize * 0.5f;
+            if (d == 0u) cx = c;
+            else if (!second) { cx = c + fd; if (cx + r > fBlock.x + fMaxSize) return NoPrim(); }
+            else { cx = c - fd; if (cx - r < fBlock.x) return NoPrim(); }
+        } else {
+            cx = fBlock.x + fd + r;
+            if (cx - r > fBlock.x + fMaxSize) return NoPrim();
+        }
+    }
+    return RectPrim(cx - r, cy - r, cx + r, cy + r, fDotRadii, BarColor(i, fac, false));
+}
+
+Prim RadialPrim(uint i) {
+    if (i >= fBarCount) return NoPrim();
+    float fac = max(0.0f, gBars[i].x);
+    float len = fIdleSize + fac * BarRange();
+    if (len < 0.5f) return NoPrim();
+    float ang = (float)i / (float)fBarCount * 2.0f * TT_PI - TT_PI * 0.5f;
+    float dx = cos(ang), dy = sin(ang);
+    return CapsulePrim(fCenter.x + dx * fInnerR, fCenter.y + dy * fInnerR,
+                       fCenter.x + dx * (fInnerR + len), fCenter.y + dy * (fInnerR + len),
+                       fStrokeW * 0.5f, BarColor(i, fac, true));
+}
+
+float2 ScopePoint(uint w) {
+    float along = fSweepOrigin + (float)w * fWStep;
+    float across = fScopeCenter + gWave[w] * fAmpScale * ((fVertical == 0u) ? -1.0f : 1.0f);
+    return (fVertical == 0u) ? float2(along, across) : float2(across, along);
+}
+
+Prim ScopePrim(uint w) {
+    if (w >= 255u) return NoPrim();
+    float2 a = ScopePoint(w);
+    float2 b = ScopePoint(w + 1u);
+    return CapsulePrim(a.x, a.y, b.x, b.y, max(1.0f, fBarW * 0.5f) * 0.5f, ScopeColor());
+}
+
+Prim GonioPrim(uint j) {
+    float4 p = gPoints[j];
+    if (p.z <= 0.002f) return NoPrim();
+    float x = fCenter.x + clamp(p.x, -1.0f, 1.0f) * fGonioR;
+    float y = fCenter.y - clamp(p.y, -1.0f, 1.0f) * fGonioR;
+    float4 col = ScopeColor();
+    col.w = col.w * p.z;
+    float r = fGonioDot;
+    return RectPrim(x - r, y - r, x + r, y + r, float4(r, r, r, r), col);
+}
+
+Prim CorrPrim(uint j) {
+    float halfW = fGonioR;
+    float y0 = fCorrY, y1 = fCorrY + fCorrH;
+    float4 col = ScopeColor();
+    float rr = fCorrH * 0.5f;
+    if (j == 0u) {
+        col.w = col.w * 0.25f;
+        return RectPrim(fCenter.x - halfW, y0, fCenter.x + halfW, y1, float4(rr, rr, rr, rr), col);
+    }
+    float c = fCorr;
+    float x = fCenter.x + clamp(c, -1.0f, 1.0f) * halfW;
+    float hw = max(1.5f, fCorrH * 0.5f);
+    return RectPrim(x - hw, y0 - 1.0f, x + hw, y1 + 1.0f, float4(hw, hw, hw, hw), col);
+}
+
+// One terminal cell: a glyph from the atlas (printable ASCII from 32, laid
+// out fTermAtlasCols to a row, one cell each), in one of five palette
+// colours. Cells are whole pixels and drawn 1:1, so pixel fonts stay sharp.
+Prim TermPrim(uint id) {
+    uint cols = max(fTermCols, 1u);
+    if (id >= cols * fTermRows) return NoPrim();
+    uint cell = gCells[id];
+    uint ch = cell & 127u;
+    if (ch <= 32u) return NoPrim();
+    uint ci = min((cell >> 8u) & 7u, 4u);
+    uint col = id % cols;
+    uint row = id / cols;
+    float cw = fTermGeom.z, chh = fTermGeom.w;
+    float x0 = fTermGeom.x + (float)col * cw;
+    float y0 = fTermGeom.y + (float)row * chh;
+    uint g = ch - 32u;
+    uint ac = max(fTermAtlasCols, 1u);
+    float gx = (float)(g % ac), gy = (float)(g / ac);
+    Prim p;
+    p.kind = 4u;
+    p.a = float4(x0, y0, x0 + cw, y0 + chh);
+    p.radii = float4(gx * cw / fTermAtlas.x, gy * chh / fTermAtlas.y, (gx + 1.0f) * cw / fTermAtlas.x,
+                     (gy + 1.0f) * chh / fTermAtlas.y);
+    p.color = fTermColors[ci];
+    return p;
+}
+
+Prim BuildPrim(uint passId, uint id) {
+    if (passId == 0u) {
+        Prim p = RectPrim(fPlateRect.x, fPlateRect.y, fPlateRect.z, fPlateRect.w,
+                          float4(0.0f, 0.0f, 0.0f, 0.0f), float4(1.0f, 1.0f, 1.0f, 1.0f));
+        if (p.kind == 0u) p.kind = 2u;
+        return p;
+    }
+    if (passId == 1u) return BarPrim(id);
+    if (passId == 2u) return CapPrim(id);
+    if (passId == 3u) return DotPrim(id);
+    if (passId == 4u) return RadialPrim(id);
+    if (passId == 5u) return ScopePrim(id);
+    if (passId == 6u) return GonioPrim(id);
+    if (passId == 7u) return CorrPrim(id);
+    if (passId == 8u) return TermPrim(id);
+    return NoPrim();
+}
+
+struct VsOut {
+    float4 pos SEM(SV_Position);
+    float2 pix SEM(TEXCOORD0);
+    NOINTERP float4 shape SEM(TEXCOORD1);
+    NOINTERP float4 radii SEM(TEXCOORD2);
+    NOINTERP float4 color SEM(TEXCOORD3);
+    NOINTERP uint kind SEM(TEXCOORD4);
+};
+
+// Quad corner `vid` (triangle strip 0..3) of the primitive's bounds. The
+// bounds reach one pixel past the shape so its antialiased edge is covered;
+// the plate is drawn exactly 1:1.
+VsOut EmitVertex(Prim p, uint vid) {
+    VsOut o;
+    float2 lo, hi;
+    if (p.kind == 1u) {
+        float r = p.radii.x + 1.0f;
+        lo = float2(min(p.a.x, p.a.z) - r, min(p.a.y, p.a.w) - r);
+        hi = float2(max(p.a.x, p.a.z) + r, max(p.a.y, p.a.w) + r);
+    } else if (p.kind == 2u || p.kind == 4u) {
+        lo = float2(p.a.x, p.a.y);
+        hi = float2(p.a.z, p.a.w);
+    } else {
+        lo = float2(p.a.x - 1.0f, p.a.y - 1.0f);
+        hi = float2(p.a.z + 1.0f, p.a.w + 1.0f);
+    }
+    float cx = ((vid & 1u) != 0u) ? 1.0f : 0.0f;
+    float cy = ((vid & 2u) != 0u) ? 1.0f : 0.0f;
+    float2 pix = float2(lo.x + (hi.x - lo.x) * cx, lo.y + (hi.y - lo.y) * cy);
+    o.pix = pix;
+    o.pos = float4(pix.x / fViewport.x * 2.0f - 1.0f, 1.0f - pix.y / fViewport.y * 2.0f, 0.0f, 1.0f);
+    if (p.kind == 3u) o.pos = float4(-2.0f, -2.0f, 0.0f, 1.0f);  // all four corners equal: no area
+    o.shape = p.a;
+    o.radii = p.radii;
+    o.color = Premul(p.color);
+    o.kind = p.kind;
+    return o;
+}
+
+VsOut VSMain(uint vid SEM(SV_VertexID), uint iid SEM(SV_InstanceID)) {
+    return EmitVertex(BuildPrim(pPass, iid), vid);
+}
+
+// Coverage of the pixel centred at `pix` by a rectangle with a separate radius
+// per corner (TL TR BR BL, y down), each clamped to half the shorter side as
+// Direct2D does.
+//
+// The straight edges use the exact overlap of the pixel with the rectangle on
+// each axis, multiplied: that is the true area for any rectangle at any
+// subpixel position, including bars thinner than a pixel and square corners
+// (where a distance field would give min(x, y) instead of x * y, up to a
+// quarter of a pixel wrong). Inside a rounded corner's square the arc takes
+// over, from the distance to the corner circle.
+float RectCoverage(float2 pix, float4 rect, float4 radii) {
+    float ox = saturate(min(pix.x + 0.5f, rect.z) - max(pix.x - 0.5f, rect.x));
+    float oy = saturate(min(pix.y + 0.5f, rect.w) - max(pix.y - 0.5f, rect.y));
+    float cov = ox * oy;
+    float2 c = float2((rect.x + rect.z) * 0.5f, (rect.y + rect.w) * 0.5f);
+    float2 h = float2((rect.z - rect.x) * 0.5f, (rect.w - rect.y) * 0.5f);
+    float2 p = float2(pix.x - c.x, pix.y - c.y);
+    float r = (p.x > 0.0f) ? ((p.y > 0.0f) ? radii.z : radii.y) : ((p.y > 0.0f) ? radii.w : radii.x);
+    r = clamp(r, 0.0f, min(h.x, h.y));
+    float qx = abs(p.x) - h.x + r;
+    float qy = abs(p.y) - h.y + r;
+    if (r > 0.0f && qx > 0.0f && qy > 0.0f) {
+        float d = length(float2(qx, qy)) - r;
+        cov = min(cov, saturate(0.5f - d));
+    }
+    return cov;
+}
+
+float SdCapsule(float2 pix, float4 seg, float radius) {
+    float2 pa = float2(pix.x - seg.x, pix.y - seg.y);
+    float2 ba = float2(seg.z - seg.x, seg.w - seg.y);
+    float bb = dot(ba, ba);
+    float h = (bb > 1e-8f) ? saturate(dot(pa, ba) / bb) : 0.0f;
+    return length(float2(pa.x - ba.x * h, pa.y - ba.y * h)) - radius;
+}
+
+float Coverage(VsOut i) {
+    if (i.kind == 1u) return saturate(0.5f - SdCapsule(i.pix, i.shape, i.radii.x));
+    return RectCoverage(i.pix, i.shape, i.radii);
+}
+
+float4 PSMain(VsOut i) SEM(SV_Target) {
+    if (i.kind == 2u) {
+        float2 uv = float2((i.pix.x - i.shape.x) / max(1.0f, i.shape.z - i.shape.x),
+                           (i.pix.y - i.shape.y) / max(1.0f, i.shape.w - i.shape.y));
+        return gPlate.SampleLevel(gSamp, uv, 0.0f) * fSceneAlpha;
+    }
+    if (i.kind == 4u) {
+        float fx = (i.pix.x - i.shape.x) / max(1.0f, i.shape.z - i.shape.x);
+        float fy = (i.pix.y - i.shape.y) / max(1.0f, i.shape.w - i.shape.y);
+        float2 uv = float2(i.radii.x + (i.radii.z - i.radii.x) * fx, i.radii.y + (i.radii.w - i.radii.y) * fy);
+        float cov = gGlyphs.SampleLevel(gSamp, uv, 0.0f).w;
+        return i.color * (cov * fSceneAlpha);
+    }
+    return i.color * (Coverage(i) * fSceneAlpha);
+}
+
+// ---- Analysis on the GPU (Workload = GPU) ----------------------------------------
+//
+// The same maths as ttdsp, split into four dispatches:
+//   CsFft    one group per tier that has new samples: window, real FFT
+//            (N/2-point complex radix-2 in group shared memory, then the
+//            real-input post-twiddle), power spectrum.
+//   CsBands  one thread per band: bin sum or peak, dB with the band's offset,
+//            display mapping, ballistics.
+//   CsReduce one group: master peak, EQ-zone energies, beat onset, breathe
+//            envelope, auto gain, dominant frequency.
+//   CsShape  one thread per bar: Shape mapping, peak hold, motion for the
+//            skip-unchanged-frames test.
+// Nothing comes back to the CPU each frame except an 8-byte stats block, read
+// two frames late without waiting.
+
+GROUPSHARED float2 gsFft[2048];
+GROUPSHARED float4 gsRed[256];
+GROUPSHARED float4 gsRed2[256];
+
+uint BitRev(uint v, uint bits) { return reversebits(v) >> (32u - bits); }
+
+NUMTHREADS(256, 1, 1)
+void CsFft(uint3 gid SEM(SV_GroupID), uint3 tid3 SEM(SV_GroupThreadID)) {
+    uint tid = tid3.x;
+    uint tier = (cTierList >> (2u * gid.x)) & 3u;
+    uint n = cN, m = cHalf;
+    uint base = tier * n;
+    for (uint k = tid; k < m; k += 256u) {
+        float x0 = gTierIn[base + 2u * k] * gWindow[2u * k];
+        float x1 = gTierIn[base + 2u * k + 1u] * gWindow[2u * k + 1u];
+        gsFft[BitRev(k, cLog2Half)] = float2(x0, x1);
+    }
+    BARRIER;
+    for (uint len = 2u; len <= m; len <<= 1u) {
+        uint halfLen = len >> 1u;
+        for (uint j = tid; j < m / 2u; j += 256u) {
+            uint grp = j / halfLen;
+            uint pos = j - grp * halfLen;
+            uint a = grp * len + pos;
+            uint b = a + halfLen;
+            float ang = -2.0f * TT_PI * (float)pos / (float)len;
+            float wr = cos(ang), wi = sin(ang);
+            float2 za = gsFft[a];
+            float2 zb = gsFft[b];
+            float vr = zb.x * wr - zb.y * wi;
+            float vi = zb.x * wi + zb.y * wr;
+            gsFft[a] = float2(za.x + vr, za.y + vi);
+            gsFft[b] = float2(za.x - vr, za.y - vi);
+        }
+        BARRIER;
+    }
+    uint outBase = tier * (m + 1u);
+    for (uint k2 = tid; k2 <= m; k2 += 256u) {
+        uint ka = (k2 == m) ? 0u : k2;
+        uint kb = (k2 == 0u) ? 0u : m - k2;
+        float2 za = gsFft[ka];
+        float2 zb = gsFft[kb];
+        float br = zb.x, bi = -zb.y;
+        float er = 0.5f * (za.x + br), ei = 0.5f * (za.y + bi);
+        float dr = za.x - br, di = za.y - bi;
+        float orr = 0.5f * di, oi = -0.5f * dr;
+        float ang = -2.0f * TT_PI * (float)k2 / (float)n;
+        float pr = cos(ang), pim = sin(ang);
+        float re = er + pr * orr - pim * oi;
+        float im = ei + pr * oi + pim * orr;
+        gPower[outBase + k2] = re * re + im * im;
+    }
+}
+
+float CurveOf(float x) {
+    if (x <= 0.0f) return 0.0f;
+    if (cCurve == 0u) return min(1.0f, (1.0f - exp(-2.0f * x)) / (1.0f - exp(-2.0f)));
+    if (cCurve == 2u) return min(1.0f, pow(x, 0.6f));
+    if (cCurve == 3u) return min(1.0f, x);
+    float knee = 0.7f;
+    return (x <= knee) ? x : knee + (1.0f - knee) * tanh((x - knee) / (1.0f - knee));
+}
+
+float Ballistic(float y, float x) {
+    if (x > y) return y + (x - y) * (1.0f - exp(-cDt * 1000.0f / max(0.1f, cAttackMs)));
+    if (cReleaseLinear != 0u) return max(x, y - cReleaseDbPerSec * cDt / max(1.0f, cRangeDb));
+    return y + (x - y) * (1.0f - exp(-cDt * 1000.0f / max(0.1f, cReleaseMs)));
+}
+
+float DbOf(float p) { return 10.0f * log10(max(p, 1e-30f)); }
+
+NUMTHREADS(64, 1, 1)
+void CsBands(uint3 did SEM(SV_DispatchThreadID)) {
+    uint b = did.x;
+    if (b >= cNumBands) return;
+    float4 d = gBandDesc[b];
+    float4 off = gBandOff[b];
+    uint tier = ((uint)d.x) & 3u;
+    uint k0 = (uint)d.y, k1 = (uint)d.z;
+    uint pb = tier * (cHalf + 1u);
+    float db;
+    if (cDetector == 1u) {
+        float mx = 0.0f;
+        for (uint k = k0; k <= k1; k++) mx = max(mx, gPower[pb + k]);
+        db = DbOf(mx) + off.y;
+    } else {
+        float s;
+        if (k0 == k1) s = gPower[pb + k0] * off.z;
+        else {
+            s = gPower[pb + k0] * off.z + gPower[pb + k1] * off.w;
+            for (uint k = k0 + 1u; k < k1; k++) s += gPower[pb + k];
+        }
+        db = DbOf(s) + off.x;
+    }
+    float gain = cSensDb + gGlobalsOut[2].x;  // auto gain from the previous frame
+    float x = clamp(CurveOf((db + gain - cFloorDb) / max(1.0f, cRangeDb)), 0.0f, 1.0f);
+    float4 st = gBandState[b];
+    st.x = Ballistic(st.x, x);
+    st.y = db;
+    gBandState[b] = st;
+}
+
+// Owned range of tier t for the dominant-frequency search: above the next
+// tier's clean passband, below this one's.
+void TierRange(uint t, OUT(float) lo, OUT(float) hi, OUT(float) fs) {
+    fs = (t == 0u) ? cTierRate0 : ((t == 1u) ? cTierRate1 : cTierRate2);
+    hi = (t == 0u) ? min(cFmax, 0.49f * fs) : 0.4f * fs;
+    float nextFs = (t == 0u) ? cTierRate1 : ((t == 1u) ? cTierRate2 : 0.0f);
+    lo = (nextFs > 0.0f) ? 0.4f * nextFs : cFmin;
+}
+
+NUMTHREADS(256, 1, 1)
+void CsReduce(uint3 tid3 SEM(SV_GroupThreadID)) {
+    uint tid = tid3.x;
+    // Pass 1: master peak, zone energies, bass, loudest raw band (auto gain).
+    float mx = 0.0f, zl = 0.0f, zm = 0.0f, zh = 0.0f, bass = 0.0f, rawMax = -300.0f;
+    for (uint b = tid; b < cNumBands; b += 256u) {
+        float4 st = gBandState[b];
+        uint zone = ((uint)gBandDesc[b].x) >> 2u;
+        mx = max(mx, st.x);
+        if (zone == 0u) zl += st.x;
+        else if (zone == 1u) zm += st.x;
+        else zh += st.x;
+        if (zone == 0u && gBandDesc[b].w < 150.0f) bass = max(bass, st.x);
+        rawMax = max(rawMax, st.y);
+    }
+    gsRed[tid] = float4(mx, zl, zm, zh);
+    gsRed2[tid] = float4(bass, rawMax, 0.0f, 0.0f);
+    BARRIER;
+    for (uint s = 128u; s > 0u; s >>= 1u) {
+        if (tid < s) {
+            float4 a = gsRed[tid], c = gsRed[tid + s];
+            gsRed[tid] = float4(max(a.x, c.x), a.y + c.y, a.z + c.z, a.w + c.w);
+            float4 a2 = gsRed2[tid], c2 = gsRed2[tid + s];
+            gsRed2[tid] = float4(max(a2.x, c2.x), max(a2.y, c2.y), 0.0f, 0.0f);
+        }
+        BARRIER;
+    }
+    float4 red = gsRed[0];
+    float4 red2 = gsRed2[0];
+    BARRIER;
+
+    // Pass 2: dominant frequency. Each thread keeps its best local maximum.
+    float bestDb = -1e9f;
+    float bestBin = 0.0f;
+    float bestTier = 0.0f;
+    if (cDomOn != 0u) {
+        for (uint t = 0u; t < 3u; t++) {
+            float lo, hi, fs;
+            TierRange(t, lo, hi, fs);
+            if (fs <= 0.0f) continue;
+            if (t > 0u && ((cTierCount >> (8u + t)) & 1u) == 0u) continue;  // tier unused
+            float df = fs / (float)cN;
+            uint k0 = max(2u, (uint)ceil(lo / df));
+            uint k1 = min(cHalf - 2u, (uint)floor(hi / df));
+            uint pb = t * (cHalf + 1u);
+            for (uint k = k0 + tid; k <= k1; k += 256u) {
+                float p = gPower[pb + k];
+                if (p >= gPower[pb + k - 1u] && p >= gPower[pb + k + 1u]) {
+                    float dbv = DbOf(p) + cPeakCal;
+                    if (dbv > bestDb) { bestDb = dbv; bestBin = (float)k; bestTier = (float)t; }
+                }
+            }
+        }
+    }
+    gsRed[tid] = float4(bestDb, bestBin, bestTier, 0.0f);
+    BARRIER;
+    for (uint s2 = 128u; s2 > 0u; s2 >>= 1u) {
+        if (tid < s2) {
+            float4 a = gsRed[tid], c = gsRed[tid + s2];
+            if (c.x > a.x) gsRed[tid] = c;
+        }
+        BARRIER;
+    }
+
+    if (tid == 0u) {
+        float4 g0 = gGlobalsOut[0];
+        float4 g2 = gGlobalsOut[2];
+        // Beat: the bass envelope pulling ahead of its own 60 ms average.
+        float fast = red2.x;
+        float slow = g2.z + (fast - g2.z) * (1.0f - exp(-cDt / 0.06f));
+        float pulse = max(0.0f, g0.x - 4.8f * cDt);
+        if (fast - slow > 0.12f) pulse = 1.0f;
+        // Breathe envelope, as the Direct2D path eases it, from elapsed time.
+        float env = g0.z;
+        float tau = (red.x > env) ? cBreatheUp : cBreatheDown;
+        env += (red.x - env) * (1.0f - exp(-cDt / max(0.01f, tau)));
+        // Auto gain: lift the loudest band toward 85% of the range, boost only,
+        // frozen through silence.
+        float ag = g2.x;
+        if (cAutoGain != 0u) {
+            float loud = red2.y + cSensDb;
+            float target = cFloorDb + 0.85f * cRangeDb;
+            if (loud > cFloorDb + 0.1f * cRangeDb) {
+                float want = clamp(target - loud, 0.0f, cAutoGainMaxDb);
+                ag += (want - ag) * (1.0f - exp(-cDt / 0.4f));
+            }
+        } else {
+            ag = 0.0f;
+        }
+        gGlobalsOut[0] = float4(pulse, red.x, env, 0.0f);
+        float4 g1 = gGlobalsOut[1];
+        gGlobalsOut[1] = float4(red.y, red.z, red.w, g1.w);
+        gGlobalsOut[2] = float4(ag, 0.0f, slow, 0.0f);
+        float hz = 0.0f;
+        float4 best = gsRed[0];
+        if (cDomOn != 0u && best.x > -90.0f) {
+            uint t = (uint)best.z;
+            uint k = (uint)best.y;
+            float lo, hi, fs;
+            TierRange(t, lo, hi, fs);
+            uint pb = t * (cHalf + 1u);
+            float a = DbOf(gPower[pb + k - 1u]), bq = DbOf(gPower[pb + k]), c = DbOf(gPower[pb + k + 1u]);
+            float den = a - 2.0f * bq + c;
+            float delta = (abs(den) > 1e-9f) ? clamp(0.5f * (a - c) / den, -0.5f, 0.5f) : 0.0f;
+            hz = ((float)k + delta) * fs / (float)cN;
+        }
+        gStats[0] = asuint(hz);
+        gStats[1] = 0u;
+    }
+}
+
+float SampleBands(float t) {
+    float pos = clamp(t, 0.0f, 1.0f) * (float)(cNumBands - 1u);
+    uint lo = (uint)pos;
+    uint hi = min(lo + 1u, cNumBands - 1u);
+    float f = pos - (float)lo;
+    return gBandState[lo].x * (1.0f - f) + gBandState[hi].x * f;
+}
+
+NUMTHREADS(64, 1, 1)
+void CsShape(uint3 did SEM(SV_DispatchThreadID)) {
+    uint i = did.x;
+    if (i >= cNumBars) return;
+    uint n = cNumBars;
+    float master = gGlobalsOut[0].y;
+    float freqT = (n > 1u) ? (float)i / (float)(n - 1u) : 0.5f;
+    float center = (float)(n - 1u) * 0.5f;
+    float target = 0.0f;
+    uint shape = cShape;
+    if (shape == 1u) {  // Mountain
+        float dist = abs((float)i - center) / max(1.0f, center);
+        float e = SampleBands(dist);
+        target = (e + master * (0.2f - dist * 0.12f)) * (1.6f - dist * 0.9f);
+    } else if (shape == 2u) {  // Mirror
+        float mirT = 1.0f - abs((float)i - center) / max(1.0f, center);
+        target = (SampleBands(mirT) + master * (0.1f + mirT * 0.12f)) * 1.3f;
+    } else if (shape == 3u) {  // Wave
+        target = SampleBands(freqT) * gShapeMod[i] + master * 0.15f;
+    } else if (shape == 4u) {  // Breathe
+        target = gShapeMod[i] * (0.12f + gGlobalsOut[0].z * 0.88f);
+    } else if (shape == 7u || shape == 8u) {
+        target = 0.0f;
+    } else {
+        target = SampleBands(freqT);
+    }
+    target = clamp(target, 0.0f, 1.0f);
+
+    float4 aux = gBarAux[i];  // peak, timer, velocity, previous level
+    float pk = aux.x, timer = aux.y, vel = aux.z;
+    if (target >= pk) { pk = target; timer = 0.0f; vel = 0.0f; }
+    else {
+        timer += cDt;
+        if (timer * 1000.0f >= cPeakHoldMs) {
+            if (cPeakGravity != 0u) { vel += cGravity * cDt; pk -= vel * cDt; }
+            else pk -= cLinFall * cDt;
+            if (pk < target) { pk = target; vel = 0.0f; }
+            pk = max(pk, 0.0f);
+        }
+    }
+    float moved = max(abs(target - aux.w), abs(pk - gBarsOut[i].y)) * cBarRangePx;
+    gBarAux[i] = float4(pk, timer, vel, target);
+    gBarsOut[i] = float2(target, pk);
+    InterlockedMax(gStats[1], asuint(moved));
+}
+)HLSL";
+
+#pragma pack(push, 4)
+struct FrameCB {
+    float viewport[2], block[2];
+    float barW, barGap, maxSize, idleSize;
+    float radii[4];
+    float dotRadii[4];
+    uint32_t barCount, shape, vertical, anchor;
+    uint32_t colorMode, flags, maxDots, dotSlots;
+    float c1[4], grad1[4], c2[4], peakColor[4], beatColor[4];
+    float beatIntensity, rainbowBase, sceneAlpha, capThickness;
+    float dotStep, dotR, innerR, strokeW;
+    float center[2];
+    float ampScale, sweepLen;
+    float scopeCenter, sweepOrigin, wstep, gonioR;
+    float plateRect[4];
+    float scopeColor[4];
+    float gonioDot, corrY, corrH, corr;
+    float termColors[5][4];
+    float termGeom[4];   // origin x, origin y, cell width, cell height
+    float termAtlas[4];  // atlas width, atlas height, -, -
+    uint32_t termCols, termRows, termAtlasCols, termPad;
+};
+struct PassCB {
+    uint32_t pass, count, pad0, pad1;
+};
+struct CsCB {
+    uint32_t n, half, log2Half, numBands;
+    uint32_t numBars, tierCount, tierList, detector;
+    float floorDb, rangeDb, sensDb, dt;
+    float attackMs, releaseMs, releaseDbPerSec, autoGainMaxDb;
+    uint32_t releaseLinear, curve, shape, autoGain;
+    float peakHoldMs, gravity, linFall, barRangePx;
+    uint32_t peakGravity, domOn, pad1, pad2;
+    float tierRate0, tierRate1, tierRate2, peakCal;
+    float fmin, fmax, breatheUp, breatheDown;
+};
+#pragma pack(pop)
+static_assert(sizeof(FrameCB) == 26 * 16, "FrameCB must match tt_cb.hlsl");
+static_assert(sizeof(PassCB) == 16, "PassCB must match tt_cb.hlsl");
+static_assert(sizeof(CsCB) == 9 * 16, "CsCB must match tt_cb.hlsl");
+
+enum Pass : uint32_t { kPlate = 0, kBars, kCaps, kDots, kRadial, kScope, kGonio, kCorr, kTerm, kPassCount };
+constexpr int kMaxPoints = 8192;
+constexpr int kGonioFrames = 6;  // persistence: this frame and the five before it
+
+// D3DCompile, resolved from d3dcompiler_47.dll, which ships with Windows 10
+// and later. Linking it would make the whole mod fail to load on a system
+// without it; loaded like this, only this renderer is unavailable there.
+typedef HRESULT(WINAPI* PFN_D3DCompile)(LPCVOID, SIZE_T, LPCSTR, const D3D_SHADER_MACRO*, ID3DInclude*,
+                                        LPCSTR, LPCSTR, UINT, UINT, ID3DBlob**, ID3DBlob**);
+
+struct State {
+    // Bytecode survives device rebuilds; it doesn't depend on the device.
+    ComPtr<ID3DBlob> vsCode, psCode, csCode[4];
+    bool compileTried = false, compileOk = false, csCompileTried = false, csCompileOk = false;
+    std::wstring compileError;
+
+    // Device objects.
+    bool deviceReady = false;
+    ComPtr<ID3D11DeviceContext> ctx;
+    ComPtr<ID3D11VertexShader> vs;
+    ComPtr<ID3D11PixelShader> ps;
+    ComPtr<ID3D11ComputeShader> cs[4];
+    ComPtr<ID3D11Buffer> frameCB, passCB[kPassCount], csCB;
+    ComPtr<ID3D11Buffer> barsDyn, globalsDyn, waveDyn, pointsDyn;
+    ComPtr<ID3D11ShaderResourceView> barsDynSRV, globalsDynSRV, waveSRV, pointsSRV;
+    ComPtr<ID3D11SamplerState> sampler;
+    ComPtr<ID3D11BlendState> blend;
+    ComPtr<ID3D11RasterizerState> raster;
+
+    // Panel surface.
+    ComPtr<IDXGISwapChain1> sc;
+    ComPtr<ID3D11RenderTargetView> rtv;
+    ComPtr<IDCompositionVisual> visual;
+    ComPtr<IDCompositionRectangleClip> clip;
+    UINT w = 0, h = 0;
+    int offX = 0, offY = 0;  // in layout-local pixels
+    bool opaque = false;
+    bool visualAttached = false;
+
+    // Baked background, the size of the panel surface.
+    ComPtr<ID3D11Texture2D> plateTex;
+    ComPtr<ID3D11ShaderResourceView> plateSRV;
+    bool plateValid = false;
+    uint64_t plateKey = 0;
+
+    // GPU workload.
+    bool gpuReady = false;
+    int gpuSerial = -1, gpuN = 0, gpuBands = 0;
+    ComPtr<ID3D11Buffer> tierIn, window, bandDesc, bandOff, shapeMod, power, bandState, barsGpu, barAux,
+        globalsGpu, stats, staging[3];
+    ComPtr<ID3D11ShaderResourceView> tierInSRV, windowSRV, bandDescSRV, bandOffSRV, shapeModSRV, barsGpuSRV,
+        globalsGpuSRV;
+    ComPtr<ID3D11UnorderedAccessView> powerUAV, bandStateUAV, barsGpuUAV, barAuxUAV, globalsGpuUAV, statsUAV;
+    std::vector<float> tierScratch;
+    unsigned frameNo = 0;
+    float lastMaxDeltaPx = 1e9f;
+    bool gpuWarned = false;
+
+    // Present-on-change.
+    uint64_t lastHash = 0;
+    bool forcePresent = true;
+    uint64_t textKey = 0;
+    bool textForce = true;
+    bool blankPresented = false;
+
+    // Terminal shape: the cell grid and the baked glyph atlas, created on
+    // first use so nobody who never picks the shape pays for them.
+    ComPtr<ID3D11Buffer> cellsDyn;
+    ComPtr<ID3D11ShaderResourceView> cellsSRV;
+    ComPtr<ID3D11Texture2D> glyphTex;
+    ComPtr<ID3D11ShaderResourceView> glyphSRV;
+    uint64_t glyphKey = 0;
+    UINT glyphW = 0, glyphH = 0;
+
+    // Goniometer persistence.
+    std::vector<float> gonioHist[kGonioFrames];
+    uint32_t gonioSerial = 0;
+    int gonioHead = 0;
+
+    bool warned = false;
+};
+State g;
+
+// ---- Hashing (present-on-change) -------------------------------------------------------
+inline void Mix(uint64_t& h, uint64_t v) {
+    h ^= v + 0x9E3779B97F4A7C15ull + (h << 6) + (h >> 2);
+}
+inline void MixF(uint64_t& h, float v, float q) { Mix(h, (uint64_t)(int64_t)llroundf(v * q)); }
+
+// ---- Setup -------------------------------------------------------------------------------
+bool Compile() {
+    if (g.compileTried) return g.compileOk;
+    g.compileTried = true;
+    HMODULE lib = LoadLibraryExW(L"d3dcompiler_47.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    auto fn = lib ? (PFN_D3DCompile)(void*)GetProcAddress(lib, "D3DCompile") : nullptr;
+    if (!fn) {
+        g.compileError = L"d3dcompiler_47.dll isn't available, so the Direct3D 11 renderer can't build its shaders.";
+        return false;
+    }
+    auto one = [&](const char* entry, const char* target, ComPtr<ID3DBlob>& out) -> bool {
+        ComPtr<ID3DBlob> err;
+        // Optimization level 3 (1 << 15).
+        HRESULT hr = fn(kShaderSource, sizeof(kShaderSource) - 1, "tourne-table.hlsl", nullptr, nullptr, entry, target,
+                        1u << 15, 0, &out, &err);
+        if (FAILED(hr)) {
+            std::wstring msg = L"Shader " + std::wstring(entry, entry + strlen(entry)) + L" failed to compile";
+            if (err && err->GetBufferPointer()) {
+                const char* s = (const char*)err->GetBufferPointer();
+                msg += L": ";
+                msg += std::wstring(s, s + strnlen(s, 600));
+            }
+            g.compileError = msg;
+            Wh_Log(L"[D3D11] %s", msg.c_str());
+            return false;
+        }
+        return true;
+    };
+    g.compileOk = one("VSMain", "vs_5_0", g.vsCode) && one("PSMain", "ps_5_0", g.psCode);
+    // The compute passes compile on first use of Workload = GPU.
+    g.csCompileTried = false;
+    return g.compileOk;
+}
+
+bool CompileCompute() {
+    if (g.csCompileTried) return g.csCompileOk;
+    g.csCompileTried = true;
+    HMODULE lib = LoadLibraryExW(L"d3dcompiler_47.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    auto fn = lib ? (PFN_D3DCompile)(void*)GetProcAddress(lib, "D3DCompile") : nullptr;
+    if (!fn) return g.csCompileOk = false;
+    const char* entries[4] = {"CsFft", "CsBands", "CsReduce", "CsShape"};
+    for (int i = 0; i < 4; i++) {
+        ComPtr<ID3DBlob> err;
+        if (FAILED(fn(kShaderSource, sizeof(kShaderSource) - 1, "tourne-table.hlsl", nullptr, nullptr, entries[i],
+                      "cs_5_0", 1u << 15, 0, &g.csCode[i], &err))) {
+            if (err) Wh_Log(L"[D3D11] %S failed: %S", entries[i], (const char*)err->GetBufferPointer());
+            return g.csCompileOk = false;
+        }
+    }
+    return g.csCompileOk = true;
+}
+
+HRESULT MakeStructured(UINT stride, UINT count, bool dynamic, bool uav, const void* init, ComPtr<ID3D11Buffer>& buf,
+                       ComPtr<ID3D11ShaderResourceView>* srv, ComPtr<ID3D11UnorderedAccessView>* uavOut) {
+    D3D11_BUFFER_DESC d = {};
+    d.ByteWidth = stride * count;
+    d.Usage = dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
+    d.BindFlags = D3D11_BIND_SHADER_RESOURCE | (uav ? D3D11_BIND_UNORDERED_ACCESS : 0);
+    d.CPUAccessFlags = dynamic ? D3D11_CPU_ACCESS_WRITE : 0;
+    d.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+    d.StructureByteStride = stride;
+    D3D11_SUBRESOURCE_DATA sd = {init, 0, 0};
+    HRESULT hr = g_d3dDevice->CreateBuffer(&d, init ? &sd : nullptr, &buf);
+    if (FAILED(hr)) return hr;
+    if (srv) {
+        hr = g_d3dDevice->CreateShaderResourceView(buf.Get(), nullptr, srv->ReleaseAndGetAddressOf());
+        if (FAILED(hr)) return hr;
+    }
+    if (uavOut) {
+        hr = g_d3dDevice->CreateUnorderedAccessView(buf.Get(), nullptr, uavOut->ReleaseAndGetAddressOf());
+        if (FAILED(hr)) return hr;
+    }
+    return S_OK;
+}
+
+HRESULT MakeCB(UINT size, bool dynamic, const void* init, ComPtr<ID3D11Buffer>& buf) {
+    D3D11_BUFFER_DESC d = {};
+    d.ByteWidth = size;
+    d.Usage = dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_IMMUTABLE;
+    d.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    d.CPUAccessFlags = dynamic ? D3D11_CPU_ACCESS_WRITE : 0;
+    D3D11_SUBRESOURCE_DATA sd = {init, 0, 0};
+    return g_d3dDevice->CreateBuffer(&d, init ? &sd : nullptr, &buf);
+}
+
+bool EnsureDevice() {
+    if (g.deviceReady) return true;
+    if (!g_d3dDevice) return false;
+    if (g_d3dDevice->GetFeatureLevel() < D3D_FEATURE_LEVEL_11_0) {
+        g.compileError = L"This GPU's Direct3D feature level is below 11.0, which the Direct3D 11 renderer needs.";
+        return false;
+    }
+    if (!Compile()) return false;
+    g_d3dDevice->GetImmediateContext(&g.ctx);
+    if (FAILED(g_d3dDevice->CreateVertexShader(g.vsCode->GetBufferPointer(), g.vsCode->GetBufferSize(), nullptr, &g.vs)) ||
+        FAILED(g_d3dDevice->CreatePixelShader(g.psCode->GetBufferPointer(), g.psCode->GetBufferSize(), nullptr, &g.ps)))
+        return false;
+    if (FAILED(MakeCB(sizeof(FrameCB), true, nullptr, g.frameCB))) return false;
+    for (uint32_t p = 0; p < kPassCount; p++) {
+        PassCB pc = {p, 0, 0, 0};
+        if (FAILED(MakeCB(sizeof(PassCB), false, &pc, g.passCB[p]))) return false;
+    }
+    if (FAILED(MakeStructured(8, VIZ_BARS_MAX, true, false, nullptr, g.barsDyn, &g.barsDynSRV, nullptr)) ||
+        FAILED(MakeStructured(16, 4, true, false, nullptr, g.globalsDyn, &g.globalsDynSRV, nullptr)) ||
+        FAILED(MakeStructured(4, VIZ_WAVE_SAMPLES, true, false, nullptr, g.waveDyn, &g.waveSRV, nullptr)) ||
+        FAILED(MakeStructured(16, kMaxPoints, true, false, nullptr, g.pointsDyn, &g.pointsSRV, nullptr)))
+        return false;
+
+    D3D11_SAMPLER_DESC sd = {};
+    sd.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
+    sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+    sd.MaxLOD = D3D11_FLOAT32_MAX;
+    if (FAILED(g_d3dDevice->CreateSamplerState(&sd, &g.sampler))) return false;
+
+    // Premultiplied alpha, like every other surface in this mod.
+    D3D11_BLEND_DESC bd = {};
+    bd.RenderTarget[0].BlendEnable = TRUE;
+    bd.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+    bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+    bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+    bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+    bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+    bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+    if (FAILED(g_d3dDevice->CreateBlendState(&bd, &g.blend))) return false;
+
+    D3D11_RASTERIZER_DESC rd = {};
+    rd.FillMode = D3D11_FILL_SOLID;
+    rd.CullMode = D3D11_CULL_NONE;
+    rd.DepthClipEnable = TRUE;
+    if (FAILED(g_d3dDevice->CreateRasterizerState(&rd, &g.raster))) return false;
+
+    g.deviceReady = true;
+    Wh_Log(L"[D3D11] renderer ready (feature level %X)", (unsigned)g_d3dDevice->GetFeatureLevel());
+    return true;
+}
+
+void ReleaseGpuAnalysis() {
+    g.gpuReady = false;
+    g.gpuSerial = -1;
+    g.tierIn.Reset(); g.window.Reset(); g.bandDesc.Reset(); g.bandOff.Reset(); g.shapeMod.Reset();
+    g.power.Reset(); g.bandState.Reset(); g.barsGpu.Reset(); g.barAux.Reset(); g.globalsGpu.Reset();
+    g.stats.Reset();
+    for (auto& s : g.staging) s.Reset();
+    g.tierInSRV.Reset(); g.windowSRV.Reset(); g.bandDescSRV.Reset(); g.bandOffSRV.Reset(); g.shapeModSRV.Reset();
+    g.barsGpuSRV.Reset(); g.globalsGpuSRV.Reset();
+    g.powerUAV.Reset(); g.bandStateUAV.Reset(); g.barsGpuUAV.Reset(); g.barAuxUAV.Reset(); g.globalsGpuUAV.Reset();
+    g.statsUAV.Reset();
+}
+
+// The panel surface and its visual. Called before the composition device goes.
+void ReleaseSurface() {
+    if (!g.sc && !g.visual && !g.plateTex) return;  // nothing to release (called every Direct2D frame)
+    if (g.visual && g.visualAttached && g_rootVisual) {
+        g_rootVisual->RemoveVisual(g.visual.Get());
+        if (g_compositionDevice) g_compositionDevice->Commit();
+    }
+    g.visualAttached = false;
+    g.rtv.Reset();
+    g.sc.Reset();
+    g.clip.Reset();
+    g.visual.Reset();
+    g.plateTex.Reset();
+    g.plateSRV.Reset();
+    g.plateValid = false;
+    g.w = g.h = 0;
+    g.forcePresent = true;
+    g.textForce = true;
+}
+
+// Everything that belongs to the D3D device (device lost, Drawing Device
+// changed, unload). The compiled bytecode is kept.
+void ReleaseDevice() {
+    ReleaseSurface();
+    ReleaseGpuAnalysis();
+    g.vs.Reset(); g.ps.Reset();
+    for (auto& c : g.cs) c.Reset();
+    g.frameCB.Reset(); g.csCB.Reset();
+    for (auto& p : g.passCB) p.Reset();
+    g.barsDyn.Reset(); g.globalsDyn.Reset(); g.waveDyn.Reset(); g.pointsDyn.Reset();
+    g.barsDynSRV.Reset(); g.globalsDynSRV.Reset(); g.waveSRV.Reset(); g.pointsSRV.Reset();
+    g.cellsDyn.Reset(); g.cellsSRV.Reset(); g.glyphTex.Reset(); g.glyphSRV.Reset();
+    g.glyphKey = 0;
+    g.sampler.Reset(); g.blend.Reset(); g.raster.Reset();
+    if (g.ctx) g.ctx->ClearState();
+    g.ctx.Reset();
+    g.deviceReady = false;
+}
+
+void OnSettingsChanged() {
+    g.plateValid = false;
+    g.forcePresent = true;
+    g.textForce = true;
+    g.warned = false;
+    g.gpuWarned = false;
+}
+
+// Is this renderer the one drawing? Falls back to Direct2D, once, with a
+// warning, if it can't be set up.
+bool Active() {
+    if (g_settings.renderer != VizRenderer::D3D11) return false;
+    if (EnsureDevice()) return true;
+    if (!g.warned) {
+        g.warned = true;
+        ReportSettingWarning(L"Hardware", L"Renderer",
+                             (g.compileError.empty() ? std::wstring(L"The Direct3D 11 renderer couldn't start")
+                                                     : g.compileError) +
+                                 L" Drawing with Direct2D instead.");
+        FlushSettingsIssues();
+    }
+    return false;
+}
+
+// ---- Panel surface ------------------------------------------------------------------------
+bool EnsureSurface(int offX, int offY, UINT w, UINT h, bool opaque, const D2D1_RECT_F& clipRect,
+                   const float clipRadii[4], float layoutOriginX, float layoutOriginY) {
+    if (!g_compositionDevice || !g_rootVisual) return false;
+    w = std::max(1u, w);
+    h = std::max(1u, h);
+    bool recreate = !g.sc || opaque != g.opaque;
+    if (recreate) {
+        g.rtv.Reset();
+        g.sc.Reset();
+        DXGI_SWAP_CHAIN_DESC1 scd = {};
+        scd.Width = w;
+        scd.Height = h;
+        scd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        scd.SampleDesc.Count = 1;
+        scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        scd.BufferCount = 2;
+        scd.Scaling = DXGI_SCALING_STRETCH;
+        scd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+        scd.AlphaMode = opaque ? DXGI_ALPHA_MODE_IGNORE : DXGI_ALPHA_MODE_PREMULTIPLIED;
+        if (FAILED(g_dxgiFactory->CreateSwapChainForComposition(g_dxgiDevice.Get(), &scd, nullptr, &g.sc))) return false;
+        g.w = w;
+        g.h = h;
+        g.opaque = opaque;
+        if (!g.visual && FAILED(g_compositionDevice->CreateVisual(&g.visual))) return false;
+        g.visual->SetContent(g.sc.Get());
+        g.visual->SetBorderMode(DCOMPOSITION_BORDER_MODE_SOFT);
+    } else if (w != g.w || h != g.h) {
+        g.rtv.Reset();
+        if (FAILED(g.sc->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN, 0))) return false;
+        g.w = w;
+        g.h = h;
+    }
+    if (!g.rtv) {
+        ComPtr<ID3D11Texture2D> back;
+        if (FAILED(g.sc->GetBuffer(0, IID_PPV_ARGS(&back)))) return false;
+        if (FAILED(g_d3dDevice->CreateRenderTargetView(back.Get(), nullptr, &g.rtv))) return false;
+        g.forcePresent = true;
+        g.plateValid = false;
+    }
+    if (!g.visualAttached) {
+        // Below the text surface, so readouts placed over the bars stay on top.
+        if (FAILED(g_rootVisual->AddVisual(g.visual.Get(), FALSE, g_compositionVisual.Get()))) return false;
+        g.visualAttached = true;
+    }
+    g.visual->SetOffsetX(layoutOriginX + (float)offX);
+    g.visual->SetOffsetY(layoutOriginY + (float)offY);
+    if (opaque) {
+        if (!g.clip && FAILED(g_compositionDevice->CreateRectangleClip(&g.clip))) return false;
+        g.clip->SetLeft(clipRect.left);
+        g.clip->SetTop(clipRect.top);
+        g.clip->SetRight(clipRect.right);
+        g.clip->SetBottom(clipRect.bottom);
+        g.clip->SetTopLeftRadiusX(clipRadii[0]);
+        g.clip->SetTopLeftRadiusY(clipRadii[0]);
+        g.clip->SetTopRightRadiusX(clipRadii[1]);
+        g.clip->SetTopRightRadiusY(clipRadii[1]);
+        g.clip->SetBottomRightRadiusX(clipRadii[2]);
+        g.clip->SetBottomRightRadiusY(clipRadii[2]);
+        g.clip->SetBottomLeftRadiusX(clipRadii[3]);
+        g.clip->SetBottomLeftRadiusY(clipRadii[3]);
+        g.visual->SetClip(g.clip.Get());
+    } else {
+        g.visual->SetClip((IDCompositionClip*)nullptr);
+    }
+    if (offX != g.offX || offY != g.offY) g.forcePresent = true;
+    g.offX = offX;
+    g.offY = offY;
+    g_compositionDevice->Commit();
+    return true;
+}
+
+// Presents one transparent frame on the panel surface (auto-hide, wallpaper
+// capture). Cheap, and only ever done once per state change.
+void PresentBlank() {
+    if (!g.sc || !g.rtv || !g.ctx) return;
+    const float zero[4] = {0, 0, 0, 0};
+    g.ctx->ClearRenderTargetView(g.rtv.Get(), zero);
+    HRESULT hr = g.sc->Present(0, 0);
+    VizCheckDeviceLost(S_OK, hr);
+    g.forcePresent = true;
+}
+
+// ---- Background plate ------------------------------------------------------------------
+// Baked once into a texture the size of the panel surface: blurred wallpaper,
+// panel fill and border, exactly as the Direct2D path composes them. For the
+// opaque panel the fill is square and the border's outer edge is pushed a
+// pixel out, because the DirectComposition clip draws the rounded edge.
+bool BakePlate(const D2D1_RECT_F& bgRect, const float radii[4]) {
+    if (!g_d2dDevice || !g_backgroundBrush || !g_d2dFactory) return false;
+    if (!g.plateTex || [&] {
+            D3D11_TEXTURE2D_DESC d;
+            g.plateTex->GetDesc(&d);
+            return d.Width != g.w || d.Height != g.h;
+        }()) {
+        g.plateTex.Reset();
+        g.plateSRV.Reset();
+        D3D11_TEXTURE2D_DESC td = {};
+        td.Width = g.w;
+        td.Height = g.h;
+        td.MipLevels = 1;
+        td.ArraySize = 1;
+        td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        td.SampleDesc.Count = 1;
+        td.Usage = D3D11_USAGE_DEFAULT;
+        td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        if (FAILED(g_d3dDevice->CreateTexture2D(&td, nullptr, &g.plateTex))) return false;
+        if (FAILED(g_d3dDevice->CreateShaderResourceView(g.plateTex.Get(), nullptr, &g.plateSRV))) return false;
+    }
+    ComPtr<IDXGISurface> surf;
+    if (FAILED(g.plateTex.As(&surf))) return false;
+    ComPtr<ID2D1DeviceContext> bake;
+    if (FAILED(g_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &bake))) return false;
+    D2D1_BITMAP_PROPERTIES1 bp = {};
+    bp.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    bp.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+    bp.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+    ComPtr<ID2D1Bitmap1> target;
+    if (FAILED(bake->CreateBitmapFromDxgiSurface(surf.Get(), bp, &target))) return false;
+
+    ComPtr<ID2D1SolidColorBrush> fill, border;
+    bake->CreateSolidColorBrush(g_backgroundBrush->GetColor(), &fill);
+    if (g_borderBrush) bake->CreateSolidColorBrush(g_borderBrush->GetColor(), &border);
+
+    // Panel geometry in this surface's coordinates.
+    D2D1_RECT_F r = D2D1::RectF(bgRect.left - g.offX, bgRect.top - g.offY, bgRect.right - g.offX,
+                                bgRect.bottom - g.offY);
+    ComPtr<ID2D1PathGeometry> geo, ringOuter, ringInner;
+    ComPtr<ID2D1GeometryGroup> ring;
+    CreateRoundedRectPath(g_d2dFactory.Get(), r, radii[0], radii[1], radii[2], radii[3], &geo);
+    if (border) {
+        float bw = std::min((float)g_settings.bgBorderSize * g_dpiScale,
+                            std::min(r.right - r.left, r.bottom - r.top) / 2.0f);
+        float grow = g.opaque ? 1.0f : 0.0f;
+        D2D1_RECT_F outer = D2D1::RectF(r.left - grow, r.top - grow, r.right + grow, r.bottom + grow);
+        CreateRoundedRectPath(g_d2dFactory.Get(), outer, radii[0] + grow, radii[1] + grow, radii[2] + grow,
+                              radii[3] + grow, &ringOuter);
+        D2D1_RECT_F inner = D2D1::RectF(r.left + bw, r.top + bw, r.right - bw, r.bottom - bw);
+        CreateRoundedRectPath(g_d2dFactory.Get(), inner, std::max(0.f, radii[0] - bw), std::max(0.f, radii[1] - bw),
+                              std::max(0.f, radii[2] - bw), std::max(0.f, radii[3] - bw), &ringInner);
+        if (ringOuter && ringInner) {
+            ID2D1Geometry* geos[] = {ringOuter.Get(), ringInner.Get()};
+            g_d2dFactory->CreateGeometryGroup(D2D1_FILL_MODE_ALTERNATE, geos, 2, &ring);
+        }
+    }
+
+    bake->SetTarget(target.Get());
+    bake->BeginDraw();
+    bake->Clear(D2D1::ColorF(0, 0, 0, 0));
+    if (g.opaque) {
+        // Everything square: the clip rounds it. Blur first, the fill on top.
+        if (g_blurredBitmap) {
+            bake->SetTransform(D2D1::Matrix3x2F::Translation(-(float)g.offX, -(float)g.offY));
+            bake->DrawBitmap(g_blurredBitmap.Get());
+            bake->SetTransform(D2D1::Matrix3x2F::Identity());
+        }
+        bake->FillRectangle(D2D1::RectF(0, 0, (float)g.w, (float)g.h), fill.Get());
+        if (ring && border) bake->FillGeometry(ring.Get(), border.Get());
+    } else {
+        if (g_blurredBitmap && geo) {
+            bake->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), geo.Get()), nullptr);
+            bake->SetTransform(D2D1::Matrix3x2F::Translation(-(float)g.offX, -(float)g.offY));
+            bake->DrawBitmap(g_blurredBitmap.Get());
+            bake->SetTransform(D2D1::Matrix3x2F::Identity());
+            bake->PopLayer();
+        }
+        if (geo) bake->FillGeometry(geo.Get(), fill.Get());
+        if (ring && border) bake->FillGeometry(ring.Get(), border.Get());
+    }
+    HRESULT hr = bake->EndDraw();
+    bake->SetTarget(nullptr);
+    if (FAILED(hr)) return false;
+    g.plateValid = true;
+    return true;
+}
+
+// ---- GPU workload --------------------------------------------------------------------------
+// 1 ready, 0 not yet (the engine hasn't published a band layout; drawing
+// shows idle bars until it does), -1 failed on this device.
+int EnsureGpuAnalysis() {
+    if (!CompileCompute()) return -1;
+    for (int i = 0; i < 4; i++) {
+        if (!g.cs[i] && FAILED(g_d3dDevice->CreateComputeShader(g.csCode[i]->GetBufferPointer(),
+                                                                 g.csCode[i]->GetBufferSize(), nullptr, &g.cs[i])))
+            return -1;
+    }
+    if (!g.csCB && FAILED(MakeCB(sizeof(CsCB), true, nullptr, g.csCB))) return -1;
+
+    std::lock_guard<std::mutex> lock(g_gpuFeed.m);
+    if (g_gpuFeed.n <= 0 || g_gpuFeed.maps.empty()) return 0;
+    if (g.gpuReady && g.gpuSerial == g_gpuFeed.layoutSerial) return 1;
+
+    ReleaseGpuAnalysis();
+    const int n = g_gpuFeed.n, half = n / 2, nb = (int)g_gpuFeed.maps.size();
+    std::vector<float> desc((size_t)nb * 4), off((size_t)nb * 4);
+    for (int b = 0; b < nb; b++) {
+        const auto& m = g_gpuFeed.maps[b];
+        double fc = g_gpuFeed.bands[b].fc;
+        int zone = (fc < 300.0) ? 0 : (fc < 2500.0) ? 1 : 2;
+        desc[b * 4 + 0] = (float)(m.tier + 4 * zone);
+        desc[b * 4 + 1] = (float)m.k0;
+        desc[b * 4 + 2] = (float)m.k1;
+        desc[b * 4 + 3] = (float)fc;
+        off[b * 4 + 0] = m.offsetDb;
+        off[b * 4 + 1] = m.peakOffsetDb;
+        off[b * 4 + 2] = m.w0;
+        off[b * 4 + 3] = m.w1;
+    }
+    std::vector<float> zerosA((size_t)std::max(nb, VIZ_BARS_MAX) * 4, 0.f);
+    bool ok = SUCCEEDED(MakeStructured(4, 3 * n, false, false, g_gpuFeed.blocks.data(), g.tierIn, &g.tierInSRV, nullptr)) &&
+              SUCCEEDED(MakeStructured(4, n, false, false, g_gpuFeed.window.data(), g.window, &g.windowSRV, nullptr)) &&
+              SUCCEEDED(MakeStructured(16, nb, false, false, desc.data(), g.bandDesc, &g.bandDescSRV, nullptr)) &&
+              SUCCEEDED(MakeStructured(16, nb, false, false, off.data(), g.bandOff, &g.bandOffSRV, nullptr)) &&
+              SUCCEEDED(MakeStructured(4, VIZ_BARS_MAX, true, false, nullptr, g.shapeMod, &g.shapeModSRV, nullptr)) &&
+              SUCCEEDED(MakeStructured(4, 3 * (half + 1), false, true, nullptr, g.power, nullptr, &g.powerUAV)) &&
+              SUCCEEDED(MakeStructured(16, nb, false, true, zerosA.data(), g.bandState, nullptr, &g.bandStateUAV)) &&
+              SUCCEEDED(MakeStructured(8, VIZ_BARS_MAX, false, true, zerosA.data(), g.barsGpu, &g.barsGpuSRV, &g.barsGpuUAV)) &&
+              SUCCEEDED(MakeStructured(16, VIZ_BARS_MAX, false, true, zerosA.data(), g.barAux, nullptr, &g.barAuxUAV)) &&
+              SUCCEEDED(MakeStructured(16, 4, false, true, zerosA.data(), g.globalsGpu, &g.globalsGpuSRV, &g.globalsGpuUAV)) &&
+              SUCCEEDED(MakeStructured(4, 4, false, true, zerosA.data(), g.stats, nullptr, &g.statsUAV));
+    if (ok) {
+        // Same size and structured flags as the stats buffer, so CopyResource
+        // between them is valid on every driver.
+        for (auto& s : g.staging) {
+            D3D11_BUFFER_DESC d = {};
+            d.ByteWidth = 16;
+            d.Usage = D3D11_USAGE_STAGING;
+            d.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+            d.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            d.StructureByteStride = 4;
+            if (FAILED(g_d3dDevice->CreateBuffer(&d, nullptr, &s))) ok = false;
+        }
+    }
+    if (!ok) {
+        ReleaseGpuAnalysis();
+        return -1;
+    }
+    g.gpuN = n;
+    g.gpuBands = nb;
+    g.gpuSerial = g_gpuFeed.layoutSerial;
+    g.tierScratch.assign((size_t)3 * n, 0.f);
+    g_gpuFeed.dirty = 7;
+    g.gpuReady = true;
+    g.lastMaxDeltaPx = 1e9f;
+    Wh_Log(L"[GPU] analysis on the GPU: %d bands, FFT %d", nb, n);
+    return 1;
+}
+
+// Runs the four analysis passes. Leaves barsGpu / globalsGpu holding this
+// frame's bars for the draw.
+void RunGpuAnalysis(int bars, float barRangePx) {
+    unsigned dirty = 0;
+    int n = g.gpuN;
+    double rates[3];
+    double peakCal;
+    {
+        std::lock_guard<std::mutex> lock(g_gpuFeed.m);
+        // The layout can change between EnsureGpuAnalysis and here; the
+        // blocks then have a different size, so take nothing this frame.
+        if (g_gpuFeed.layoutSerial == g.gpuSerial && g_gpuFeed.blocks.size() >= (size_t)3 * n) {
+            dirty = g_gpuFeed.dirty;
+            g_gpuFeed.dirty = 0;
+        }
+        if (dirty) memcpy(g.tierScratch.data(), g_gpuFeed.blocks.data(), sizeof(float) * 3 * (size_t)n);
+        for (int t = 0; t < 3; t++) rates[t] = g_gpuFeed.rate[t];
+        peakCal = g_gpuFeed.peakCal;
+    }
+    uint32_t tierList = 0, tierCount = 0, used = 0;
+    for (int t = 0; t < 3; t++) {
+        if (!(dirty & (1u << t))) continue;
+        D3D11_BOX box = {(UINT)(t * n * 4), 0, 0, (UINT)((t + 1) * n * 4), 1, 1};
+        g.ctx->UpdateSubresource(g.tierIn.Get(), 0, &box, &g.tierScratch[(size_t)t * n], 0, 0);
+        tierList |= (uint32_t)t << (2 * tierCount);
+        tierCount++;
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_gpuFeed.m);
+        for (int t = 0; t < 3; t++)
+            if (g_gpuFeed.used[t]) used |= 1u << t;
+    }
+
+    VizEngineConfig cfg;
+    {
+        std::lock_guard<std::mutex> lock(g_engineCfgMutex);
+        cfg = g_engineCfg;
+    }
+    D3D11_MAPPED_SUBRESOURCE ms;
+    if (SUCCEEDED(g.ctx->Map(g.csCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+        CsCB c = {};
+        c.n = (uint32_t)n;
+        c.half = (uint32_t)n / 2;
+        c.log2Half = (uint32_t)ttdsp::Log2i(n / 2);
+        c.numBands = (uint32_t)g.gpuBands;
+        c.numBars = (uint32_t)bars;
+        c.tierCount = tierCount | (used << 8);
+        c.tierList = tierList;
+        c.detector = cfg.spec.detector == ttdsp::Detector::Peak ? 1u : 0u;
+        c.floorDb = cfg.disp.floorDb;
+        c.rangeDb = std::max(1.f, cfg.disp.ceilDb - cfg.disp.floorDb);
+        c.sensDb = cfg.sensDb;
+        c.dt = std::clamp(g_frameDt, 0.0005f, 0.25f);
+        c.attackMs = (float)cfg.ball.attackMs;
+        c.releaseMs = (float)cfg.ball.releaseMs;
+        c.releaseDbPerSec = (float)cfg.ball.releaseDbPerSec;
+        c.autoGainMaxDb = cfg.autoGainMaxDb;
+        c.releaseLinear = cfg.ball.release == ttdsp::ReleaseKind::Linear ? 1u : 0u;
+        c.curve = (uint32_t)cfg.disp.curve;
+        c.shape = (uint32_t)g_settings.shape;
+        c.autoGain = cfg.autoGain ? 1u : 0u;
+        c.peakHoldMs = (float)g_settings.peakHoldMs;
+        c.gravity = 2.0f;
+        c.linFall = 0.72f;
+        c.barRangePx = barRangePx;
+        c.peakGravity = g_settings.peakFall == VizPeakFall::Gravity ? 1u : 0u;
+        c.domOn = cfg.wantDominant ? 1u : 0u;
+        c.tierRate0 = (float)rates[0];
+        c.tierRate1 = (float)rates[1];
+        c.tierRate2 = (float)rates[2];
+        c.peakCal = (float)peakCal;
+        c.fmin = (float)cfg.spec.fmin;
+        c.fmax = (float)cfg.spec.fmax;
+        c.breatheUp = 0.408f;
+        c.breatheDown = 1.103f;
+        memcpy(ms.pData, &c, sizeof(c));
+        g.ctx->Unmap(g.csCB.Get(), 0);
+    }
+    if (g_settings.shape == VizShape::Wave || g_settings.shape == VizShape::Breathe) {
+        if (SUCCEEDED(g.ctx->Map(g.shapeMod.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            float* m = (float*)ms.pData;
+            double clock = VizClockSeconds();
+            for (int i = 0; i < bars; i++) m[i] = VizShapeMod(i, bars, clock);
+            g.ctx->Unmap(g.shapeMod.Get(), 0);
+        }
+    }
+
+    ID3D11ShaderResourceView* srvs[5] = {g.tierInSRV.Get(), g.windowSRV.Get(), g.bandDescSRV.Get(),
+                                         g.bandOffSRV.Get(), g.shapeModSRV.Get()};
+    ID3D11UnorderedAccessView* uavs[6] = {g.powerUAV.Get(), g.bandStateUAV.Get(), g.barsGpuUAV.Get(),
+                                          g.barAuxUAV.Get(), g.globalsGpuUAV.Get(), g.statsUAV.Get()};
+    ID3D11Buffer* cbs[1] = {g.csCB.Get()};
+    g.ctx->CSSetShaderResources(5, 5, srvs);
+    g.ctx->CSSetUnorderedAccessViews(0, 6, uavs, nullptr);
+    g.ctx->CSSetConstantBuffers(2, 1, cbs);
+    if (tierCount) {
+        g.ctx->CSSetShader(g.cs[0].Get(), nullptr, 0);
+        g.ctx->Dispatch(tierCount, 1, 1);
+    }
+    g.ctx->CSSetShader(g.cs[1].Get(), nullptr, 0);
+    g.ctx->Dispatch((UINT)(g.gpuBands + 63) / 64, 1, 1);
+    g.ctx->CSSetShader(g.cs[2].Get(), nullptr, 0);
+    g.ctx->Dispatch(1, 1, 1);
+    g.ctx->CSSetShader(g.cs[3].Get(), nullptr, 0);
+    g.ctx->Dispatch((UINT)(bars + 63) / 64, 1, 1);
+    ID3D11UnorderedAccessView* nullU[6] = {};
+    ID3D11ShaderResourceView* nullS[5] = {};
+    g.ctx->CSSetUnorderedAccessViews(0, 6, nullU, nullptr);
+    g.ctx->CSSetShaderResources(5, 5, nullS);
+    g.ctx->CSSetShader(nullptr, nullptr, 0);
+
+    // Stats: copy this frame's, read the one from two frames ago if it's
+    // ready, never wait for it.
+    unsigned slot = g.frameNo % 3;
+    g.ctx->CopyResource(g.staging[slot].Get(), g.stats.Get());
+    if (g.frameNo >= 2) {
+        unsigned old = (g.frameNo + 1) % 3;
+        if (SUCCEEDED(g.ctx->Map(g.staging[old].Get(), 0, D3D11_MAP_READ, D3D11_MAP_FLAG_DO_NOT_WAIT, &ms))) {
+            uint32_t v[2];
+            memcpy(v, ms.pData, 8);
+            g.ctx->Unmap(g.staging[old].Get(), 0);
+            float hz, delta;
+            memcpy(&hz, &v[0], 4);
+            memcpy(&delta, &v[1], 4);
+            if (hz > 0.f) g_dominantFreqHz.store(hz, std::memory_order_relaxed);
+            g.lastMaxDeltaPx = delta;
+        }
+    }
+    g.frameNo++;
+}
+
+// ---- Goniometer points (shared with the Direct2D fallback) --------------------------------
+// Newest samples as this frame's points, plus the previous five frames' at
+// falling alpha: persistence without a second render target.
+int BuildGonioPoints(float* out4, int maxPoints) {
+    uint32_t serial = g_gonioSerial.load(std::memory_order_acquire);
+    if (serial != g.gonioSerial) {
+        g.gonioSerial = serial;
+        g.gonioHead = (g.gonioHead + 1) % kGonioFrames;
+        std::lock_guard<std::mutex> lock(g_gonioMutex);
+        // At most 512 points per frame, evenly strided.
+        size_t n = g_gonioXY.size() / 2;
+        size_t step = std::max<size_t>(1, n / 512);
+        auto& h = g.gonioHist[g.gonioHead];
+        h.clear();
+        for (size_t i = 0; i < n; i += step) {
+            h.push_back(g_gonioXY[2 * i]);
+            h.push_back(g_gonioXY[2 * i + 1]);
+        }
+    }
+    int count = 0;
+    float alpha = 1.0f;
+    for (int age = 0; age < kGonioFrames; age++) {
+        const auto& h = g.gonioHist[(g.gonioHead - age + kGonioFrames) % kGonioFrames];
+        // Scaled by sqrt(2) so a full-scale mono signal reaches the top.
+        for (size_t i = 0; i + 1 < h.size() && count < maxPoints; i += 2) {
+            out4[count * 4 + 0] = h[i] * 1.41421356f;
+            out4[count * 4 + 1] = h[i + 1] * 1.41421356f;
+            out4[count * 4 + 2] = alpha * 0.85f;
+            out4[count * 4 + 3] = 0.f;
+            count++;
+        }
+        alpha *= 0.55f;
+    }
+    return count;
+}
+
+// ---- Terminal shape ----------------------------------------------------------------------
+//
+// Printable ASCII (32-126) baked once, white, into a 16 x 6 atlas of cells
+// exactly the size of a grid cell, so the pixel shader samples it 1:1 with
+// point filtering: a pixel font stays pixel-exact, and the whole grid is one
+// instanced draw. Rebaked only when the font, its size or the text rendering
+// mode changes.
+constexpr UINT kAtlasCols = 16, kAtlasRows = 6;
+
+bool EnsureTermResources() {
+    if (!g.cellsDyn &&
+        FAILED(MakeStructured(4, VIZ_TERM_MAX_CELLS, true, false, nullptr, g.cellsDyn, &g.cellsSRV, nullptr)))
+        return false;
+    if (!VizTermEnsureFormat() || !g_d2dDevice) return false;
+    uint64_t key = 1469598103934665603ull;
+    for (wchar_t c : g_termFormatFont) Mix(key, (uint64_t)c);
+    MixF(key, g_termFormatPx, 64.f);
+    Mix(key, (uint64_t)g_termCellW * 4096u + (uint64_t)g_termCellH);
+    Mix(key, g_settings.textPixel ? 1u : 0u);
+    if (g.glyphSRV && key == g.glyphKey) return true;
+    g.glyphSRV.Reset();
+    g.glyphTex.Reset();
+    UINT w = kAtlasCols * (UINT)g_termCellW, h = kAtlasRows * (UINT)g_termCellH;
+    D3D11_TEXTURE2D_DESC td = {};
+    td.Width = w;
+    td.Height = h;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+    td.SampleDesc.Count = 1;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+    if (FAILED(g_d3dDevice->CreateTexture2D(&td, nullptr, &g.glyphTex))) return false;
+    ComPtr<IDXGISurface> surf;
+    ComPtr<ID2D1DeviceContext> dc;
+    ComPtr<ID2D1Bitmap1> target;
+    ComPtr<ID2D1SolidColorBrush> white;
+    if (FAILED(g.glyphTex.As(&surf)) ||
+        FAILED(g_d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc)))
+        return false;
+    D2D1_BITMAP_PROPERTIES1 bp = {};
+    bp.pixelFormat = D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED);
+    bp.dpiX = bp.dpiY = 96.f;
+    bp.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW;
+    if (FAILED(dc->CreateBitmapFromDxgiSurface(surf.Get(), &bp, &target)) ||
+        FAILED(dc->CreateSolidColorBrush(D2D1::ColorF(1.f, 1.f, 1.f, 1.f), &white)))
+        return false;
+    dc->SetTarget(target.Get());
+    dc->SetTextAntialiasMode(g_settings.textPixel ? D2D1_TEXT_ANTIALIAS_MODE_ALIASED
+                                                  : D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
+    dc->BeginDraw();
+    dc->Clear(D2D1::ColorF(0, 0, 0, 0));
+    for (wchar_t c = 33; c < 127; c++) {
+        UINT i = (UINT)(c - 32);
+        // Cell column and row in the atlas (whole numbers on purpose), then pixels.
+        UINT col = i % kAtlasCols, row = i / kAtlasCols;
+        float x = (float)(col * (UINT)g_termCellW), y = (float)(row * (UINT)g_termCellH);
+        dc->DrawText(&c, 1, g_termFormat.Get(), D2D1::RectF(x, y, x + g_termCellW, y + g_termCellH), white.Get(),
+                     D2D1_DRAW_TEXT_OPTIONS_CLIP);
+    }
+    if (FAILED(dc->EndDraw())) {
+        g.glyphTex.Reset();
+        return false;
+    }
+    dc->SetTarget(nullptr);
+    if (FAILED(g_d3dDevice->CreateShaderResourceView(g.glyphTex.Get(), nullptr, &g.glyphSRV))) {
+        g.glyphTex.Reset();
+        return false;
+    }
+    g.glyphKey = key;
+    g.glyphW = w;
+    g.glyphH = h;
+    g.forcePresent = true;
+    return true;
+}
+
+// ---- The frame -------------------------------------------------------------------------------
+struct FrameInputs {
+    const VizLayout* layout;
+    D2D1_RECT_F bgRect;       // layout-local; valid when hasPanel
+    bool hasPanel;
+    float bgRadii[4];
+    float sceneAlpha;
+    bool dragPause;
+    RGBA c1, cGrad1, c2;
+    float rainbowBase;
+    float scopeDisp[VIZ_WAVE_SAMPLES];
+    float zones[3];
+    float correlation;
+};
+
+// Returns false if nothing could be drawn this way (the caller then uses the
+// Direct2D path for this frame).
+bool Render(const FrameInputs& in) {
+    if (!g.ctx) return false;
+    const VizLayout& L = *in.layout;
+    const bool horizontal = g_settings.orientation == VizOrientation::Horizontal;
+    const VizShape shape = g_settings.shape;
+    const int bars = VizEffectiveBarCount();
+    const float barW = std::max(1.f, VizPx((float)std::max(1, g_settings.barWidth)));
+    const float barGap = VizPx((float)std::max(0, g_settings.barGap));
+    const float maxSize = std::max(2.f, VizPx((float)std::max(2, g_settings.barMaxSize)));
+    const float idleSize = VizPx((float)std::max(0, g_settings.barIdleSize));
+    const bool roundShape = shape == VizShape::Radial || shape == VizShape::Goniometer;
+    const bool term = shape == VizShape::Terminal;
+
+    // ---- Surface: the panel, or the bars plus their bleed without one -----
+    float margin = std::max(4.0f * g_dpiScale, barW);
+    if (shape == VizShape::Radial) margin += maxSize * 0.15f;
+    D2D1_RECT_F content = D2D1::RectF(L.blockX - margin, L.blockY - margin, L.blockX + L.totalWidth + margin,
+                                      L.blockY + L.totalHeight + margin);
+    D2D1_RECT_F want = content;
+    bool opaque = false;
+    if (in.hasPanel) {
+        const D2D1_RECT_F& b = in.bgRect;
+        bool plateOpaque = (g_settings.bgBlur > 0 && g_blurredBitmap) || g_settings.bgA == 255;
+        // Everything drawn has to sit inside the panel for the clip not to cut
+        // it: bars and their antialiased edge, stroked shapes' half stroke.
+        float bleed = roundShape ? margin : (shape == VizShape::Oscilloscope ? barW : 1.0f);
+        bool inside = b.left <= L.blockX - bleed && b.top <= L.blockY - bleed &&
+                      b.right >= L.blockX + L.totalWidth + bleed && b.bottom >= L.blockY + L.totalHeight + bleed;
+        opaque = g_settings.opaquePanel == VizOpaquePanel::Auto && plateOpaque && inside &&
+                 !g_settings.autoHideEnabled;
+        want = opaque ? b
+                      : D2D1::RectF(std::min(b.left - 2.f, content.left), std::min(b.top - 2.f, content.top),
+                                    std::max(b.right + 2.f, content.right), std::max(b.bottom + 2.f, content.bottom));
+    }
+    int offX = (int)floorf(want.left), offY = (int)floorf(want.top);
+    UINT w = (UINT)std::max(1.f, ceilf(want.right) - (float)offX);
+    UINT h = (UINT)std::max(1.f, ceilf(want.bottom) - (float)offY);
+    D2D1_RECT_F clipRect = D2D1::RectF(in.bgRect.left - offX, in.bgRect.top - offY, in.bgRect.right - offX,
+                                       in.bgRect.bottom - offY);
+    if (!EnsureSurface(offX, offY, w, h, opaque, clipRect, in.bgRadii, L.originX, L.originY)) return false;
+
+    // ---- Auto-hide fully faded: one blank frame, then nothing --------------
+    if (in.sceneAlpha <= 0.001f) {
+        if (!g.blankPresented) {
+            PresentBlank();
+            g.blankPresented = true;
+        }
+        return true;
+    }
+    g.blankPresented = false;
+
+    // ---- Plate -----------------------------------------------------------------
+    if (in.hasPanel) {
+        uint64_t key = 1469598103934665603ull;
+        MixF(key, in.bgRect.left, 64.f); MixF(key, in.bgRect.top, 64.f);
+        MixF(key, in.bgRect.right, 64.f); MixF(key, in.bgRect.bottom, 64.f);
+        for (int i = 0; i < 4; i++) MixF(key, in.bgRadii[i], 64.f);
+        Mix(key, (uint64_t)(uintptr_t)g_blurredBitmap.Get());
+        Mix(key, g.opaque);
+        Mix(key, g.w * 65536u + g.h);
+        if (!g.plateValid || key != g.plateKey) {
+            g.plateKey = key;
+            if (!BakePlate(in.bgRect, in.bgRadii)) g.plateValid = false;
+            g.forcePresent = true;
+        }
+    }
+
+    // ---- Bar state ---------------------------------------------------------------
+    // The Terminal grid is built on the CPU from the bar levels, so that
+    // shape keeps the analysis there (Hybrid).
+    const bool gpuWork = g_settings.workload == VizWorkload::Gpu && g_settings.engine == VizEngineKind::Precision &&
+                         !in.dragPause && !term;
+    bool gpuOk = false;
+    if (gpuWork) {
+        int st = EnsureGpuAnalysis();
+        gpuOk = st > 0;
+        if (st < 0 && !g.gpuWarned) {
+            g.gpuWarned = true;
+            ReportSettingWarning(L"Hardware", L"Workload",
+                                 L"The GPU analysis passes couldn't start on this device, so analysis runs on the "
+                                 L"CPU (Hybrid) instead.");
+            FlushSettingsIssues();
+        }
+        if (gpuOk) RunGpuAnalysis(bars, std::max(0.f, maxSize - idleSize));
+    }
+
+    // ---- Frame constants -----------------------------------------------------------
+    FrameCB f = {};
+    f.viewport[0] = (float)g.w;
+    f.viewport[1] = (float)g.h;
+    f.block[0] = L.blockX - (float)g.offX;
+    f.block[1] = L.blockY - (float)g.offY;
+    f.barW = barW;
+    f.barGap = barGap;
+    f.maxSize = maxSize;
+    f.idleSize = idleSize;
+    float rr[4] = {g_settings.barRadiusTL * g_dpiScale, g_settings.barRadiusTR * g_dpiScale,
+                   g_settings.barRadiusBR * g_dpiScale, g_settings.barRadiusBL * g_dpiScale};
+    memcpy(f.radii, rr, sizeof(rr));
+    memcpy(f.dotRadii, rr, sizeof(rr));
+    f.barCount = (uint32_t)bars;
+    f.shape = (uint32_t)shape;
+    f.vertical = horizontal ? 0u : 1u;
+    f.anchor = g_settings.verticalAnchor == VizAnchor::Top ? 0u : g_settings.verticalAnchor == VizAnchor::Middle ? 1u : 2u;
+    f.colorMode = (uint32_t)g_settings.colorMode;
+    f.flags = (g_settings.peakHoldEnabled ? 1u : 0u) | (g_settings.beatFlashEnabled ? 2u : 0u) |
+              (g_settings.oscilloscopeMultibandEnabled ? 4u : 0u);
+    auto setCol = [](float* d, RGBA c) {
+        d[0] = c.r / 255.f;
+        d[1] = c.g / 255.f;
+        d[2] = c.b / 255.f;
+        d[3] = c.a / 255.f;
+    };
+    setCol(f.c1, in.c1);
+    setCol(f.grad1, in.cGrad1);
+    setCol(f.c2, in.c2);
+    setCol(f.peakColor, RGBA{g_settings.peakHoldA, g_settings.peakHoldR, g_settings.peakHoldG, g_settings.peakHoldB});
+    setCol(f.beatColor, RGBA{g_settings.beatFlashA, g_settings.beatFlashR, g_settings.beatFlashG, g_settings.beatFlashB});
+    f.beatIntensity = g_settings.beatFlashIntensity / 100.0f;
+    f.rainbowBase = in.rainbowBase;
+    f.sceneAlpha = in.sceneAlpha;
+    f.capThickness = std::max(1.5f, 2.0f * g_dpiScale);
+    f.dotStep = barW + barGap;
+    f.dotR = barW * 0.5f;
+    f.maxDots = (uint32_t)ceilf(maxSize / std::max(0.5f, f.dotStep)) + 1u;
+    f.dotSlots = (f.anchor == 1u) ? f.maxDots * 2u + 1u : f.maxDots;
+    f.innerR = maxSize * 0.15f;
+    f.strokeW = std::max(1.0f, barW);
+    f.center[0] = f.block[0] + L.totalWidth * 0.5f;
+    f.center[1] = f.block[1] + L.totalHeight * 0.5f;
+    f.ampScale = maxSize * 0.5f;
+    f.sweepLen = horizontal ? L.totalWidth : L.totalHeight;
+    f.scopeCenter = horizontal ? f.block[1] + L.totalHeight * 0.5f : f.block[0] + L.totalWidth * 0.5f;
+    f.sweepOrigin = horizontal ? f.block[0] : f.block[1];
+    f.wstep = f.sweepLen / (float)(VIZ_WAVE_SAMPLES - 1);
+    f.gonioR = maxSize * 0.85f;
+    f.gonioDot = std::max(0.75f, barW * 0.2f);
+    f.corrH = std::max(2.0f, 3.0f * g_dpiScale);
+    f.corrY = f.center[1] + maxSize * 0.92f - f.corrH;
+    f.corr = in.correlation;
+    // Scope colour: the Colour Mode rules for a single line, as in 1.5.
+    {
+        RGBA col = in.c1;
+        if (g_settings.colorMode == VizColorMode::Gradient || g_settings.colorMode == VizColorMode::Tourne)
+            col = LerpColor(in.cGrad1, in.c2, 0.5f);
+        else if (g_settings.colorMode == VizColorMode::RainbowCycle)
+            col = HSVtoRGB(fmodf(in.rainbowBase, 360.f), 0.85f, 1.0f, in.c1.a);
+        setCol(f.scopeColor, col);
+    }
+    // Terminal: palette, grid origin on a whole pixel (glyphs land 1:1), cell
+    // size, atlas size.
+    bool termReady = false;
+    if (term && !in.dragPause) {
+        termReady = EnsureTermResources() && !g_termGrid.cells.empty();
+        VizTermPalette(f.termColors);
+        f.termGeom[0] = floorf(f.block[0] + 0.5f);
+        f.termGeom[1] = floorf(f.block[1] + 0.5f);
+        f.termGeom[2] = (float)g_termCellW;
+        f.termGeom[3] = (float)g_termCellH;
+        f.termAtlas[0] = (float)g.glyphW;
+        f.termAtlas[1] = (float)g.glyphH;
+        f.termCols = (uint32_t)g_termGrid.cols;
+        f.termRows = (uint32_t)g_termGrid.rows;
+        f.termAtlasCols = kAtlasCols;
+    }
+    f.plateRect[0] = 0.f;
+    f.plateRect[1] = 0.f;
+    f.plateRect[2] = (float)g.w;
+    f.plateRect[3] = (float)g.h;
+
+    // ---- Uploads (CPU paths) --------------------------------------------------------
+    const float rangePx = std::max(0.f, maxSize - idleSize);
+    float pulse = g_beatPulse.load(std::memory_order_relaxed);
+    uint64_t hash = 1469598103934665603ull;
+    Mix(hash, g.w * 65536u + g.h);
+    Mix(hash, (uint64_t)g.offX * 65536u + (uint64_t)(uint32_t)g.offY);
+    Mix(hash, g.plateKey);
+    Mix(hash, g.plateValid);
+    MixF(hash, in.sceneAlpha, 255.f);
+    MixF(hash, f.block[0], 64.f);
+    MixF(hash, f.block[1], 64.f);
+    Mix(hash, (uint64_t)shape * 131u + (uint64_t)g_settings.colorMode);
+    for (int k = 0; k < 4; k++) {
+        MixF(hash, f.c1[k], 255.f);
+        MixF(hash, f.grad1[k], 255.f);
+        MixF(hash, f.c2[k], 255.f);
+    }
+    if (g_settings.colorMode == VizColorMode::RainbowCycle) MixF(hash, in.rainbowBase, 2.f);
+    if (g_settings.beatFlashEnabled) MixF(hash, pulse, 128.f);
+    Mix(hash, in.dragPause);
+
+    D3D11_MAPPED_SUBRESOURCE ms;
+    const bool drawBars = !in.dragPause;
+    if (!gpuOk && drawBars) {
+        if (SUCCEEDED(g.ctx->Map(g.barsDyn.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            float* p = (float*)ms.pData;
+            for (int i = 0; i < bars; i++) {
+                float lv = std::max(0.f, g_vizPeak[i]), pk = g_vizPeakHold[i];
+                p[2 * i] = lv;
+                p[2 * i + 1] = pk;
+                MixF(hash, lv * rangePx, 4.f);
+                if (g_settings.peakHoldEnabled) MixF(hash, pk * rangePx, 4.f);
+            }
+            g.ctx->Unmap(g.barsDyn.Get(), 0);
+        }
+        if (SUCCEEDED(g.ctx->Map(g.globalsDyn.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            float gl[16] = {pulse, 0, 0, 0, in.zones[0], in.zones[1], in.zones[2], 0};
+            memcpy(ms.pData, gl, sizeof(gl));
+            g.ctx->Unmap(g.globalsDyn.Get(), 0);
+        }
+        if (g_settings.oscilloscopeMultibandEnabled)
+            for (int z = 0; z < 3; z++) MixF(hash, in.zones[z], 64.f);
+    } else if (gpuOk) {
+        // GPU bars aren't visible from here; the stats block says how far the
+        // last frames moved, two frames late.
+        Mix(hash, g.lastMaxDeltaPx >= 0.25f ? (uint64_t)g.frameNo : 0ull);
+    }
+    if (shape == VizShape::Oscilloscope && drawBars) {
+        if (SUCCEEDED(g.ctx->Map(g.waveDyn.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            memcpy(ms.pData, in.scopeDisp, sizeof(float) * VIZ_WAVE_SAMPLES);
+            g.ctx->Unmap(g.waveDyn.Get(), 0);
+        }
+        for (int i = 0; i < VIZ_WAVE_SAMPLES; i++) MixF(hash, in.scopeDisp[i] * f.ampScale, 4.f);
+    }
+    if (termReady) {
+        size_t n = std::min(g_termGrid.cells.size(), (size_t)VIZ_TERM_MAX_CELLS);
+        if (SUCCEEDED(g.ctx->Map(g.cellsDyn.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            memcpy(ms.pData, g_termGrid.cells.data(), n * sizeof(uint32_t));
+            g.ctx->Unmap(g.cellsDyn.Get(), 0);
+        }
+        Mix(hash, g.glyphKey);
+        Mix(hash, (uint64_t)g_termGrid.cols * 65536u + (uint64_t)g_termGrid.rows);
+        for (size_t i = 0; i < n; i++) Mix(hash, g_termGrid.cells[i]);
+        for (int c = 0; c < 5; c++)
+            for (int k = 0; k < 4; k++) MixF(hash, f.termColors[c][k], 255.f);
+    }
+    int points = 0;
+    if (shape == VizShape::Goniometer && drawBars) {
+        if (SUCCEEDED(g.ctx->Map(g.pointsDyn.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+            points = BuildGonioPoints((float*)ms.pData, kMaxPoints);
+            g.ctx->Unmap(g.pointsDyn.Get(), 0);
+        }
+        Mix(hash, g.gonioSerial);
+        MixF(hash, in.correlation, 256.f);
+    }
+
+    if (!g.forcePresent && hash == g.lastHash) return true;  // nothing changed: no draw, no present
+    g.lastHash = hash;
+    g.forcePresent = false;
+
+    if (SUCCEEDED(g.ctx->Map(g.frameCB.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &ms))) {
+        memcpy(ms.pData, &f, sizeof(f));
+        g.ctx->Unmap(g.frameCB.Get(), 0);
+    }
+
+    // ---- Draw -----------------------------------------------------------------------
+    ID3D11RenderTargetView* rtv = g.rtv.Get();
+    g.ctx->OMSetRenderTargets(1, &rtv, nullptr);
+    const float zero[4] = {0, 0, 0, 0};
+    g.ctx->ClearRenderTargetView(rtv, zero);
+    D3D11_VIEWPORT vp = {0, 0, (float)g.w, (float)g.h, 0, 1};
+    g.ctx->RSSetViewports(1, &vp);
+    g.ctx->RSSetState(g.raster.Get());
+    g.ctx->OMSetBlendState(g.blend.Get(), nullptr, 0xffffffff);
+    g.ctx->OMSetDepthStencilState(nullptr, 0);
+    g.ctx->IASetInputLayout(nullptr);
+    g.ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    g.ctx->VSSetShader(g.vs.Get(), nullptr, 0);
+    g.ctx->PSSetShader(g.ps.Get(), nullptr, 0);
+    ID3D11ShaderResourceView* vsSrv[4] = {gpuOk ? g.barsGpuSRV.Get() : g.barsDynSRV.Get(),
+                                          gpuOk ? g.globalsGpuSRV.Get() : g.globalsDynSRV.Get(), g.waveSRV.Get(),
+                                          g.pointsSRV.Get()};
+    g.ctx->VSSetShaderResources(0, 4, vsSrv);
+    ID3D11ShaderResourceView* psSrv[5] = {nullptr, nullptr, nullptr, nullptr, g.plateSRV.Get()};
+    g.ctx->PSSetShaderResources(0, 5, psSrv);
+    if (termReady) {
+        ID3D11ShaderResourceView* cells = g.cellsSRV.Get();
+        ID3D11ShaderResourceView* glyphs = g.glyphSRV.Get();
+        g.ctx->VSSetShaderResources(10, 1, &cells);
+        g.ctx->PSSetShaderResources(11, 1, &glyphs);
+    }
+    ID3D11SamplerState* smp = g.sampler.Get();
+    g.ctx->PSSetSamplers(0, 1, &smp);
+    ID3D11Buffer* fcb = g.frameCB.Get();
+    g.ctx->VSSetConstantBuffers(0, 1, &fcb);
+    g.ctx->PSSetConstantBuffers(0, 1, &fcb);
+    auto draw = [&](Pass p, UINT count) {
+        if (!count) return;
+        ID3D11Buffer* pcb = g.passCB[p].Get();
+        g.ctx->VSSetConstantBuffers(1, 1, &pcb);
+        g.ctx->DrawInstanced(4, count, 0, 0);
+    };
+    if (in.hasPanel && g.plateValid) draw(kPlate, 1);
+    if (drawBars) {
+        switch (shape) {
+            case VizShape::Dots: draw(kDots, (UINT)bars * f.dotSlots); break;
+            case VizShape::Radial: draw(kRadial, (UINT)bars); break;
+            case VizShape::Terminal:
+                if (termReady) draw(kTerm, (UINT)(g_termGrid.cols * g_termGrid.rows));
+                break;
+            case VizShape::Oscilloscope: draw(kScope, VIZ_WAVE_SAMPLES - 1); break;
+            case VizShape::Goniometer:
+                draw(kGonio, (UINT)points);
+                draw(kCorr, 2);
+                break;
+            default:
+                draw(kBars, (UINT)bars);
+                if (g_settings.peakHoldEnabled) draw(kCaps, (UINT)bars);
+                break;
+        }
+    }
+    ID3D11ShaderResourceView* nullSrv[5] = {};
+    g.ctx->VSSetShaderResources(0, 4, nullSrv);
+    g.ctx->PSSetShaderResources(0, 5, nullSrv);
+    if (termReady) {
+        g.ctx->VSSetShaderResources(10, 1, nullSrv);
+        g.ctx->PSSetShaderResources(11, 1, nullSrv);
+    }
+
+    HRESULT hr = g.sc->Present(0, 0);
+    VizCheckDeviceLost(S_OK, hr);
+    return true;
+}
+
+}  // namespace ttgfx
+
+// ---- Shared by both renderers ---------------------------------------------------------
+
+// Publishes the bounds of what is actually visible, for the occlusion check
+// (see the note where 1.4 introduced this).
+void VizPublishDrawRect(const VizLayout& layout) {
+    int virtualScreenX = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    int virtualScreenY = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    float padL = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingL) : 0.f;
+    float padR = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingR) : 0.f;
+    float padT = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingT) : 0.f;
+    float padB = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingB) : 0.f;
+    float visL = layout.originX + layout.blockX - padL;
+    float visT = layout.originY + layout.blockY - padT;
+    float visR = layout.originX + layout.blockX + layout.totalWidth + padR;
+    float visB = layout.originY + layout.blockY + layout.totalHeight + padB;
+    LONG l = (LONG)visL + virtualScreenX, t = (LONG)visT + virtualScreenY;
+    LONG r = (LONG)visR + virtualScreenX, b = (LONG)visB + virtualScreenY;
+    bool moved = !g_drawRectValid.load(std::memory_order_relaxed) ||
+                 l != g_drawRectL.load(std::memory_order_relaxed) ||
+                 t != g_drawRectT.load(std::memory_order_relaxed) ||
+                 r != g_drawRectR.load(std::memory_order_relaxed) ||
+                 b != g_drawRectB.load(std::memory_order_relaxed);
+    g_drawRectL.store(l, std::memory_order_relaxed);
+    g_drawRectT.store(t, std::memory_order_relaxed);
+    g_drawRectR.store(r, std::memory_order_relaxed);
+    g_drawRectB.store(b, std::memory_order_relaxed);
+    g_drawRectValid.store(true, std::memory_order_relaxed);
+    // Media controls anchored to the panel follow it (a drag, a settings
+    // change, a nudge). Only on an actual move, so a still panel costs nothing.
+    if (moved && g_mediaWnd && g_settings.mediaControlsEnabled && g_settings.mediaAnchor != VizMediaAnchor::Screen)
+        PostMessage(g_mediaWnd, WM_APP_MEDIA_REPAINT, 0, 0);
+}
+
+// The background panel's rectangle (layout-local) and corner radii, with the
+// same guard as the Direct2D path against negative padding inverting it.
+void VizPanelRect(const VizLayout& layout, D2D1_RECT_F* out, float radii[4]) {
+    float padL = VizPx((float)g_settings.bgPaddingL);
+    float padR = VizPx((float)g_settings.bgPaddingR);
+    float padT = VizPx((float)g_settings.bgPaddingT);
+    float padB = VizPx((float)g_settings.bgPaddingB);
+    D2D1_RECT_F r = D2D1::RectF(layout.blockX - padL, layout.blockY - padT, layout.blockX + layout.totalWidth + padR,
+                                layout.blockY + layout.totalHeight + padB);
+    if (r.right - r.left < 1.0f) {
+        float mid = (r.left + r.right) * 0.5f;
+        r.left = mid - 0.5f;
+        r.right = mid + 0.5f;
+    }
+    if (r.bottom - r.top < 1.0f) {
+        float mid = (r.top + r.bottom) * 0.5f;
+        r.top = mid - 0.5f;
+        r.bottom = mid + 0.5f;
+    }
+    *out = r;
+    radii[0] = g_settings.bgRadiusTL * g_dpiScale;
+    radii[1] = g_settings.bgRadiusTR * g_dpiScale;
+    radii[2] = g_settings.bgRadiusBR * g_dpiScale;
+    radii[3] = g_settings.bgRadiusBL * g_dpiScale;
+}
+
+// The oscilloscope trace after Oscilloscope Damping (1.5 semantics, moved out
+// of the Direct2D path so both renderers ease it the same way).
+float g_scopeDisp[VIZ_WAVE_SAMPLES] = {};
+void VizUpdateScopeTrace() {
+    float waveSnap[VIZ_WAVE_SAMPLES];
+    ReadWaveform(waveSnap);
+    float scopeEase = (g_settings.oscilloscopeDamping > 0) ? 1.0f - (g_settings.oscilloscopeDamping / 100.0f) * 0.95f
+                                                           : 1.0f;
+    if (scopeEase < 1.0f) scopeEase = VizEaseForFrame(scopeEase);
+    for (int w = 0; w < VIZ_WAVE_SAMPLES; w++) g_scopeDisp[w] += (waveSnap[w] - g_scopeDisp[w]) * scopeEase;
+}
+
+// Energy per EQ zone, for the multiband oscilloscope colour.
+void VizZoneEnergies(float out[3]) {
+    out[0] = out[1] = out[2] = 0.f;
+    if (g_settings.engine == VizEngineKind::Precision) {
+        for (int z = 0; z < 3; z++) out[z] = g_drawBands.zone[z];
+        return;
+    }
+    float bandsSnap[VIZ_NUM_BANDS];
+    ReadBands(bandsSnap);
+    for (int b = 0; b < VIZ_NUM_BANDS; b++) out[VIZ_BAND_EQ_ZONE[b]] += bandsSnap[b];
+}
+
+// Colour Mode inputs, resolved the way the Direct2D path does it.
+void VizResolveColors(RGBA* c1, RGBA* cGrad1, RGBA* c2) {
+    *c1 = {g_settings.colorA, g_settings.colorR, g_settings.colorG, g_settings.colorB};
+    if (g_settings.colorMode == VizColorMode::Accent) {
+        DWORD dw = GetWindowsAccentColor();
+        *c1 = {0xFF, (BYTE)((dw >> 16) & 0xFF), (BYTE)((dw >> 8) & 0xFF), (BYTE)(dw & 0xFF)};
+    } else if (g_settings.colorMode == VizColorMode::AlbumArt || g_settings.colorMode == VizColorMode::DynamicAlbum) {
+        DWORD dw = g_albumArtColor.load(std::memory_order_relaxed);
+        *c1 = {0xFF, (BYTE)((dw >> 16) & 0xFF), (BYTE)((dw >> 8) & 0xFF), (BYTE)(dw & 0xFF)};
+    }
+    *c2 = {g_settings.grad2A, g_settings.grad2R, g_settings.grad2G, g_settings.grad2B};
+    *cGrad1 = {g_settings.grad1A, g_settings.grad1R, g_settings.grad1G, g_settings.grad1B};
+    if (g_settings.colorMode == VizColorMode::Tourne) {
+        *cGrad1 = {255, 20, 184, 166};
+        *c2 = {255, 200, 29, 51};
+    }
+    if (g_settings.colorMode == VizColorMode::DynamicAlbum) {
+        DWORD dw = g_albumArtColorSecondary.load(std::memory_order_relaxed);
+        *c2 = {0xFF, (BYTE)((dw >> 16) & 0xFF), (BYTE)((dw >> 8) & 0xFF), (BYTE)(dw & 0xFF)};
+        *cGrad1 = *c1;
+    }
+}
+
+// ---- Text overlays --------------------------------------------------------------------
+//
+// The Now Playing label and the readout, worked out once per frame as plain
+// values (VizBuildTextFrame) and drawn from them (VizDrawTextOverlays). The
+// split is what lets the Direct3D 11 renderer redraw the text surface only
+// when one of those values changes.
+struct VizTextFrame {
+    std::wstring np;            // one line: "Artist - Title"
+    std::wstring npTitle, npArtist;
+    float npAlpha = 0.f;
+    float progress = -1.f;      // track position 0..1, or -1 for no bar
+    std::wstring pf;
+    bool pfWide = false;  // a loudness readout: wider box, never wrapped
+};
+
+static void AppendLufs(std::wstring& s, const wchar_t* label, double v) {
+    wchar_t b[32];
+    if (std::isfinite(v) && v > -70.0)
+        swprintf_s(b, L"%s %.1f", label, v);
+    else
+        swprintf_s(b, L"%s --", label);
+    if (!s.empty()) s += L"  ";
+    s += b;
+}
+
+void VizBuildTextFrame(VizTextFrame& t) {
+    t = VizTextFrame();
+    if (g_settings.nowPlayingEnabled && g_dwriteTextFormat && g_nowPlayingBrush) {
+        ULONGLONG changedAt = g_nowPlayingChangedTick.load(std::memory_order_relaxed);
+        ULONGLONG npElapsed = GetTickCount64() - changedAt;
+        ULONGLONG showMs = (ULONGLONG)std::max(0, g_settings.nowPlayingDisplaySeconds) * 1000ULL;
+        constexpr ULONGLONG kNpFadeMs = 800;
+        if (changedAt != 0 && showMs == 0)
+            t.npAlpha = 1.0f;  // Display Seconds 0: always shown, a widget rather than a toast
+        else if (changedAt != 0 && npElapsed < showMs + kNpFadeMs)
+            t.npAlpha = (npElapsed < showMs) ? 1.0f : 1.0f - (float)(npElapsed - showMs) / (float)kNpFadeMs;
+        if (t.npAlpha > 0.01f) {
+            std::lock_guard<std::mutex> lock(g_nowPlayingMutex);
+            t.np = g_nowPlayingDisplay;
+            t.npTitle = g_nowPlayingTitle;
+            t.npArtist = g_nowPlayingArtist;
+        }
+    }
+    if (g_settings.progressEnabled && g_progressBrush) t.progress = VizTrackProgress();
+    if (g_settings.peakFreqEnabled && g_dwriteTextFormat && g_nowPlayingBrush) {
+        std::wstring freq;
+        float hz = g_dominantFreqHz.load(std::memory_order_relaxed);
+        if (hz > 0.f) {
+            wchar_t b[32];
+            if (hz >= 1000.f) swprintf_s(b, L"%.1f kHz", hz / 1000.f);
+            else swprintf_s(b, L"%.0f Hz", hz);
+            freq = b;
+        }
+        VizReadout r = g_settings.readout;
+        if (r == VizReadout::Frequency) {
+            t.pf = freq;
+        } else {
+            VizMeterValues m;
+            {
+                std::lock_guard<std::mutex> lock(g_meterMutex);
+                m = g_meters;
+            }
+            std::wstring s;
+            if (r == VizReadout::Both && !freq.empty()) s = freq;
+            AppendLufs(s, L"M", m.momentary);
+            AppendLufs(s, L"S", m.shortTerm);
+            AppendLufs(s, L"I", m.integrated);
+            s += L" LUFS";
+            if (r == VizReadout::LoudnessFull) {
+                wchar_t b[96];
+                double plr = (std::isfinite(m.truePeak) && std::isfinite(m.integrated) && m.integrated > -70.0)
+                                 ? m.truePeak - m.integrated
+                                 : NAN;
+                if (std::isfinite(m.truePeak) && m.truePeak > -100.0)
+                    swprintf_s(b, L"  TP %.1f dBTP", m.truePeak);
+                else
+                    swprintf_s(b, L"  TP --");
+                s += b;
+                if (std::isfinite(plr)) swprintf_s(b, L"  PLR %.1f", plr);
+                else swprintf_s(b, L"  PLR --");
+                s += b;
+                swprintf_s(b, L"  r %+.2f", m.correlation);
+                s += b;
+            }
+            t.pf = s;
+            t.pfWide = true;
+        }
+    }
+}
+
+// Rough single-line width for the room a wide readout needs, used when sizing
+// the layout before any text has been measured.
+float VizReadoutWidthEstimate() {
+    float fontPx = (float)std::max(6, g_settings.nowPlayingFontSize) * g_dpiScale;
+    int chars = 0;
+    switch (g_settings.readout) {
+        case VizReadout::Loudness: chars = 32; break;
+        case VizReadout::LoudnessFull: chars = 70; break;
+        case VizReadout::Both: chars = 42; break;
+        default: return 0.f;
+    }
+    return fontPx * 0.58f * chars;
+}
+
+// Where the track progress bar goes, layout-local. False when it isn't shown.
+bool VizProgressRect(const VizLayout& layout, D2D1_RECT_F* out) {
+    float h = (float)std::max(1, g_settings.progressHeight) * g_dpiScale;
+    float gap = (float)g_settings.progressGap * g_dpiScale;
+    D2D1_RECT_F panel;
+    float radii[4];
+    VizPanelRect(layout, &panel, radii);
+    bool hasPanel = g_settings.backgroundEnabled;
+    float l = hasPanel ? panel.left : layout.blockX, r = hasPanel ? panel.right : layout.blockX + layout.totalWidth;
+    float top = hasPanel ? panel.top : layout.blockY, bottom = hasPanel ? panel.bottom : layout.blockY + layout.totalHeight;
+    float y;
+    switch (g_settings.progressPlacement) {
+        case VizProgressPlacement::Above: y = top - gap - h; break;
+        case VizProgressPlacement::PanelBottom:
+            // Inside the panel, under the bars, as wide as the bars.
+            l = layout.blockX;
+            r = layout.blockX + layout.totalWidth;
+            y = layout.blockY + layout.totalHeight + gap;
+            break;
+        default: y = bottom + gap; break;
+    }
+    // Whole pixels: a 2 px bar on a half pixel would read as a 3 px smear.
+    *out = D2D1::RectF(roundf(l), roundf(y), roundf(r), roundf(y) + roundf(h));
+    return out->right > out->left;
+}
+
+void VizDrawTextOverlays(const VizTextFrame& t, const VizLayout& layout, bool smooth) {
+    const float blockX = layout.blockX, blockY = layout.blockY;
+    const float totalWidth = layout.totalWidth, totalHeight = layout.totalHeight;
+    const bool pixel = g_settings.textPixel;
+    // Pixel-sharp text: no antialiasing, and every box on a whole pixel, so a
+    // pixel font at its design size lands exactly on the grid.
+    g_dc->SetTextAntialiasMode(pixel ? D2D1_TEXT_ANTIALIAS_MODE_ALIASED : D2D1_TEXT_ANTIALIAS_MODE_DEFAULT);
+    auto snap = [&](D2D1_RECT_F r) {
+        if (!pixel && !g_settings.pixelSnap) return r;
+        float dx = roundf(r.left) - r.left, dy = roundf(r.top) - r.top;
+        return D2D1::RectF(r.left + dx, r.top + dy, r.right + dx, r.bottom + dy);
+    };
+
+    if (t.progress >= 0.f && g_progressBrush) {
+        D2D1_RECT_F pr;
+        if (VizProgressRect(layout, &pr)) {
+            g_progressBrush->SetColor(D2D1::ColorF(g_settings.progressTrackR / 255.f, g_settings.progressTrackG / 255.f,
+                                                   g_settings.progressTrackB / 255.f, g_settings.progressTrackA / 255.f));
+            g_dc->FillRectangle(pr, g_progressBrush.Get());
+            float fillR = pr.left + roundf((pr.right - pr.left) * std::clamp(t.progress, 0.f, 1.f));
+            if (fillR > pr.left) {
+                g_progressBrush->SetColor(D2D1::ColorF(g_settings.progressR / 255.f, g_settings.progressG / 255.f,
+                                                       g_settings.progressB / 255.f, g_settings.progressA / 255.f));
+                g_dc->FillRectangle(D2D1::RectF(pr.left, pr.top, fillR, pr.bottom), g_progressBrush.Get());
+            }
+        }
+    }
+
+    if (!t.np.empty() && t.npAlpha > 0.01f) {
+        g_nowPlayingBrush->SetColor(D2D1::ColorF(g_settings.nowPlayingR / 255.0f, g_settings.nowPlayingG / 255.0f,
+                                                 g_settings.nowPlayingB / 255.0f,
+                                                 (g_settings.nowPlayingA / 255.0f) * t.npAlpha));
+        if (g_npArtistBrush)
+            g_npArtistBrush->SetColor(D2D1::ColorF(g_settings.npArtistR / 255.0f, g_settings.npArtistG / 255.0f,
+                                                   g_settings.npArtistB / 255.0f,
+                                                   (g_settings.npArtistA / 255.0f) * t.npAlpha));
+        const float fontPx = (float)std::max(6, g_settings.nowPlayingFontSize) * g_dpiScale;
+        const bool two = g_settings.npLayout == VizNpLayout::TwoLines && !t.npTitle.empty() && !t.npArtist.empty();
+        // Two lines: title, then artist. One line: "Artist - Title", the
+        // artist part in the artist colour.
+        std::wstring text = two ? t.npTitle + L"\n" + t.npArtist : t.np;
+        UINT32 artistAt = 0, artistLen = 0;
+        if (two) {
+            artistAt = (UINT32)t.npTitle.size() + 1;
+            artistLen = (UINT32)t.npArtist.size();
+        } else if (!t.npArtist.empty() && !t.npTitle.empty() && t.np.rfind(t.npArtist, 0) == 0) {
+            artistLen = (UINT32)t.npArtist.size();
+        }
+        float npMargin = 8.0f * g_dpiScale;
+        float npHeight = fontPx * (two ? 2.7f : 1.6f);
+        float npOffX = EffectiveNowPlayingOffsetX();
+        float npOffY = EffectiveNowPlayingOffsetY();
+        D2D1_RECT_F npRect;
+        if (g_settings.npPlacement == VizNpPlacement::Above) {
+            npRect = D2D1::RectF(blockX - layout.textAnchorSide, blockY - npHeight - npMargin,
+                                 blockX + totalWidth + layout.textAnchorSide, blockY - npMargin);
+        } else {
+            // Inside the panel: in the band of padding above (or below) the
+            // bars, as wide as the bars, so Left / Right line up with them.
+            float padT = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingT) : 0.f;
+            float padB = g_settings.backgroundEnabled ? VizPx((float)g_settings.bgPaddingB) : 0.f;
+            float y = (g_settings.npPlacement == VizNpPlacement::PanelTop)
+                          ? blockY - padT + std::max(0.f, (padT - npHeight) * 0.5f)
+                          : blockY + totalHeight + std::max(0.f, (padB - npHeight) * 0.5f);
+            npRect = D2D1::RectF(blockX, y, blockX + totalWidth, y + npHeight);
+        }
+        npRect = snap(D2D1::RectF(npRect.left + npOffX, npRect.top + npOffY, npRect.right + npOffX,
+                                  npRect.bottom + npOffY));
+        TextPanelStyle npPanel{g_settings.npBgA, g_settings.npBgR, g_settings.npBgG, g_settings.npBgB,
+                               g_settings.npBgBorderA, g_settings.npBgBorderR, g_settings.npBgBorderG,
+                               g_settings.npBgBorderB, g_settings.npBgPadding, g_settings.npBgCornerRadius,
+                               g_settings.npBgBorderSize};
+        // Build the layout here (alignment, the artist's colour) and hand it
+        // to DrawOverlayText through its cache, which then measures the panel
+        // from it and draws it as is.
+        static uint64_t s_npKey = 0;
+        uint64_t key = (uint64_t)g_settings.npAlign * 7u + (uint64_t)two * 3u + (uint64_t)artistLen * 131u +
+                       (uint64_t)(uintptr_t)g_npArtistBrush.Get();
+        float boxW = npRect.right - npRect.left, boxH = npRect.bottom - npRect.top;
+        VizTextLayoutCache& c = g_npLayoutCache;
+        bool same = c.layout && s_npKey == key && c.w == boxW && c.h == boxH && c.text == text;
+        if (!same && g_dwriteFactory && g_dwriteTextFormat) {
+            c.Reset();
+            if (SUCCEEDED(g_dwriteFactory->CreateTextLayout(text.c_str(), (UINT32)text.size(), g_dwriteTextFormat.Get(),
+                                                            boxW, boxH, &c.layout)) &&
+                c.layout) {
+                c.layout->SetTextAlignment(g_settings.npAlign == VizTextAlignH::Left    ? DWRITE_TEXT_ALIGNMENT_LEADING
+                                           : g_settings.npAlign == VizTextAlignH::Right ? DWRITE_TEXT_ALIGNMENT_TRAILING
+                                                                                        : DWRITE_TEXT_ALIGNMENT_CENTER);
+                c.layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                if (artistLen && g_npArtistBrush) {
+                    DWRITE_TEXT_RANGE r{artistAt, artistLen};
+                    c.layout->SetDrawingEffect(g_npArtistBrush.Get(), r);
+                    if (two) c.layout->SetFontWeight(DWRITE_FONT_WEIGHT_NORMAL, r);
+                }
+                c.text = text;
+                c.w = boxW;
+                c.h = boxH;
+                s_npKey = key;
+            } else {
+                c.Reset();
+            }
+        }
+        (void)smooth;
+        DrawOverlayText(text.c_str(), (UINT32)text.size(), npRect, g_nowPlayingBrush.Get(), npPanel, t.npAlpha,
+                        &g_npLayoutCache);
+    }
+    if (!t.pf.empty()) {
+        g_nowPlayingBrush->SetColor(D2D1::ColorF(g_settings.nowPlayingR / 255.0f, g_settings.nowPlayingG / 255.0f,
+                                                 g_settings.nowPlayingB / 255.0f, g_settings.nowPlayingA / 255.0f));
+        float pfMargin = 4.0f * g_dpiScale;
+        float pfHeight = (float)std::max(6, g_settings.nowPlayingFontSize) * g_dpiScale * 1.4f;
+        float pfWidth = t.pfWide ? totalWidth + 2.0f * layout.textAnchorSide
+                                 : std::min(120.0f * g_dpiScale, totalWidth + 2.0f * layout.textAnchorSide);
+        float pfOffX = EffectivePeakFreqOffsetX();
+        float pfOffY = EffectivePeakFreqOffsetY();
+        float pfX;
+        switch (g_settings.peakFreqAlignH) {
+            case VizTextAlignH::Left: pfX = blockX - layout.textAnchorSide; break;
+            case VizTextAlignH::Center: pfX = blockX + (totalWidth - pfWidth) * 0.5f; break;
+            default: pfX = blockX + totalWidth + layout.textAnchorSide - pfWidth; break;
+        }
+        pfX += pfOffX;
+        float pfY;
+        switch (g_settings.peakFreqAlignV) {
+            case VizTextAlignV::Above: pfY = blockY - pfHeight - pfMargin; break;
+            case VizTextAlignV::Middle: pfY = blockY + (totalHeight - pfHeight) * 0.5f; break;
+            case VizTextAlignV::Bottom: pfY = blockY + totalHeight - pfHeight - pfMargin; break;
+            case VizTextAlignV::Below: pfY = blockY + totalHeight + pfMargin; break;
+            default: pfY = blockY + pfMargin; break;
+        }
+        pfY += pfOffY;
+        D2D1_RECT_F pfRect = snap(D2D1::RectF(pfX, pfY, pfX + pfWidth, pfY + pfHeight));
+        TextPanelStyle pfPanel{g_settings.pfBgA, g_settings.pfBgR, g_settings.pfBgG, g_settings.pfBgB,
+                               g_settings.pfBgBorderA, g_settings.pfBgBorderR, g_settings.pfBgBorderG,
+                               g_settings.pfBgBorderB, g_settings.pfBgPadding, g_settings.pfBgCornerRadius,
+                               g_settings.pfBgBorderSize};
+        DrawOverlayText(t.pf.c_str(), (UINT32)t.pf.length(), pfRect, g_nowPlayingBrush.Get(), pfPanel, 1.0f,
+                        (smooth || t.pfWide) ? &g_pfLayoutCache : nullptr, t.pfWide);
+    }
+}
+
+// ---- Direct3D 11 frame ------------------------------------------------------------------
+// Returns false to fall back to the Direct2D path for this frame.
+bool RenderVisualizerD3D(float sceneAlpha) {
+    VizLayout layout;
+    if (!ComputeVizLayout(&layout)) return false;
+    VizPublishDrawRect(layout);
+    const bool dragPause = g_dragRenderPauseActive.load(std::memory_order_relaxed);
+
+    ttgfx::FrameInputs in = {};
+    in.layout = &layout;
+    in.sceneAlpha = sceneAlpha;
+    in.dragPause = dragPause;
+    in.hasPanel = g_settings.backgroundEnabled && g_backgroundBrush;
+    if (in.hasPanel) VizPanelRect(layout, &in.bgRect, in.bgRadii);
+
+    if (sceneAlpha > 0.001f) {
+        {
+            float pulse = g_beatPulse.load(std::memory_order_relaxed);
+            if (pulse > 0.f)
+                g_beatPulse.store(std::max(0.f, pulse - 0.08f * g_frameScale), std::memory_order_relaxed);
+        }
+        if (!dragPause) {
+            VizComputeBarFrame();
+            if (g_settings.shape == VizShape::Oscilloscope) VizUpdateScopeTrace();
+            if (g_settings.shape == VizShape::Terminal) VizBuildTermGrid();
+        }
+        VizResolveColors(&in.c1, &in.cGrad1, &in.c2);
+        in.rainbowBase = VizClockPhase(VizClockSeconds(), (double)g_settings.rainbowSpeed, 360.0);
+        memcpy(in.scopeDisp, g_scopeDisp, sizeof(in.scopeDisp));
+        VizZoneEnergies(in.zones);
+        {
+            std::lock_guard<std::mutex> lock(g_meterMutex);
+            in.correlation = (float)g_meters.correlation;
+        }
+    }
+    if (!ttgfx::Render(in)) return false;
+
+    // Text surface: redrawn only when what it shows changes.
+    VizTextFrame tf;
+    if (sceneAlpha > 0.001f && !dragPause) VizBuildTextFrame(tf);
+    uint64_t key = 1469598103934665603ull;
+    for (wchar_t c : tf.np) ttgfx::Mix(key, (uint64_t)c);
+    ttgfx::MixF(key, tf.npAlpha, 255.f);
+    for (wchar_t c : tf.pf) ttgfx::Mix(key, (uint64_t)c);
+    for (wchar_t c : tf.npArtist) ttgfx::Mix(key, (uint64_t)c);
+    // The progress bar redraws the text surface once per pixel it grows.
+    if (tf.progress >= 0.f) {
+        D2D1_RECT_F pr;
+        float wpx = VizProgressRect(layout, &pr) ? pr.right - pr.left : 0.f;
+        ttgfx::Mix(key, 1000003u + (uint64_t)lroundf(std::clamp(tf.progress, 0.f, 1.f) * wpx));
+    }
+    ttgfx::MixF(key, sceneAlpha, 255.f);
+    ttgfx::MixF(key, layout.blockX, 64.f);
+    ttgfx::MixF(key, layout.blockY, 64.f);
+    ttgfx::Mix(key, (uint64_t)g_swapChainWidth * 65536u + g_swapChainHeight);
+    if (!ttgfx::g.textForce && key == ttgfx::g.textKey) return true;
+    ttgfx::g.textKey = key;
+    ttgfx::g.textForce = false;
+    g_dc->BeginDraw();
+    g_dc->Clear(D2D1::ColorF(0, 0, 0, 0));
+    bool fade = sceneAlpha < 0.999f;
+    if (fade)
+        g_dc->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), nullptr, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE,
+                                              D2D1::IdentityMatrix(), sceneAlpha),
+                        nullptr);
+    VizDrawTextOverlays(tf, layout, true);
+    if (fade) g_dc->PopLayer();
+    HRESULT hrEnd = g_dc->EndDraw();
+    HRESULT hrPresent = g_swapChain->Present(0, 0);
+    VizCheckDeviceLost(hrEnd, hrPresent);
+    return true;
+}
+
 void RenderVisualizer() {
     if (g_unloading || !g_dc || !g_swapChain) return;
 
@@ -4741,6 +11971,29 @@ void RenderVisualizer() {
     // tick caught up. Cheap to call defensively when nothing has moved.
     UpdateSwapChainForLayout();
 
+    // Smooth Mode: how late is this frame, relative to the Target FPS interval
+    // the motion constants were tuned against? Measured against the user's
+    // Target FPS rather than the display-locked interval actually being run,
+    // so rounding 60 up to 72 on a 144 Hz panel doesn't make bars faster.
+    const bool smooth = g_smoothActive.load(std::memory_order_relaxed);
+    {
+        static LONGLONG s_prevFrameQpc = 0;
+        LARGE_INTEGER q;
+        QueryPerformanceCounter(&q);
+        g_frameScale = 1.0f;
+        double dtMs = s_prevFrameQpc ? (double)(q.QuadPart - s_prevFrameQpc) * 1000.0 / (double)VizQpcFreq()
+                                     : 1000.0 / 60.0;
+        if (smooth && s_prevFrameQpc) {
+            double refMs = 1000.0 / (double)std::max(1, g_settings.targetFps > 0 ? g_settings.targetFps : 60);
+            g_frameScale = (float)std::clamp(dtMs / refMs, 0.25, 4.0);
+        }
+        // Seconds, for everything that runs on elapsed time (precision peak
+        // caps, the breathe envelope, GPU ballistics). Long gaps (idle,
+        // pause) are clamped so nothing jumps when drawing resumes.
+        g_frameDt = (float)std::clamp(dtMs / 1000.0, 0.0005, 0.25);
+        s_prevFrameQpc = q.QuadPart;
+    }
+
     float sceneAlpha = 1.0f;
     if (g_settings.autoHideEnabled) {
         ULONGLONG idleMs = GetTickCount64() - g_lastAudibleTickMs.load(std::memory_order_relaxed);
@@ -4752,6 +12005,17 @@ void RenderVisualizer() {
         }
     }
 
+    // Direct3D 11 renderer (2.0). Falls through to the Direct2D path below if
+    // it isn't selected, or can't run on this device.
+    if (ttgfx::Active()) {
+        if (RenderVisualizerD3D(sceneAlpha)) {
+            g_autoHideBlanked = sceneAlpha <= 0.001f;
+            return;
+        }
+    } else {
+        ttgfx::ReleaseSurface();
+    }
+
     if (sceneAlpha <= 0.001f) {
         // Fully faded out. Present one blank frame to clear whatever was last
         // shown, then skip the render path entirely until audio returns --
@@ -4760,8 +12024,9 @@ void RenderVisualizer() {
         if (g_autoHideBlanked) return;
         g_dc->BeginDraw();
         g_dc->Clear(D2D1::ColorF(0, 0, 0, 0));
-        g_dc->EndDraw();
-        g_swapChain->Present(0, 0);
+        HRESULT hrEnd = g_dc->EndDraw();
+        HRESULT hrPresent = g_swapChain->Present(0, 0);
+        VizCheckDeviceLost(hrEnd, hrPresent);
         g_autoHideBlanked = true;
         return;
     }
@@ -4770,33 +12035,22 @@ void RenderVisualizer() {
     g_dc->BeginDraw();
     g_dc->Clear(D2D1::ColorF(0, 0, 0, 0));
 
-    UpdateVisualizerTargets();
+    // Every bar's height and peak cap for this frame, for either engine (see
+    // VizComputeBarFrame). The loops below only draw them.
+    if (!g_dragRenderPauseActive.load(std::memory_order_relaxed)) {
+        VizComputeBarFrame();
+        if (g_settings.shape == VizShape::Terminal) VizBuildTermGrid();
+    }
 
-    int barCount = std::max(1, std::min(g_settings.barCount, VIZ_BARS_MAX));
-    float barW = (float)std::max(1, g_settings.barWidth) * g_dpiScale;
-    float barGap = (float)std::max(0, g_settings.barGap) * g_dpiScale;
-    float maxSize = (float)std::max(2, g_settings.barMaxSize) * g_dpiScale;
-    float idleSize = (float)std::max(0, g_settings.barIdleSize) * g_dpiScale;
+    int barCount = VizEffectiveBarCount();
+    float barW = std::max(1.f, VizPx((float)std::max(1, g_settings.barWidth)));
+    float barGap = VizPx((float)std::max(0, g_settings.barGap));
+    float maxSize = std::max(2.f, VizPx((float)std::max(2, g_settings.barMaxSize)));
+    float idleSize = VizPx((float)std::max(0, g_settings.barIdleSize));
     float rTL = g_settings.barRadiusTL * g_dpiScale;
     float rTR = g_settings.barRadiusTR * g_dpiScale;
     float rBR = g_settings.barRadiusBR * g_dpiScale;
     float rBL = g_settings.barRadiusBL * g_dpiScale;
-
-    float attack = 0.55f, decay = 0.18f;
-    switch (g_settings.shape) {
-        case VizShape::Stereo:  attack = 0.72f; decay = 0.22f; break;
-        case VizShape::Mirror:  attack = 0.52f; decay = 0.20f; break;
-        case VizShape::Wave:    attack = 0.34f; decay = 0.17f; break;
-        case VizShape::Breathe: attack = 0.20f; decay = 0.11f; break;
-        default: break;
-    }
-    if (g_settings.smoothing > 0) {
-        // Scales both toward 0 (slower catch-up to the target level) without
-        // ever fully freezing the bar, even at max smoothing.
-        float smoothFactor = 1.0f - (g_settings.smoothing / 100.0f) * 0.9f;
-        attack *= smoothFactor;
-        decay *= smoothFactor;
-    }
 
     bool horizontal = (g_settings.orientation == VizOrientation::Horizontal);
     
@@ -4806,7 +12060,9 @@ void RenderVisualizer() {
     float groupExtent    = maxSize;
 
     float totalWidth, totalHeight;
-    if (g_settings.shape == VizShape::Radial) {
+    if (g_settings.shape == VizShape::Terminal) {
+        VizTermBox(&totalWidth, &totalHeight);
+    } else if (g_settings.shape == VizShape::Radial || g_settings.shape == VizShape::Goniometer) {
         totalWidth = totalHeight = maxSize * 2.0f;
     } else {
         totalWidth  = horizontal ? groupThickness : groupExtent;
@@ -4814,9 +12070,16 @@ void RenderVisualizer() {
     }
 
     float animTime = (float)GetTickCount64() * 0.001f;
+    // Rainbow hue offset, degrees. With Smooth Mode off this is the 1.4
+    // expression exactly; with it on, it comes off the QPC clock and is reduced
+    // in double before narrowing (see VizClockSeconds).
+    const float rainbowBase =
+        smooth ? VizClockPhase(VizClockSeconds(), (double)g_settings.rainbowSpeed, 360.0)
+               : animTime * g_settings.rainbowSpeed;
     {
         float pulse = g_beatPulse.load(std::memory_order_relaxed);
-        if (pulse > 0.f) g_beatPulse.store(std::max(0.f, pulse - 0.08f), std::memory_order_relaxed);
+        if (pulse > 0.f)
+            g_beatPulse.store(std::max(0.f, pulse - 0.08f * g_frameScale), std::memory_order_relaxed);
     }
 
     bool useFadeLayer = sceneAlpha < 0.999f;
@@ -4836,35 +12099,13 @@ void RenderVisualizer() {
         totalWidth   = layout.totalWidth;
         totalHeight  = layout.totalHeight;
 
-        // Publish the bounds of what is actually VISIBLE, for the occlusion
-        // check -- not the full render surface. The surface reserves invisible
-        // insets (a safety margin, and room above/beside the bars for the Now
-        // Playing label), and near a screen edge those insets push the surface
-        // off-screen entirely. Testing that larger box would mean no window
-        // could ever fully contain it, and the check would never fire.
-        {
-            int virtualScreenX = GetSystemMetrics(SM_XVIRTUALSCREEN);
-            int virtualScreenY = GetSystemMetrics(SM_YVIRTUALSCREEN);
-            float padL = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingL * g_dpiScale : 0.f;
-            float padR = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingR * g_dpiScale : 0.f;
-            float padT = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingT * g_dpiScale : 0.f;
-            float padB = g_settings.backgroundEnabled ? (float)g_settings.bgPaddingB * g_dpiScale : 0.f;
-            float visL = layout.originX + blockX - padL;
-            float visT = layout.originY + blockY - padT;
-            float visR = layout.originX + blockX + totalWidth + padR;
-            float visB = layout.originY + blockY + totalHeight + padB;
-            g_drawRectL.store((LONG)visL + virtualScreenX, std::memory_order_relaxed);
-            g_drawRectT.store((LONG)visT + virtualScreenY, std::memory_order_relaxed);
-            g_drawRectR.store((LONG)visR + virtualScreenX, std::memory_order_relaxed);
-            g_drawRectB.store((LONG)visB + virtualScreenY, std::memory_order_relaxed);
-            g_drawRectValid.store(true, std::memory_order_relaxed);
-        }
+        VizPublishDrawRect(layout);
 
         if (g_backgroundBrush) {
-            float padL = (float)g_settings.bgPaddingL * g_dpiScale;
-            float padR = (float)g_settings.bgPaddingR * g_dpiScale;
-            float padT = (float)g_settings.bgPaddingT * g_dpiScale;
-            float padB = (float)g_settings.bgPaddingB * g_dpiScale;
+            float padL = VizPx((float)g_settings.bgPaddingL);
+            float padR = VizPx((float)g_settings.bgPaddingR);
+            float padT = VizPx((float)g_settings.bgPaddingT);
+            float padB = VizPx((float)g_settings.bgPaddingB);
             float bgWidth  = totalWidth  + padL + padR;
             float bgHeight = totalHeight + padT + padB;
 
@@ -4911,23 +12152,17 @@ void RenderVisualizer() {
 
             ID2D1PathGeometry* bgGeo = g_bgGeoCache.Get();
 
-            if (g_blurredBitmap && bgGeo) {
-                g_dc->PushLayer(D2D1::LayerParameters(D2D1::InfiniteRect(), bgGeo),
-                                nullptr);
-                // The cached blur is already box-sized and box-aligned, so this
-                // is a straight 1:1 blit with no scaling or resampling.
-                g_dc->DrawBitmap(g_blurredBitmap.Get());
-                g_dc->PopLayer();
-            }
-
-            if (bgGeo)
-                g_dc->FillGeometry(bgGeo, g_backgroundBrush.Get());
-
+            // The border ring's geometry is now built before anything is drawn
+            // rather than between the fill and the border draw. Building a
+            // geometry isn't drawing, so the 1.4 output is unchanged -- but the
+            // plate below needs every piece in hand before it bakes.
+            bool ringRebuilt = false;
             if (g_borderBrush) {
                 float bw = std::min((float)g_settings.bgBorderSize * g_dpiScale,
                                     std::min(bgWidth, bgHeight) / 2.0f);
 
                 if (bgDirty || g_borderCacheBorderSize != g_settings.bgBorderSize) {
+                    ringRebuilt = true;
                     g_borderRingCache.Reset();
 
                     D2D1_RECT_F innerRect = D2D1::RectF(bgRect.left + bw, bgRect.top + bw,
@@ -4948,9 +12183,29 @@ void RenderVisualizer() {
                     }
                     g_borderCacheBorderSize = g_settings.bgBorderSize;
                 }
+            }
+            ID2D1Geometry* ring = g_borderBrush ? g_borderRingCache.Get() : nullptr;
 
-                if (g_borderRingCache)
-                    g_dc->FillGeometry(g_borderRingCache.Get(), g_borderBrush.Get());
+            // Smooth Mode: a single blit of the cached plate. It is re-baked
+            // only when the panel's geometry changes; color, blur
+            // and border-size changes all reset it through
+            // ReleaseVisualResources. If it can't be baked for any reason,
+            // the 1.4 path below draws instead.
+            bool drawnFromPlate = false;
+            if (smooth) {
+                D2D1_RECT_F want = D2D1::RectF(floorf(bgRect.left) - 2.f, floorf(bgRect.top) - 2.f,
+                                               ceilf(bgRect.right) + 2.f, ceilf(bgRect.bottom) + 2.f);
+                bool fresh = g_plateBitmap && !bgDirty && !ringRebuilt &&
+                             RectsApproxEqual(want, g_plateRect);
+                if (fresh || VizBakeBackgroundPlate(bgRect, bgGeo, ring)) {
+                    g_dc->DrawBitmap(g_plateBitmap.Get(), g_plateRect, 1.0f,
+                                     D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR);
+                    drawnFromPlate = true;
+                }
+            }
+            if (!drawnFromPlate) {
+                VizDrawBackgroundLayers(g_dc.Get(), bgGeo, ring, g_backgroundBrush.Get(),
+                                        g_borderBrush.Get());
             }
         }
 
@@ -4967,8 +12222,9 @@ void RenderVisualizer() {
                        g_dragOverrideV.load(std::memory_order_relaxed));
             }
             if (useFadeLayer) g_dc->PopLayer();
-            g_dc->EndDraw();
-            g_swapChain->Present(0, 0);
+            HRESULT hrEnd = g_dc->EndDraw();
+            HRESULT hrPresent = g_swapChain->Present(0, 0);
+            VizCheckDeviceLost(hrEnd, hrPresent);
             return;
         }
 
@@ -5005,10 +12261,20 @@ void RenderVisualizer() {
             float dBR = g_settings.barRadiusBR * g_dpiScale;
             float dBL = g_settings.barRadiusBL * g_dpiScale;
 
+            // Smooth Mode: every dot becomes one sprite of a pre-drawn dot, and
+            // the whole field goes out in one call. This is the shape that
+            // gains the most -- a modest setup is well over a thousand dots,
+            // each a separate rounded-rect fill (or, with per-corner radii, a
+            // separate path geometry) on the 1.4 path.
+            VizAtlasKey dotKey;
+            dotKey.kind = 1;
+            dotKey.thick = barW;
+            dotKey.rTL = dTL; dotKey.rTR = dTR; dotKey.rBR = dBR; dotKey.rBL = dBL;
+            const bool dotSprites = smooth && VizEnsureSpriteAtlas(dotKey);
+            if (dotSprites) VizClearSprites();
+            D2D1_COLOR_F dotCol = D2D1::ColorF(0, 0, 0, 0);
+
             for (int i = 0; i < barCount; i++) {
-                float tgt = g_vizTarget[i], cur = g_vizPeak[i];
-                float nxt = cur + (tgt - cur) * ((tgt > cur) ? attack : decay);
-                g_vizPeak[i] = (fabsf(nxt - cur) > 0.0005f) ? nxt : tgt;
                 float fac = std::max(0.f, g_vizPeak[i]);
                 float colSize = idleSize + fac * std::max(0.f, maxSize - idleSize);
 
@@ -5025,7 +12291,7 @@ void RenderVisualizer() {
                     float freqT = std::min(1.f, t * 0.6f + fac * 0.4f);
                     col = LerpColor(cGrad1, c2, freqT);
                 } else if (g_settings.colorMode == VizColorMode::RainbowCycle) {
-                    float hue = fmodf(animTime * g_settings.rainbowSpeed +
+                    float hue = fmodf(rainbowBase +
                                        (barCount > 1 ? (float)i/(barCount-1) : 0.f) * 360.f, 360.f);
                     col = HSVtoRGB(hue, 0.85f, 1.0f, c1.a);
                 }
@@ -5043,12 +12309,19 @@ void RenderVisualizer() {
                         col.b = (BYTE)(col.b + (g_settings.beatFlashB - (int)col.b) * blend);
                     }
                 }
-                g_barBrush->SetColor(D2D1::ColorF(col.r/255.f, col.g/255.f, col.b/255.f, col.a/255.f));
+                if (dotSprites)
+                    dotCol = VizPremultiplied(col.a, col.r, col.g, col.b);
+                else
+                    g_barBrush->SetColor(D2D1::ColorF(col.r/255.f, col.g/255.f, col.b/255.f, col.a/255.f));
 
                 int numDots = (step > 0.5f) ? (int)(colSize / step) : 1;
                 numDots = std::max(1, numDots);
 
                 auto drawDot = [&](float cx2, float cy2) {
+                    if (dotSprites) {
+                        VizQueueDotSprite(cx2, cy2, dotR, dotCol);
+                        return;
+                    }
                     D2D1_RECT_F r = D2D1::RectF(cx2 - dotR, cy2 - dotR, cx2 + dotR, cy2 + dotR);
                     FillRoundedRectPerCorner(g_dc.Get(), g_d2dFactory.Get(), r,
                                              g_barBrush.Get(), dTL, dTR, dBR, dBL);
@@ -5124,6 +12397,7 @@ void RenderVisualizer() {
                     }
                 }
             }
+            if (dotSprites) VizFlushSprites();
         } else if (g_settings.shape == VizShape::Radial) {
             float centerX = blockX + totalWidth * 0.5f;
             float centerY = blockY + totalHeight * 0.5f;
@@ -5131,9 +12405,6 @@ void RenderVisualizer() {
             float strokeW = std::max(1.0f, barW);
 
             for (int i = 0; i < barCount; i++) {
-                float tgt = g_vizTarget[i], cur = g_vizPeak[i];
-                float next = cur + (tgt - cur) * ((tgt > cur) ? attack : decay);
-                g_vizPeak[i] = (fabsf(next - cur) > 0.0005f) ? next : tgt;
                 float fac = std::max(0.f, g_vizPeak[i]);
                 float len = idleSize + fac * std::max(0.f, maxSize - idleSize);
                 if (len < 0.5f) continue;
@@ -5145,7 +12416,7 @@ void RenderVisualizer() {
                 else if (g_settings.colorMode == VizColorMode::ReactiveGradient)
                     col = LerpColor(cGrad1, c2, fac);
                 else if (g_settings.colorMode == VizColorMode::RainbowCycle) {
-                    float hue = fmodf(animTime * g_settings.rainbowSpeed +
+                    float hue = fmodf(rainbowBase +
                                        (float)i / std::max(1, barCount) * 360.f, 360.f);
                     col = HSVtoRGB(hue, 0.85f, 1.0f, c1.a);
                 }
@@ -5189,7 +12460,7 @@ void RenderVisualizer() {
                 g_settings.colorMode == VizColorMode::Tourne)
                 col = LerpColor(cGrad1, c2, 0.5f);
             else if (g_settings.colorMode == VizColorMode::RainbowCycle) {
-                float hue = fmodf(animTime * g_settings.rainbowSpeed, 360.f);
+                float hue = fmodf(rainbowBase, 360.f);
                 col = HSVtoRGB(hue, 0.85f, 1.0f, c1.a);
             }
             if (g_settings.oscilloscopeMultibandEnabled) {
@@ -5198,15 +12469,9 @@ void RenderVisualizer() {
                 // part of the spectrum is dominant right now. This overrides
                 // whatever the color mode above picked, matching how RainbowCycle
                 // and Tourne already take priority for this shape.
-                float bandsSnap[VIZ_NUM_BANDS];
-                ReadBands(bandsSnap);
-                float lowE = 0.f, midE = 0.f, highE = 0.f;
-                for (int b = 0; b < VIZ_NUM_BANDS; b++) {
-                    float e = bandsSnap[b];
-                    if (VIZ_BAND_EQ_ZONE[b] == 0) lowE += e;
-                    else if (VIZ_BAND_EQ_ZONE[b] == 1) midE += e;
-                    else highE += e;
-                }
+                float zones[3];
+                VizZoneEnergies(zones);
+                float lowE = zones[0], midE = zones[1], highE = zones[2];
                 float total = lowE + midE + highE;
                 const RGBA lowCol{255, 255, 90, 60}, midCol{255, 120, 220, 90}, highCol{255, 90, 180, 255};
                 if (total > 0.001f) {
@@ -5230,11 +12495,30 @@ void RenderVisualizer() {
             g_barBrush->SetColor(D2D1::ColorF(col.r/255.f, col.g/255.f, col.b/255.f, col.a/255.f));
 
             float strokeW = std::max(1.0f, barW * 0.5f);
-            float waveSnap[VIZ_WAVE_SAMPLES];
-            ReadWaveform(waveSnap);
+
+            // Trace damping, eased on the RENDER thread rather than the capture
+            // thread, and deliberately so. The capture side publishes a new
+            // trace about 100 times a second; easing toward it here means every
+            // frame draws a different trace, so the shape evolves smoothly at
+            // whatever the Target FPS is instead of stepping between published
+            // snapshots.
+            //
+            // This is what makes a slow trace legible. Damping it lets the eye
+            // lock onto a shape and follow it, where an undamped trace at a
+            // wide window is a new picture every frame. It is only valid
+            // because the capture side triggers on a zero crossing: without
+            // that, point w would mean a different phase each time and easing
+            // per index would smear the waveform into mush rather than slow it
+            // down.
+            //
+            // Same shape as the bars' Motion Smoothing above, scaled so even
+            // full damping keeps moving rather than freezing.
+            VizUpdateScopeTrace();
+            const float* s_scopeDisp = g_scopeDisp;
+
             auto wavePoint = [&](int w) -> D2D1_POINT_2F {
                 float along  = sweepOrigin + w * wstep;
-                float across = center + waveSnap[w] * ampScale * (horizontal ? -1.0f : 1.0f);
+                float across = center + s_scopeDisp[w] * ampScale * (horizontal ? -1.0f : 1.0f);
                 return horizontal ? D2D1::Point2F(along, across)
                                   : D2D1::Point2F(across, along);
             };
@@ -5245,12 +12529,67 @@ void RenderVisualizer() {
                 prev = pt;
             }
         }
+        else if (g_settings.shape == VizShape::Goniometer) {
+            // The Direct2D fallback for the goniometer: the same points the
+            // Direct3D 11 renderer draws, as small squares, and the
+            // correlation bar. Fine for a fallback; the Direct3D 11 renderer
+            // is the one to use for this shape.
+            static std::vector<float> s_pts(ttgfx::kMaxPoints * 4);
+            int n = ttgfx::BuildGonioPoints(s_pts.data(), ttgfx::kMaxPoints);
+            RGBA col = c1;
+            if (g_settings.colorMode == VizColorMode::Gradient || g_settings.colorMode == VizColorMode::Tourne)
+                col = LerpColor(cGrad1, c2, 0.5f);
+            float cx = blockX + totalWidth * 0.5f, cy = blockY + totalHeight * 0.5f;
+            float R = maxSize * 0.85f, d = std::max(0.75f, barW * 0.2f);
+            for (int k = 0; k < n; k++) {
+                float x = cx + std::clamp(s_pts[k * 4], -1.f, 1.f) * R;
+                float y = cy - std::clamp(s_pts[k * 4 + 1], -1.f, 1.f) * R;
+                g_barBrush->SetColor(D2D1::ColorF(col.r / 255.f, col.g / 255.f, col.b / 255.f,
+                                                  col.a / 255.f * s_pts[k * 4 + 2]));
+                g_dc->FillRectangle(D2D1::RectF(x - d, y - d, x + d, y + d), g_barBrush.Get());
+            }
+            float corr;
+            {
+                std::lock_guard<std::mutex> lock(g_meterMutex);
+                corr = (float)g_meters.correlation;
+            }
+            float ch = std::max(2.0f, 3.0f * g_dpiScale), cyBar = cy + maxSize * 0.92f - ch;
+            g_barBrush->SetColor(D2D1::ColorF(col.r / 255.f, col.g / 255.f, col.b / 255.f, col.a / 255.f * 0.25f));
+            g_dc->FillRectangle(D2D1::RectF(cx - R, cyBar, cx + R, cyBar + ch), g_barBrush.Get());
+            g_barBrush->SetColor(D2D1::ColorF(col.r / 255.f, col.g / 255.f, col.b / 255.f, col.a / 255.f));
+            float mx = cx + std::clamp(corr, -1.f, 1.f) * R;
+            g_dc->FillRectangle(D2D1::RectF(mx - 1.5f, cyBar - 1.f, mx + 1.5f, cyBar + ch + 1.f), g_barBrush.Get());
+        }
+        else if (g_settings.shape == VizShape::Terminal) {
+            // Direct2D fallback: the grid as runs of text. The Direct3D 11
+            // renderer draws it from a glyph atlas in one call instead.
+            VizDrawTermGridD2D(floorf(blockX + 0.5f), floorf(blockY + 0.5f));
+        }
         else {
-            for (int i = 0; i < barCount; i++) {
-                float tgt = g_vizTarget[i], cur = g_vizPeak[i];
-                float next = cur + (tgt - cur) * ((tgt > cur) ? attack : decay);
-                g_vizPeak[i] = (fabsf(next - cur) > 0.0005f) ? next : tgt;
+            // Smooth Mode: bars go out as one sprite batch (see
+            // VizEnsureSpriteAtlas). The atlas is baked at the bar row's
+            // subpixel offset across the bars, quantized so float noise in the
+            // layout can't force a re-bake every frame.
+            VizAtlasKey barKey;
+            barKey.kind = 0;
+            barKey.horizontal = horizontal;
+            barKey.thick = barW;
+            barKey.rTL = rTL; barKey.rTR = rTR; barKey.rBR = rBR; barKey.rBL = rBL;
+            {
+                float lead = horizontal ? blockX : blockY;
+                float frac = roundf((lead - floorf(lead)) * 256.f) / 256.f;
+                barKey.frac = (frac >= 1.f) ? 0.f : frac;
+            }
+            const bool barSprites = smooth && VizEnsureSpriteAtlas(barKey);
+            // Peak caps stay ordinary antialiased rectangles, drawn after the
+            // batch so they still sit on top of their bars.
+            static std::vector<D2D1_RECT_F> s_capRects;
+            if (barSprites) {
+                VizClearSprites();
+                s_capRects.clear();
+            }
 
+            for (int i = 0; i < barCount; i++) {
                 float fac = std::max(0.f, g_vizPeak[i]);
                 float size = idleSize + fac * std::max(0.f, maxSize - idleSize);
 
@@ -5267,7 +12606,7 @@ void RenderVisualizer() {
                     col = LerpColor(cGrad1, c2, freqT);
                 } else if (g_settings.colorMode == VizColorMode::RainbowCycle) {
                     float t = (barCount > 1) ? (float)i / (barCount - 1) : 0.f;
-                    float hue = fmodf(animTime * g_settings.rainbowSpeed + t * 360.f, 360.f);
+                    float hue = fmodf(rainbowBase + t * 360.f, 360.f);
                     col = HSVtoRGB(hue, 0.85f, 1.0f, c1.a);
                 }
                 if (g_settings.colorMode == VizColorMode::Acrylic) {
@@ -5287,16 +12626,31 @@ void RenderVisualizer() {
 
                 D2D1_COLOR_F d2dCol = D2D1::ColorF(col.r / 255.0f, col.g / 255.0f, col.b / 255.0f,
                                                    col.a / 255.0f);
-                g_barBrush->SetColor(d2dCol);
+                D2D1_COLOR_F spriteCol = d2dCol;
+                if (barSprites)
+                    spriteCol = VizPremultiplied(col.a, col.r, col.g, col.b);
+                else
+                    g_barBrush->SetColor(d2dCol);
+
+                // Draws one bar body: queued as sprites in Smooth Mode, filled
+                // directly otherwise. Peak caps likewise queue or draw.
+                auto fillBar = [&](const D2D1_RECT_F& r) {
+                    if (barSprites)
+                        VizQueueBarSprites(r, horizontal, spriteCol);
+                    else
+                        FillRoundedRectPerCorner(g_dc.Get(), g_d2dFactory.Get(), r,
+                                                 g_barBrush.Get(), rTL, rTR, rBR, rBL);
+                };
+                auto fillCap = [&](const D2D1_RECT_F& r) {
+                    if (barSprites)
+                        s_capRects.push_back(r);
+                    else
+                        g_dc->FillRectangle(r, g_barBrush2.Get());
+                };
 
                 float holdSize = idleSize;
-                if (g_settings.peakHoldEnabled) {
-                    g_vizPeakHold[i] = (fac >= g_vizPeakHold[i])
-                        ? fac : std::max(0.f, g_vizPeakHold[i] - 0.012f);
+                if (g_settings.peakHoldEnabled)
                     holdSize = idleSize + g_vizPeakHold[i] * std::max(0.f, maxSize - idleSize);
-                } else {
-                    g_vizPeakHold[i] = 0.f;
-                }
                 float capThickness = std::max(1.5f, 2.0f * g_dpiScale);
 
                 D2D1_RECT_F barRect;
@@ -5321,12 +12675,10 @@ void RenderVisualizer() {
                             break;
                     }
                     barRect = D2D1::RectF(x, y, x + barW, yBottom);
-                    FillRoundedRectPerCorner(g_dc.Get(), g_d2dFactory.Get(), barRect,
-                                             g_barBrush.Get(), rTL, rTR, rBR, rBL);
+                    fillBar(barRect);
                     if (g_settings.peakHoldEnabled && holdSize > 0.5f) {
-                        g_dc->FillRectangle(D2D1::RectF(x, capY - capThickness * 0.5f,
-                                                        x + barW, capY + capThickness * 0.5f),
-                                            g_barBrush2.Get());
+                        fillCap(D2D1::RectF(x, capY - capThickness * 0.5f,
+                                            x + barW, capY + capThickness * 0.5f));
                     }
                 } else {
                     float y = blockY + i * (barW + barGap);
@@ -5351,126 +12703,24 @@ void RenderVisualizer() {
                             break;
                     }
                     barRect = D2D1::RectF(x, y, xRight, y + barW);
-                    FillRoundedRectPerCorner(g_dc.Get(), g_d2dFactory.Get(), barRect,
-                                             g_barBrush.Get(), rTL, rTR, rBR, rBL);
+                    fillBar(barRect);
                     if (g_settings.peakHoldEnabled && holdSize > 0.5f) {
-                        g_dc->FillRectangle(D2D1::RectF(capX - capThickness * 0.5f, y,
-                                                        capX + capThickness * 0.5f, y + barW),
-                                            g_barBrush2.Get());
+                        fillCap(D2D1::RectF(capX - capThickness * 0.5f, y,
+                                            capX + capThickness * 0.5f, y + barW));
                     }
                 }
             }
-        }
 
-        if (g_settings.nowPlayingEnabled && g_dwriteTextFormat && g_nowPlayingBrush) {
-            ULONGLONG changedAt = g_nowPlayingChangedTick.load(std::memory_order_relaxed);
-            ULONGLONG npElapsed = GetTickCount64() - changedAt;
-            ULONGLONG showMs = (ULONGLONG)std::max(0, g_settings.nowPlayingDisplaySeconds) * 1000ULL;
-            constexpr ULONGLONG kNpFadeMs = 800;
-            float npAlpha = 0.f;
-            if (changedAt != 0 && npElapsed < showMs + kNpFadeMs) {
-                npAlpha = (npElapsed < showMs) ? 1.0f
-                                                : 1.0f - (float)(npElapsed - showMs) / (float)kNpFadeMs;
-            }
-            if (npAlpha > 0.01f) {
-                std::wstring displayText;
-                {
-                    std::lock_guard<std::mutex> lock(g_nowPlayingMutex);
-                    displayText = g_nowPlayingDisplay;
-                }
-                if (!displayText.empty()) {
-                    g_nowPlayingBrush->SetColor(D2D1::ColorF(
-                        g_settings.nowPlayingR / 255.0f, g_settings.nowPlayingG / 255.0f,
-                        g_settings.nowPlayingB / 255.0f, (g_settings.nowPlayingA / 255.0f) * npAlpha));
-                    float npMargin = 8.0f * g_dpiScale;
-                    float npHeight = (float)std::max(6, g_settings.nowPlayingFontSize) * g_dpiScale * 1.6f;
-                    float npOffX = EffectiveNowPlayingOffsetX();
-                    float npOffY = EffectiveNowPlayingOffsetY();
-                    D2D1_RECT_F npRect = D2D1::RectF(
-                        blockX - layout.textAnchorSide + npOffX,
-                        blockY - npHeight - npMargin + npOffY,
-                        blockX + totalWidth + layout.textAnchorSide + npOffX,
-                        blockY - npMargin + npOffY);
-                    TextPanelStyle npPanel{
-                        g_settings.npBgA, g_settings.npBgR, g_settings.npBgG, g_settings.npBgB,
-                        g_settings.npBgBorderA, g_settings.npBgBorderR,
-                        g_settings.npBgBorderG, g_settings.npBgBorderB,
-                        g_settings.npBgPadding, g_settings.npBgCornerRadius,
-                        g_settings.npBgBorderSize};
-                    DrawOverlayText(displayText.c_str(), (UINT32)displayText.length(), npRect,
-                                    g_nowPlayingBrush.Get(), npPanel, npAlpha);
-                }
+            if (barSprites) {
+                VizFlushSprites();
+                for (const auto& cap : s_capRects) g_dc->FillRectangle(cap, g_barBrush2.Get());
             }
         }
 
-        if (g_settings.peakFreqEnabled && g_dwriteTextFormat && g_nowPlayingBrush) {
-            float hz = g_dominantFreqHz.load(std::memory_order_relaxed);
-            if (hz > 0.f) {
-                wchar_t freqText[32];
-                if (hz >= 1000.f)
-                    swprintf_s(freqText, L"%.1f kHz", hz / 1000.f);
-                else
-                    swprintf_s(freqText, L"%.0f Hz", hz);
-
-                g_nowPlayingBrush->SetColor(D2D1::ColorF(
-                    g_settings.nowPlayingR / 255.0f, g_settings.nowPlayingG / 255.0f,
-                    g_settings.nowPlayingB / 255.0f, g_settings.nowPlayingA / 255.0f));
-                float pfMargin = 4.0f * g_dpiScale;
-                float pfHeight = (float)std::max(6, g_settings.nowPlayingFontSize) * g_dpiScale * 1.4f;
-                float pfWidth  = std::min(120.0f * g_dpiScale,
-                                          totalWidth + 2.0f * layout.textAnchorSide);
-                float pfOffX = EffectivePeakFreqOffsetX();
-                float pfOffY = EffectivePeakFreqOffsetY();
-
-                // Horizontal placement. Left/Right hug the bar group's edges and
-                // may sit slightly outside it, which the reserved side inset covers.
-                float pfX;
-                switch (g_settings.peakFreqAlignH) {
-                    case VizTextAlignH::Left:
-                        pfX = blockX - layout.textAnchorSide;
-                        break;
-                    case VizTextAlignH::Center:
-                        pfX = blockX + (totalWidth - pfWidth) * 0.5f;
-                        break;
-                    default:  // Right
-                        pfX = blockX + totalWidth + layout.textAnchorSide - pfWidth;
-                        break;
-                }
-                pfX += pfOffX;
-
-                // Vertical placement. Above/Below sit fully clear of the bars,
-                // using the room reserved for them in the layout.
-                float pfY;
-                switch (g_settings.peakFreqAlignV) {
-                    case VizTextAlignV::Above:
-                        pfY = blockY - pfHeight - pfMargin;
-                        break;
-                    case VizTextAlignV::Middle:
-                        pfY = blockY + (totalHeight - pfHeight) * 0.5f;
-                        break;
-                    case VizTextAlignV::Bottom:
-                        pfY = blockY + totalHeight - pfHeight - pfMargin;
-                        break;
-                    case VizTextAlignV::Below:
-                        pfY = blockY + totalHeight + pfMargin;
-                        break;
-                    default:  // Top
-                        pfY = blockY + pfMargin;
-                        break;
-                }
-                pfY += pfOffY;
-
-                D2D1_RECT_F pfRect = D2D1::RectF(pfX, pfY, pfX + pfWidth, pfY + pfHeight);
-                size_t freqLen = wcslen(freqText);
-                TextPanelStyle pfPanel{
-                    g_settings.pfBgA, g_settings.pfBgR, g_settings.pfBgG, g_settings.pfBgB,
-                    g_settings.pfBgBorderA, g_settings.pfBgBorderR,
-                    g_settings.pfBgBorderG, g_settings.pfBgBorderB,
-                    g_settings.pfBgPadding, g_settings.pfBgCornerRadius,
-                    g_settings.pfBgBorderSize};
-                DrawOverlayText(freqText, (UINT32)freqLen, pfRect, g_nowPlayingBrush.Get(),
-                                pfPanel, 1.0f);
-            }
+        {
+            VizTextFrame tf;
+            VizBuildTextFrame(tf);
+            VizDrawTextOverlays(tf, layout, smooth);
         }
 
         if (useFadeLayer) {
@@ -5478,93 +12728,137 @@ void RenderVisualizer() {
         }
     }
 
-    g_dc->EndDraw();
+    HRESULT hrEnd = g_dc->EndDraw();
     // Sync interval 0. On a DirectComposition swap chain DWM owns presentation
     // timing, and the waitable timer below already paces the loop -- asking
     // Present to block for a vblank on top of that only parks the render thread.
     // Measured across 219 five-second windows: time in Present drops by a third
     // and windows where the thread parks for >8% of wall time fall from 18% to 4%.
-    g_swapChain->Present(0, 0);
+    //
+    // Smooth Mode keeps sync interval 0 for the same reason. What it changes is
+    // WHEN this runs: the render thread schedules each frame half a refresh
+    // after a vblank (see RenderThreadProc), so each present lands in the
+    // middle of a refresh interval, far from the edge where some frames would
+    // make DWM's next composition and some would miss it.
+    HRESULT hrPresent = g_swapChain->Present(0, 0);
+    VizCheckDeviceLost(hrEnd, hrPresent);
 }
 
-void RenderThreadProc() {
-    ULONGLONG lastSuccessfulPostTick = 0;
+// ---- Smooth Mode: display-locked frame pacing -----------------------------------
+//
+// Why the 1.4 timer isn't enough on its own, using the 1.1.0 changelog's own
+// measurement: 144 FPS requested, 141.7 delivered, the gap being timer wake
+// latency added to every interval. On a 144 Hz panel that is two or three
+// refreshes a second that get no new frame, so the previous one is shown
+// twice -- a stutter you see several times a second. A 60 FPS target on a
+// 144 Hz panel is worse in a different way: 144 / 60 = 2.4, so frames are held
+// for 2, then 3, then 2 refreshes, which reads as judder however accurate the
+// timer is.
+//
+// So in Smooth Mode the schedule comes from DWM's composition clock instead of
+// from "interval since the last frame":
+//   * the frame rate is the refresh rate divided by a whole number, the one
+//     nearest the Target FPS, so every frame is shown for the same number of
+//     refreshes;
+//   * every wake is placed half a refresh after a vblank, which is as far as a
+//     present can get from DWM's composition deadline on either side, so
+//     ordinary scheduling jitter can't push some frames to the next refresh;
+//   * deadlines advance on an absolute timeline, so wake latency doesn't
+//     accumulate into drift.
+// It still wakes once per frame, never once per vblank, so the idle-power
+// behaviour the README measures is kept. DWM is asked for its clock twice a
+// second, not per frame.
+struct VizVsyncSchedule {
+    // Smallest time >= t of the form vblank + (k + phase) * period.
+    static LONGLONG AlignUp(LONGLONG t, LONGLONG vblank, LONGLONG period, double phase) {
+        LONGLONG base = vblank + (LONGLONG)(phase * (double)period);
+        LONGLONG d = t - base;
+        LONGLONG k = (d >= 0) ? (d + period - 1) / period : -((-d) / period);
+        return base + k * period;
+    }
+    // Refreshes per frame: the whole number nearest refreshHz / targetFps, >= 1.
+    static int Divisor(double targetFps, LONGLONG period, LONGLONG qpcFreq) {
+        double refreshHz = (double)qpcFreq / (double)period;
+        long long n = llround(refreshHz / std::max(1.0, targetFps));
+        return (int)std::clamp(n, 1LL, 1000LL);
+    }
+    // The deadline after one that was due at `due`, re-snapped to mid-refresh
+    // so a drifting or re-read vblank reference is absorbed gradually. If the
+    // thread has fallen more than a frame behind, it rejoins at the next slot
+    // instead of rendering a burst to catch up.
+    static LONGLONG Next(LONGLONG due, LONGLONG now, LONGLONG vblank, LONGLONG period, int divisor) {
+        LONGLONG next = AlignUp(due + (LONGLONG)divisor * period - period / 2, vblank, period, 0.5);
+        if (next <= now) next = AlignUp(now + 1, vblank, period, 0.5);
+        return next;
+    }
+};
 
-    // Frame pacing is measured with QueryPerformanceCounter, not GetTickCount64.
-    // GetTickCount64 only advances on the system timer tick (~15.625ms), so at a
-    // 144 FPS target -- a 6.944ms interval -- the elapsed time could only ever
-    // read 0 or ~15-16, never 6.9. The loop rendered exactly once per tick and
-    // any target above ~64 FPS was silently clamped to 1 / 15.625ms = 64.0.
+// Thread-scoped quality of service. While playing, the engine thread opts out
+// of execution-speed throttling so frame pacing stays tight on a hybrid CPU;
+// while idle it asks for EcoQoS, so the trickle and the meter reads run on
+// efficiency cores at low clocks. Thread-scoped on purpose: nothing about the
+// process changes. SetThreadInformation is resolved at runtime (Windows 8+;
+// the power-throttling class needs Windows 10 1709, and older builds simply
+// return an error, which is ignored).
+void VizThreadEcoQoS(bool eco) {
+    struct PowerThrottlingState {
+        ULONG Version, ControlMask, StateMask;
+    };
+    typedef BOOL(WINAPI * SetThreadInformationFn)(HANDLE, int, LPVOID, DWORD);
+    static SetThreadInformationFn fn =
+        (SetThreadInformationFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadInformation");
+    if (!fn) return;
+    PowerThrottlingState st = {1, 0x1 /* EXECUTION_SPEED */, eco ? 0x1u : 0x0u};
+    fn(GetCurrentThread(), 3 /* ThreadPowerThrottling */, &st, sizeof(st));
+}
+
+// The engine thread: frame pacing (as 1.5), and since 2.0 also audio capture
+// and analysis (see "Audio engine" above). One wake per frame while playing,
+// none at all in deep idle except four meter reads a second.
+void RenderThreadProc() {
+    HRESULT comHr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    VizEngine engine;
+    engine.ThreadInit();
+
+    ULONGLONG lastSuccessfulPostTick = 0;
+    int ecoState = -1;  // -1 unknown, 0 full speed, 1 EcoQoS
+    auto setEco = [&](bool eco) {
+        if (ecoState == (eco ? 1 : 0)) return;
+        ecoState = eco ? 1 : 0;
+        VizThreadEcoQoS(eco);
+    };
+
+    // Smooth Mode pacing state (see VizVsyncSchedule).
+    LONGLONG vsPeriod = 0, vsVblank = 0, vsLastSync = 0, vsDue = 0;
+    LONGLONG absDue = 0;
+
     LARGE_INTEGER qpcFreq;
     QueryPerformanceFrequency(&qpcFreq);
     LONGLONG lastRenderQpc = 0;
+    LONGLONG lastEngineQpc = 0;  // for the analysis dt
 
-    // A high-resolution waitable timer gives sub-millisecond wait precision,
-    // unlike Sleep() which is quantized to the system timer tick (~15.6ms by
-    // default). This keeps frame pacing smooth at the target FPS without
-    // waking the thread on every vsync the way DwmFlush() did.
-    HANDLE hTimer = CreateWaitableTimerExW(nullptr, nullptr,
-        CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
-    if (!hTimer) {
-        hTimer = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
-    }
+    HANDLE hTimer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                           TIMER_ALL_ACCESS);
+    if (!hTimer) hTimer = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
 
-    // Takes a double: the timer's own unit is 100ns, so rounding the wait up to
-    // a whole millisecond would hand back most of that precision (a 6.944ms
-    // interval rounded to 7ms caps out at 142.9 FPS).
+    // Waits `ms`, but returns early if the wake event is set (settings change,
+    // pause, unload), so none of those has to wait out a frame.
     auto preciseWait = [hTimer](double ms) {
         if (ms <= 0.0) return;
         if (hTimer) {
             LARGE_INTEGER due;
-            due.QuadPart = -(LONGLONG)(ms * 10000.0);  // 100ns units, negative = relative
+            due.QuadPart = -(LONGLONG)(ms * 10000.0);
             if (due.QuadPart == 0) due.QuadPart = -1;
             if (SetWaitableTimer(hTimer, &due, 0, nullptr, nullptr, FALSE)) {
-                WaitForSingleObject(hTimer, INFINITE);
+                HANDLE hs[2] = {hTimer, g_engineWake};
+                WaitForMultipleObjects(g_engineWake ? 2 : 1, hs, FALSE, INFINITE);
                 return;
             }
         }
         Sleep((DWORD)std::ceil(ms));
     };
 
-    while (g_renderThreadRunning.load(std::memory_order_relaxed)) {
-        HWND overlayWnd = g_overlayWnd.load(std::memory_order_relaxed);
-        bool paused = g_fullscreenPaused.load(std::memory_order_relaxed);
-
-        if (!overlayWnd || paused) {
-            lastRenderQpc = 0;
-            preciseWait(150);
-            continue;
-        }
-
-        int fps = std::max(1, g_settings.targetFps);
-        double intervalMs = 1000.0 / (double)fps;
-
-        if (g_settings.pauseWhenSilentSeconds > 0) {
-            ULONGLONG lastAudible = g_lastAudibleTickMs.load(std::memory_order_relaxed);
-            ULONGLONG idleMs = GetTickCount64() - lastAudible;
-            g_slowMode = idleMs > (ULONGLONG)g_settings.pauseWhenSilentSeconds * 1000ULL;
-            if (g_slowMode) intervalMs = 200.0;
-        } else {
-            g_slowMode = false;
-        }
-
-        // GetTickCount64 is still fine for the stuck-tick watchdog below -- that
-        // compares against 1000ms, far above the tick resolution.
-        ULONGLONG now = GetTickCount64();
-        LARGE_INTEGER nowQpc;
-        QueryPerformanceCounter(&nowQpc);
-        double elapsedMs = (lastRenderQpc == 0)
-            ? intervalMs
-            : (double)(nowQpc.QuadPart - lastRenderQpc) * 1000.0 / (double)qpcFreq.QuadPart;
-        if (elapsedMs < intervalMs) {
-            preciseWait(intervalMs - elapsedMs);
-            continue;
-        }
-        lastRenderQpc = nowQpc.QuadPart;
-
-        if (!g_renderThreadRunning.load(std::memory_order_relaxed) || g_unloading.load())
-            break;
-
+    auto postTick = [&](HWND overlayWnd, ULONGLONG now) {
         bool expected = false;
         if (g_renderTickPending.compare_exchange_strong(expected, true)) {
             PostMessage(overlayWnd, WM_APP_RENDER_TICK, 0, 0);
@@ -5574,21 +12868,181 @@ void RenderThreadProc() {
             g_renderTickPending.store(false, std::memory_order_relaxed);
             lastSuccessfulPostTick = now;
         }
+    };
+    auto engineFrame = [&]() {
+        LARGE_INTEGER q;
+        QueryPerformanceCounter(&q);
+        double dt = lastEngineQpc ? (double)(q.QuadPart - lastEngineQpc) / (double)qpcFreq.QuadPart : 1.0 / 60.0;
+        lastEngineQpc = q.QuadPart;
+        engine.Frame(dt);
+    };
+
+    while (g_renderThreadRunning.load(std::memory_order_relaxed)) {
+        HWND overlayWnd = g_overlayWnd.load(std::memory_order_relaxed);
+        bool paused = g_fullscreenPaused.load(std::memory_order_relaxed);
+        bool wanted = g_captureWanted.load(std::memory_order_relaxed);
+
+        // Not visible, or capture not wanted: close the stream and sleep until
+        // something changes. 1.5 woke every 150 ms here; this waits on the
+        // wake event, with a slow timeout as a safety net.
+        if (!overlayWnd || paused || !wanted) {
+            if (engine.IsOpen() || g_audioOpen.load()) engine.Close();
+            setEco(true);
+            lastRenderQpc = lastEngineQpc = 0;
+            vsDue = absDue = 0;
+            g_idleState.store((int)VizIdleState::Playing);
+            WaitForSingleObject(g_engineWake, overlayWnd ? 1000 : 250);
+            continue;
+        }
+
+        engine.EnsureOpen();
+
+        ULONGLONG now = GetTickCount64();
+        int fps = g_settings.targetFps;
+        double refreshHz = 0.0;
+        if (vsPeriod > 0) refreshHz = (double)qpcFreq.QuadPart / (double)vsPeriod;
+        if (fps <= 0) fps = (refreshHz > 0.0) ? (int)llround(refreshHz) : 60;  // 0 = match the display
+        fps = std::max(1, fps);
+        double intervalMs = 1000.0 / (double)fps;
+
+        // ---- Idle ladder ----------------------------------------------------------
+        ULONGLONG idleMs = now - g_lastAudibleTickMs.load(std::memory_order_relaxed);
+        ULONGLONG silentAfter = (ULONGLONG)std::max(0, g_settings.pauseWhenSilentSeconds) * 1000ULL;
+        bool silent = g_settings.pauseWhenSilentSeconds > 0 && idleMs > silentAfter;
+        // An auto-hide fade in progress still wants full frames.
+        bool fading = false;
+        if (g_settings.autoHideEnabled) {
+            ULONGLONG d = (ULONGLONG)std::max(0, g_settings.autoHideDelaySeconds) * 1000ULL;
+            fading = idleMs > d && idleMs < d + 2000;
+        }
+        g_slowMode = silent && !fading;
+
+        if (g_slowMode) {
+            setEco(true);
+            lastRenderQpc = 0;
+            vsDue = absDue = 0;
+            bool deep = g_settings.deepIdle && engine.IsOpen() && idleMs > silentAfter + 5000;
+            if (deep) {
+                if (g_idleState.exchange((int)VizIdleState::Deep) != (int)VizIdleState::Deep) {
+                    // One last tick so the renderer can settle on its final frame.
+                    postTick(overlayWnd, now);
+                }
+                engine.StopStream();  // idempotent; also covers a reopen after a device change
+                WaitForSingleObject(g_engineWake, 250);
+                if (engine.MeterPeak() > 0.0001f) {
+                    engine.StartStream();
+                    g_lastAudibleTickMs.store(GetTickCount64(), std::memory_order_relaxed);
+                    g_idleState.store((int)VizIdleState::Playing);
+                    lastEngineQpc = 0;
+                }
+                continue;
+            }
+            if (engine.IsStopped()) engine.StartStream();
+            g_idleState.store((int)VizIdleState::Trickle);
+            // Wake on audio, the wake event, or every 250 ms.
+            HANDLE hs[2];
+            DWORD nh = 0;
+            if (engine.AudioEvent()) hs[nh++] = engine.AudioEvent();
+            if (g_engineWake) hs[nh++] = g_engineWake;
+            if (nh) WaitForMultipleObjects(nh, hs, FALSE, 250);
+            else Sleep(250);
+            if (!g_renderThreadRunning.load(std::memory_order_relaxed) || g_unloading.load()) break;
+            engineFrame();
+            postTick(overlayWnd, GetTickCount64());
+            continue;
+        }
+        if (engine.IsStopped()) engine.StartStream();
+        g_idleState.store((int)VizIdleState::Playing);
+        setEco(false);
+
+        LARGE_INTEGER nowQpc;
+        QueryPerformanceCounter(&nowQpc);
+
+        // ---- Pacing (1.5) ---------------------------------------------------------
+        bool scheduled = false;
+        if (g_smoothActive.load(std::memory_order_relaxed)) {
+            if (vsPeriod == 0 || nowQpc.QuadPart - vsLastSync > qpcFreq.QuadPart / 2) {
+                DWM_TIMING_INFO ti = {};
+                ti.cbSize = sizeof(ti);
+                if (SUCCEEDED(DwmGetCompositionTimingInfo(nullptr, &ti)) &&
+                    ti.qpcRefreshPeriod >= (UINT64)(qpcFreq.QuadPart / 1000) &&
+                    ti.qpcRefreshPeriod <= (UINT64)(qpcFreq.QuadPart / 20) && ti.qpcVBlank > 0) {
+                    vsPeriod = (LONGLONG)ti.qpcRefreshPeriod;
+                    vsVblank = (LONGLONG)ti.qpcVBlank;
+                } else {
+                    vsPeriod = 0;
+                }
+                vsLastSync = nowQpc.QuadPart;
+            }
+            if (vsPeriod > 0) {
+                if (vsDue == 0) vsDue = VizVsyncSchedule::AlignUp(nowQpc.QuadPart, vsVblank, vsPeriod, 0.5);
+                if (nowQpc.QuadPart < vsDue) {
+                    preciseWait((double)(vsDue - nowQpc.QuadPart) * 1000.0 / (double)qpcFreq.QuadPart);
+                    continue;
+                }
+                int divisor = VizVsyncSchedule::Divisor((double)fps, vsPeriod, qpcFreq.QuadPart);
+                vsDue = VizVsyncSchedule::Next(vsDue, nowQpc.QuadPart, vsVblank, vsPeriod, divisor);
+                absDue = 0;
+            } else {
+                LONGLONG interval = (LONGLONG)((double)qpcFreq.QuadPart * intervalMs / 1000.0);
+                if (absDue == 0) absDue = nowQpc.QuadPart;
+                if (nowQpc.QuadPart < absDue) {
+                    preciseWait((double)(absDue - nowQpc.QuadPart) * 1000.0 / (double)qpcFreq.QuadPart);
+                    continue;
+                }
+                absDue += interval;
+                if (absDue <= nowQpc.QuadPart) absDue = nowQpc.QuadPart + interval;
+                vsDue = 0;
+            }
+            lastRenderQpc = nowQpc.QuadPart;
+            scheduled = true;
+        } else {
+            vsDue = absDue = 0;
+            // Target FPS 0 needs the refresh rate even without Smooth Mode.
+            if (g_settings.targetFps <= 0 && (vsPeriod == 0 || nowQpc.QuadPart - vsLastSync > qpcFreq.QuadPart * 2)) {
+                DWM_TIMING_INFO ti = {};
+                ti.cbSize = sizeof(ti);
+                if (SUCCEEDED(DwmGetCompositionTimingInfo(nullptr, &ti)) && ti.qpcRefreshPeriod > 0)
+                    vsPeriod = (LONGLONG)ti.qpcRefreshPeriod;
+                vsLastSync = nowQpc.QuadPart;
+            }
+        }
+
+        if (!scheduled) {
+            double elapsedMs = (lastRenderQpc == 0)
+                                   ? intervalMs
+                                   : (double)(nowQpc.QuadPart - lastRenderQpc) * 1000.0 / (double)qpcFreq.QuadPart;
+            if (elapsedMs < intervalMs) {
+                preciseWait(intervalMs - elapsedMs);
+                continue;
+            }
+            lastRenderQpc = nowQpc.QuadPart;
+        }
+
+        if (!g_renderThreadRunning.load(std::memory_order_relaxed) || g_unloading.load()) break;
+
+        engineFrame();
+        postTick(overlayWnd, GetTickCount64());
     }
 
+    engine.ThreadExit();
     if (hTimer) CloseHandle(hTimer);
+    if (SUCCEEDED(comHr)) CoUninitialize();
 }
 
 void StartRenderThread() {
     if (g_renderThread) return;
+    if (!g_engineWake) g_engineWake = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!g_engineClosed) g_engineClosed = CreateEvent(nullptr, TRUE, TRUE, nullptr);
     g_renderThreadRunning.store(true, std::memory_order_relaxed);
     g_renderThread = new std::thread(RenderThreadProc);
     HANDLE hRenderThread = g_renderThread->native_handle();
-    SetThreadDescription(hRenderThread, L"TourneTable-Render");
+    SetThreadDescription(hRenderThread, L"TourneTable-Engine");
 }
 
 void StopRenderThread() {
     g_renderThreadRunning.store(false, std::memory_order_relaxed);
+    if (g_engineWake) SetEvent(g_engineWake);
     if (g_renderThread) {
         if (g_renderThread->joinable()) g_renderThread->join();
         delete g_renderThread;
@@ -5606,6 +13060,7 @@ void PauseForFullscreen() {
         g_dc->Clear(D2D1::ColorF(0, 0, 0, 0));
         g_dc->EndDraw();
         g_swapChain->Present(1, 0);
+        ttgfx::PresentBlank();
     }
 }
 
@@ -5635,7 +13090,12 @@ void HandleDisplayChange() {
     if (!monitor) monitor = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTONEAREST);
     g_cachedMonitor = monitor;
     float newDpiScale = GetMonitorDpiScale(monitor);
-    if (newDpiScale != g_dpiScale) {
+    if (VizRenderDeviceNeedsRebuild()) {
+        // A GPU was added, removed or enabled, or the widget's monitor now
+        // hangs off a different one: Auto follows it. The rebuild re-reads
+        // DPI and redraws on its own.
+        VizRebuildRenderDevice(L"display configuration changed");
+    } else if (newDpiScale != g_dpiScale) {
         ReleaseSwapChainResources();
         CreateSwapChainResources();
         RenderVisualizer();
@@ -5703,6 +13163,328 @@ LRESULT CALLBACK OverlayWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
+// ---- Right-click menu: live settings ---------------------------------------------------
+//
+// Windhawk mods can read their settings but not write them, so anything
+// changed from this menu is kept as a mod-owned value (Wh_SetStringValue, the
+// same store the dragged position uses) and laid over the Windhawk settings
+// every time they load. The menu's last item clears them all, handing control
+// back to the settings page. Until then the settings page shows the values
+// underneath, which is why the menu says how many quick settings are active.
+
+std::vector<std::pair<std::wstring, std::wstring>> g_menuOverrides;
+
+void VizLoadMenuOverrides() {
+    g_menuOverrides.clear();
+    WCHAR buf[4096] = {};
+    if (!Wh_GetStringValue(L"menuOverrides", buf, ARRAYSIZE(buf))) return;
+    std::wstring s = buf;
+    size_t pos = 0;
+    while (pos < s.size()) {
+        size_t nl = s.find(L'\n', pos);
+        if (nl == std::wstring::npos) nl = s.size();
+        std::wstring line = s.substr(pos, nl - pos);
+        size_t eq = line.find(L'=');
+        if (eq != std::wstring::npos && eq > 0) g_menuOverrides.emplace_back(line.substr(0, eq), line.substr(eq + 1));
+        pos = nl + 1;
+    }
+}
+
+void VizSaveMenuOverrides() {
+    std::wstring s;
+    for (const auto& kv : g_menuOverrides) s += kv.first + L"=" + kv.second + L"\n";
+    Wh_SetStringValue(L"menuOverrides", s.c_str());
+}
+
+void VizSetMenuOverride(const std::wstring& key, const std::wstring& value) {
+    for (auto& kv : g_menuOverrides)
+        if (kv.first == key) {
+            kv.second = value;
+            VizSaveMenuOverrides();
+            return;
+        }
+    g_menuOverrides.emplace_back(key, value);
+    VizSaveMenuOverrides();
+}
+
+// Option tables shared by the menu (labels) and the overrides (values). The
+// values are the same strings the settings YAML uses.
+struct VizMenuOption {
+    const wchar_t* value;
+    const wchar_t* label;
+};
+static const VizMenuOption kShapes[] = {
+    {L"stereo", L"Stereo"},     {L"mountain", L"Mountain"},         {L"mirror", L"Mirror"},
+    {L"wave", L"Wave"},         {L"breathe", L"Breathe"},           {L"dots", L"Dots"},
+    {L"radial", L"Radial"},     {L"oscilloscope", L"Oscilloscope"}, {L"goniometer", L"Goniometer"},
+    {L"terminal", L"Terminal"}};
+static const VizMenuOption kColorModes[] = {
+    {L"solid", L"Solid"},          {L"gradient", L"Gradient"},           {L"reactive_gradient", L"Reactive Gradient"},
+    {L"accent", L"Windows Accent"}, {L"album_art", L"Album Art"},         {L"dynamic_album", L"Dynamic Album"},
+    {L"acrylic", L"Acrylic"},      {L"rainbow", L"Rainbow Cycle"},       {L"tourne", L"Tourne"}};
+static const VizMenuOption kTermStyles[] = {
+    {L"columns", L"Columns"}, {L"waterfall", L"Waterfall"}, {L"meters", L"Meters"}};
+static const VizMenuOption kEngines[] = {{L"precision", L"Precision"}, {L"classic", L"Classic (1.4)"}};
+static const VizMenuOption kLayouts[] = {
+    {L"scale", L"Frequency Scale (Bar Count)"}, {L"iec:3", L"IEC 1/3 octave"},  {L"iec:6", L"IEC 1/6 octave"},
+    {L"iec:12", L"IEC 1/12 octave"},            {L"iec:24", L"IEC 1/24 octave"}, {L"musical:12", L"Musical notes"},
+    {L"musical:24", L"Musical quarter tones"}};
+static const VizMenuOption kWeightings[] = {{L"z", L"Z (flat)"}, {L"a", L"A"}, {L"c", L"C"}};
+static const VizMenuOption kBallistics[] = {
+    {L"snappy", L"Snappy"}, {L"smooth", L"Smooth"},       {L"analyzer", L"Analyzer (20 dB/s)"},
+    {L"vu", L"VU"},         {L"ppm_ebu", L"PPM, EBU"},    {L"ppm_din", L"PPM, DIN"}};
+static const VizMenuOption kWorkloads[] = {
+    {L"hybrid", L"Hybrid (CPU analysis, GPU drawing)"}, {L"gpu", L"GPU"}, {L"cpu", L"CPU"},
+    {L"npu", L"NPU (experimental)"}};
+static const VizMenuOption kRenderers[] = {{L"d3d11", L"Direct3D 11"}, {L"direct2d", L"Direct2D (1.5)"}};
+static const VizMenuOption kFps[] = {{L"0", L"Match display"}, {L"30", L"30"}, {L"60", L"60"},
+                                     {L"120", L"120"},         {L"144", L"144"}, {L"240", L"240"}};
+static const VizMenuOption kReadouts[] = {
+    {L"off", L"Off"},           {L"frequency", L"Peak frequency"}, {L"loudness", L"Loudness"},
+    {L"loudness_full", L"Loudness, true peak, PLR, correlation"}};
+
+// Applied at the end of LoadSettings, before anything derived from settings.
+void VizApplyMenuOverrides() {
+    for (const auto& kv : g_menuOverrides) {
+        const std::wstring& k = kv.first;
+        PCWSTR v = kv.second.c_str();
+        auto is = [&](PCWSTR s) { return wcscmp(v, s) == 0; };
+        if (k == L"shape") {
+            g_settings.shape = is(L"mountain") ? VizShape::Mountain : is(L"mirror") ? VizShape::Mirror
+                             : is(L"wave") ? VizShape::Wave : is(L"breathe") ? VizShape::Breathe
+                             : is(L"dots") ? VizShape::Dots : is(L"radial") ? VizShape::Radial
+                             : is(L"oscilloscope") ? VizShape::Oscilloscope : is(L"goniometer") ? VizShape::Goniometer
+                             : is(L"terminal") ? VizShape::Terminal : VizShape::Stereo;
+        } else if (k == L"colorMode") {
+            g_settings.colorMode = is(L"gradient") ? VizColorMode::Gradient
+                                 : is(L"reactive_gradient") ? VizColorMode::ReactiveGradient
+                                 : is(L"accent") ? VizColorMode::Accent : is(L"album_art") ? VizColorMode::AlbumArt
+                                 : is(L"dynamic_album") ? VizColorMode::DynamicAlbum
+                                 : is(L"acrylic") ? VizColorMode::Acrylic : is(L"rainbow") ? VizColorMode::RainbowCycle
+                                 : is(L"tourne") ? VizColorMode::Tourne : VizColorMode::Solid;
+        } else if (k == L"termStyle") {
+            g_settings.termStyle = is(L"waterfall") ? VizTermStyle::Waterfall
+                                 : is(L"meters") ? VizTermStyle::Meters : VizTermStyle::Columns;
+        } else if (k == L"engine") {
+            g_settings.engine = is(L"classic") ? VizEngineKind::Classic : VizEngineKind::Precision;
+        } else if (k == L"bandLayout") {
+            std::wstring s = v;
+            size_t c = s.find(L':');
+            std::wstring kind = s.substr(0, c);
+            int frac = (c == std::wstring::npos) ? 0 : _wtoi(s.c_str() + c + 1);
+            g_settings.bandLayout = (kind == L"iec") ? VizBandLayout::Iec
+                                  : (kind == L"musical") ? VizBandLayout::Musical : VizBandLayout::Scale;
+            if (frac == 1 || frac == 3 || frac == 6 || frac == 12 || frac == 24) g_settings.octaveFraction = frac;
+        } else if (k == L"weighting") {
+            g_settings.weighting = is(L"a") ? VizWeighting::A : is(L"c") ? VizWeighting::C : VizWeighting::Z;
+        } else if (k == L"ballistics") {
+            g_settings.ballistics = is(L"smooth") ? VizBallisticsPreset::Smooth
+                                  : is(L"analyzer") ? VizBallisticsPreset::Analyzer
+                                  : is(L"vu") ? VizBallisticsPreset::Vu : is(L"ppm_ebu") ? VizBallisticsPreset::PpmEbu
+                                  : is(L"ppm_din") ? VizBallisticsPreset::PpmDin : VizBallisticsPreset::Snappy;
+        } else if (k == L"workload") {
+            g_settings.workload = is(L"gpu") ? VizWorkload::Gpu : is(L"cpu") ? VizWorkload::Cpu
+                                : is(L"npu") ? VizWorkload::Npu : VizWorkload::Hybrid;
+        } else if (k == L"renderer") {
+            g_settings.renderer = is(L"direct2d") ? VizRenderer::Direct2D : VizRenderer::D3D11;
+        } else if (k == L"targetFps") {
+            g_settings.targetFps = std::clamp(_wtoi(v), 0, 1000);
+        } else if (k == L"readout") {
+            g_settings.peakFreqEnabled = !is(L"off");
+            if (!is(L"off"))
+                g_settings.readout = is(L"loudness") ? VizReadout::Loudness
+                                   : is(L"loudness_full") ? VizReadout::LoudnessFull : VizReadout::Frequency;
+        } else if (k == L"audioSource") {
+            g_settings.audioSourceKey = v;
+        } else if (k == L"peakHold") {
+            g_settings.peakHoldEnabled = is(L"1");
+        } else if (k == L"beatFlash") {
+            g_settings.beatFlashEnabled = is(L"1");
+        } else if (k == L"nowPlaying") {
+            g_settings.nowPlayingEnabled = is(L"1");
+        } else if (k == L"progress") {
+            g_settings.progressEnabled = is(L"1");
+        } else if (k == L"mediaControls") {
+            g_settings.mediaControlsEnabled = is(L"1");
+        } else if (k == L"pixelText") {
+            g_settings.textPixel = is(L"1");
+        } else if (k == L"pixelSnap") {
+            g_settings.pixelSnap = is(L"1");
+        } else if (k == L"fineNudge") {
+            g_settings.keyMoveFine = is(L"1");
+        }
+    }
+}
+
+// What the menu shows as checked: the current effective value as a string.
+static std::wstring CurrentValue(const std::wstring& key) {
+    auto pick = [](const VizMenuOption* opts, size_t n, int index) -> std::wstring {
+        return (index >= 0 && (size_t)index < n) ? opts[index].value : L"";
+    };
+    if (key == L"shape") return pick(kShapes, ARRAYSIZE(kShapes), (int)g_settings.shape);
+    if (key == L"colorMode") return pick(kColorModes, ARRAYSIZE(kColorModes), (int)g_settings.colorMode);
+    if (key == L"termStyle") return pick(kTermStyles, ARRAYSIZE(kTermStyles), (int)g_settings.termStyle);
+    if (key == L"engine") return pick(kEngines, ARRAYSIZE(kEngines), (int)g_settings.engine);
+    if (key == L"weighting") return pick(kWeightings, ARRAYSIZE(kWeightings), (int)g_settings.weighting);
+    if (key == L"ballistics") return pick(kBallistics, ARRAYSIZE(kBallistics), (int)g_settings.ballistics);
+    if (key == L"workload") return pick(kWorkloads, ARRAYSIZE(kWorkloads), (int)g_settings.workload);
+    if (key == L"renderer") return pick(kRenderers, ARRAYSIZE(kRenderers), (int)g_settings.renderer);
+    if (key == L"targetFps") return std::to_wstring(g_settings.targetFps);
+    if (key == L"bandLayout") {
+        if (g_settings.bandLayout == VizBandLayout::Scale) return L"scale";
+        return std::wstring(g_settings.bandLayout == VizBandLayout::Iec ? L"iec:" : L"musical:") +
+               std::to_wstring(g_settings.octaveFraction);
+    }
+    if (key == L"readout") {
+        if (!g_settings.peakFreqEnabled) return L"off";
+        return g_settings.readout == VizReadout::Loudness       ? L"loudness"
+               : g_settings.readout == VizReadout::LoudnessFull ? L"loudness_full"
+                                                                : L"frequency";
+    }
+    return L"";
+}
+
+enum : UINT {
+    kMenuToggleBase = 100,  // + index into kToggles
+    kMenuPause = 190,
+    kMenuReset = 191,
+    kMenuDefaultOut = 200,
+    kMenuDefaultIn = 201,
+    kMenuDeviceBase = 300,   // + endpoint index
+    kMenuChoiceBase = 1000,  // + group * 100 + option
+};
+struct VizMenuGroup {
+    const wchar_t* key;
+    const wchar_t* label;
+    const VizMenuOption* opts;
+    size_t n;
+};
+static const VizMenuGroup kGroups[] = {
+    {L"shape", L"Shape", kShapes, ARRAYSIZE(kShapes)},
+    {L"termStyle", L"Terminal Style", kTermStyles, ARRAYSIZE(kTermStyles)},
+    {L"colorMode", L"Color Mode", kColorModes, ARRAYSIZE(kColorModes)},
+    {L"engine", L"Analysis Engine", kEngines, ARRAYSIZE(kEngines)},
+    {L"bandLayout", L"Band Layout", kLayouts, ARRAYSIZE(kLayouts)},
+    {L"weighting", L"Weighting", kWeightings, ARRAYSIZE(kWeightings)},
+    {L"ballistics", L"Ballistics", kBallistics, ARRAYSIZE(kBallistics)},
+    {L"readout", L"Readout", kReadouts, ARRAYSIZE(kReadouts)},
+    {L"workload", L"Workload", kWorkloads, ARRAYSIZE(kWorkloads)},
+    {L"renderer", L"Renderer", kRenderers, ARRAYSIZE(kRenderers)},
+    {L"targetFps", L"Target FPS", kFps, ARRAYSIZE(kFps)},
+};
+struct VizMenuToggle {
+    const wchar_t* key;
+    const wchar_t* label;
+    bool* field;
+};
+
+void VizShowContextMenu(POINT pt) {
+    if (!g_messageWnd) return;
+    const VizMenuToggle toggles[] = {
+        {L"peakHold", L"Peak Hold Caps", &g_settings.peakHoldEnabled},
+        {L"beatFlash", L"Beat Flash", &g_settings.beatFlashEnabled},
+        {L"nowPlaying", L"Now Playing Text", &g_settings.nowPlayingEnabled},
+        {L"progress", L"Track Progress Bar", &g_settings.progressEnabled},
+        {L"mediaControls", L"Media Controls", &g_settings.mediaControlsEnabled},
+        {L"pixelText", L"Pixel-Sharp Text", &g_settings.textPixel},
+        {L"pixelSnap", L"Pixel Snap (sharp edges)", &g_settings.pixelSnap},
+        {L"fineNudge", L"Subpixel Nudges (keyboard)", &g_settings.keyMoveFine},
+    };
+
+    HMENU menu = CreatePopupMenu();
+    if (!menu) return;
+    AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, L"Tourne'Table");
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+
+    // Audio source.
+    ComPtr<IMMDeviceEnumerator> en;
+    CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
+                     (void**)en.GetAddressOf());
+    std::vector<VizAudioEndpoint> eps = VizListAudioEndpoints(en.Get());
+    const std::wstring& src = g_settings.audioSourceKey;
+    HMENU dev = CreatePopupMenu();
+    AppendMenuW(dev, MF_STRING | ((src.empty() || src == L"default_output") ? MF_CHECKED : 0), kMenuDefaultOut,
+                L"Default output (what you hear)");
+    AppendMenuW(dev, MF_STRING | (src == L"default_input" ? MF_CHECKED : 0), kMenuDefaultIn, L"Default input");
+    bool any[2] = {false, false};
+    for (int pass = 0; pass < 2; pass++) {
+        for (size_t i = 0; i < eps.size() && i < 600; i++) {
+            if (eps[i].render != (pass == 0)) continue;
+            if (!any[pass]) {
+                AppendMenuW(dev, MF_SEPARATOR, 0, nullptr);
+                AppendMenuW(dev, MF_STRING | MF_GRAYED, 0,
+                            pass == 0 ? L"Outputs (captured by loopback)" : L"Inputs (mics, line-in, virtual cables)");
+                any[pass] = true;
+            }
+            bool on = src == L"id:" + eps[i].id;
+            AppendMenuW(dev, MF_STRING | (on ? MF_CHECKED : 0), kMenuDeviceBase + (UINT)i, eps[i].name.c_str());
+        }
+    }
+    AppendMenuW(menu, MF_POPUP, (UINT_PTR)dev, L"Audio Source");
+
+    for (size_t gi = 0; gi < ARRAYSIZE(kGroups); gi++) {
+        const VizMenuGroup& grp = kGroups[gi];
+        if (wcscmp(grp.key, L"termStyle") == 0 && g_settings.shape != VizShape::Terminal) continue;
+        std::wstring cur = CurrentValue(grp.key);
+        HMENU sub = CreatePopupMenu();
+        for (size_t oi = 0; oi < grp.n; oi++)
+            AppendMenuW(sub, MF_STRING | (cur == grp.opts[oi].value ? MF_CHECKED : 0),
+                        kMenuChoiceBase + (UINT)(gi * 100 + oi), grp.opts[oi].label);
+        AppendMenuW(menu, MF_POPUP, (UINT_PTR)sub, grp.label);
+    }
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    for (size_t ti = 0; ti < ARRAYSIZE(toggles); ti++)
+        AppendMenuW(menu, MF_STRING | (*toggles[ti].field ? MF_CHECKED : 0), kMenuToggleBase + (UINT)ti,
+                    toggles[ti].label);
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING | (g_userPaused.load() ? MF_CHECKED : 0), kMenuPause, L"Pause Visualizer");
+    std::wstring reset = L"Reset Quick Settings";
+    if (!g_menuOverrides.empty()) reset += L" (" + std::to_wstring(g_menuOverrides.size()) + L" active)";
+    AppendMenuW(menu, MF_STRING | (g_menuOverrides.empty() ? MF_GRAYED : 0), kMenuReset, reset.c_str());
+
+    // A menu only closes on an outside click when its owner is foreground.
+    // The right-click went to the desktop (the hook swallowed it), so borrow
+    // the foreground thread's input state long enough to take foreground.
+    HWND fg = GetForegroundWindow();
+    DWORD fgThread = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
+    DWORD me = GetCurrentThreadId();
+    bool attached = fgThread && fgThread != me && AttachThreadInput(me, fgThread, TRUE);
+    SetForegroundWindow(g_messageWnd);
+    if (attached) AttachThreadInput(me, fgThread, FALSE);
+
+    UINT cmd = (UINT)TrackPopupMenuEx(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON | TPM_NONOTIFY, pt.x, pt.y, g_messageWnd,
+                                      nullptr);
+    PostMessage(g_messageWnd, WM_NULL, 0, 0);
+    DestroyMenu(menu);  // destroys the submenus with it
+    if (!cmd) return;
+
+    if (cmd == kMenuReset) {
+        g_menuOverrides.clear();
+        VizSaveMenuOverrides();
+    } else if (cmd == kMenuPause) {
+        g_userPaused.store(!g_userPaused.load());
+        if (g_userPaused.load()) PauseForFullscreen();
+        else ResumeFromFullscreen();
+        return;
+    } else if (cmd == kMenuDefaultOut) {
+        VizSetMenuOverride(L"audioSource", L"default_output");
+    } else if (cmd == kMenuDefaultIn) {
+        VizSetMenuOverride(L"audioSource", L"default_input");
+    } else if (cmd >= kMenuDeviceBase && cmd < kMenuDeviceBase + eps.size()) {
+        VizSetMenuOverride(L"audioSource", L"id:" + eps[cmd - kMenuDeviceBase].id);
+    } else if (cmd >= kMenuToggleBase && cmd < kMenuToggleBase + ARRAYSIZE(toggles)) {
+        const VizMenuToggle& t = toggles[cmd - kMenuToggleBase];
+        VizSetMenuOverride(t.key, *t.field ? L"0" : L"1");
+    } else if (cmd >= kMenuChoiceBase) {
+        UINT gi = (cmd - kMenuChoiceBase) / 100, oi = (cmd - kMenuChoiceBase) % 100;
+        if (gi >= ARRAYSIZE(kGroups) || oi >= kGroups[gi].n) return;
+        VizSetMenuOverride(kGroups[gi].key, kGroups[gi].opts[oi].value);
+    } else {
+        return;
+    }
+    ApplySettingsChanged();
+}
+
 LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_DISPLAYCHANGE:
@@ -5737,6 +13519,35 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             }
             return 0;
 
+        // A worker thread (the NPU build) has something to tell the user. It
+        // arrives here so it can go through the same settings-problems summary
+        // as everything else, which is only safe on this thread.
+        case WM_APP_HW_NOTICE: {
+            auto* msg = reinterpret_cast<std::wstring*>(lParam);
+            if (msg) {
+                if (!g_unloading) {
+                    if (wParam == 1) ReportSettingWarning(L"Audio", L"Audio Source", *msg);
+                    else ReportSettingWarning(L"Hardware", L"Audio Analysis Device", *msg);
+                    FlushSettingsIssues();
+                }
+                delete msg;
+            }
+            return 0;
+        }
+
+        // Device lost (wParam 1), posted from the render path. Rebuilds are
+        // spaced at least two seconds apart so a GPU that keeps failing can't
+        // spin this thread.
+        case WM_APP_REBUILD_DEVICE:
+            g_deviceRebuildQueued.store(false);
+            if (g_unloading || !g_lazyInitialized || !g_initSucceeded) return 0;
+            if (GetTickCount64() - g_lastDeviceRebuildTick < 2000) {
+                SetTimer(hWnd, TIMER_ID_MSG_REBUILD_DEVICE, 2000, nullptr);
+            } else {
+                VizRebuildRenderDevice(wParam ? L"device lost" : L"requested");
+            }
+            return 0;
+
         case WM_TIMER:
             if (g_unloading) return 0;
             if (wParam == TIMER_ID_MSG_DISPLAY_CHANGE) {
@@ -5759,6 +13570,9 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                     RecreateVisualResources();
                     if (!g_fullscreenPaused.load()) RenderVisualizer();
                 }
+            } else if (wParam == TIMER_ID_MSG_REBUILD_DEVICE) {
+                KillTimer(hWnd, TIMER_ID_MSG_REBUILD_DEVICE);
+                if (g_lazyInitialized && g_initSucceeded) VizRebuildRenderDevice(L"device lost (retry)");
             } else if (wParam == TIMER_ID_MSG_SAVE_POSITION) {
                 KillTimer(hWnd, TIMER_ID_MSG_SAVE_POSITION);
                 PersistOverrideState();
@@ -5837,7 +13651,7 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                     }
                 }
 
-                bool shouldPause = false;
+                bool shouldPause = g_userPaused.load(std::memory_order_relaxed);
 
                 if (g_settings.pauseOnFullscreen && IsFullscreenOrGameActive())
                     shouldPause = true;
@@ -5858,6 +13672,10 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 
         case WM_APP_SETTINGS_CHANGED:
             ApplySettingsChanged();
+            return 0;
+
+        case WM_APP_CONTEXT_MENU:
+            if (!g_unloading) VizShowContextMenu(POINT{(LONG)(int)wParam, (LONG)(int)lParam});
             return 0;
 
         case WM_DESTROY:
@@ -5994,16 +13812,19 @@ void CreateMessageWindow() {
 
 void LoadSettings() {
     g_settingsIssues.clear();
+    VizLoadMenuOverrides();
     g_settings.showSettingsErrors = Wh_GetIntSetting(L"validation.showErrors") != 0;
 
     PCWSTR shape = Wh_GetStringSetting(L"appearance.shape");
-    g_settings.shape = (wcscmp(shape, L"mountain") == 0)     ? VizShape::Mountain
+    g_settings.shape = (wcscmp(shape, L"goniometer") == 0)   ? VizShape::Goniometer
+                       : (wcscmp(shape, L"mountain") == 0)   ? VizShape::Mountain
                        : (wcscmp(shape, L"mirror") == 0)     ? VizShape::Mirror
                        : (wcscmp(shape, L"wave") == 0)       ? VizShape::Wave
                        : (wcscmp(shape, L"breathe") == 0)    ? VizShape::Breathe
                        : (wcscmp(shape, L"dots") == 0)       ? VizShape::Dots
                        : (wcscmp(shape, L"radial") == 0)     ? VizShape::Radial
                        : (wcscmp(shape, L"oscilloscope") == 0) ? VizShape::Oscilloscope
+                       : (wcscmp(shape, L"terminal") == 0)   ? VizShape::Terminal
                                                                : VizShape::Stereo;
     Wh_FreeStringSetting(shape);
 
@@ -6111,6 +13932,21 @@ void LoadSettings() {
                                : (wcscmp(keyMoveFastKey, L"none") == 0) ? (unsigned)VIZ_MOD_NONE
                                                                         : (unsigned)VIZ_MOD_SHIFT;
     Wh_FreeStringSetting(keyMoveFastKey);
+    {
+        PCWSTR v = Wh_GetStringSetting(L"interaction.keyMoveFineKey");
+        g_settings.keyMoveFineKey = (wcscmp(v, L"shift") == 0) ? (unsigned)VIZ_MOD_SHIFT
+                                  : (wcscmp(v, L"ctrl") == 0)  ? (unsigned)VIZ_MOD_CTRL
+                                  : (wcscmp(v, L"alt") == 0)   ? (unsigned)VIZ_MOD_ALT
+                                  : (wcscmp(v, L"win") == 0)   ? (unsigned)VIZ_MOD_WIN
+                                                               : (unsigned)VIZ_MOD_NONE;
+        Wh_FreeStringSetting(v);
+        v = Wh_GetStringSetting(L"interaction.keyMoveFineStep");
+        float f = v ? (float)_wtof(v) : 0.f;
+        g_settings.keyMoveFineStep = (f > 0.f) ? std::clamp(f, 1.0f / 64.0f, 1.0f) : 0.25f;
+        Wh_FreeStringSetting(v);
+        g_settings.keyMoveFine = false;  // a quick setting only
+        g_settings.pixelSnap = Wh_GetIntSetting(L"position.pixelSnap") != 0;
+    }
 
     // A single-key modifier turns everyday shortcuts into visualizer moves, and
     // this hook swallows the keypress outright -- so the app underneath doesn't
@@ -6215,9 +14051,11 @@ void LoadSettings() {
                      &g_settings.borderA, &g_settings.borderR, &g_settings.borderG,
                      &g_settings.borderB);
 
-    g_settings.targetFps = std::max(1, Wh_GetIntSetting(L"performance.targetFps"));
+    // 0 = match the display (the engine thread reads the refresh rate).
+    g_settings.targetFps = std::max(0, Wh_GetIntSetting(L"performance.targetFps"));
     g_settings.pauseOnFullscreen = Wh_GetIntSetting(L"performance.pauseOnFullscreen") != 0;
     g_settings.pauseWhenSilentSeconds = std::max(0, Wh_GetIntSetting(L"performance.pauseWhenSilentSeconds"));
+    g_settings.deepIdle = Wh_GetIntSetting(L"performance.deepIdle") != 0;
 
     g_settings.peakHoldEnabled = Wh_GetIntSetting(L"appearance.peakHoldEnabled") != 0;
 
@@ -6311,12 +14149,14 @@ void LoadSettings() {
     PCWSTR fftSizeStr = Wh_GetStringSetting(L"appearance.fftSize");
     int fftSize = _wtoi(fftSizeStr);
     g_settings.fftSize = (fftSize == 1024 || fftSize == 2048 || fftSize == 4096 || fftSize == 8192)
-                              ? fftSize : 1024;
+                              ? fftSize : 2048;
     Wh_FreeStringSetting(fftSizeStr);
 
     PCWSTR freqScale = Wh_GetStringSetting(L"appearance.freqScale");
     g_settings.freqScale = (wcscmp(freqScale, L"linear") == 0) ? VizFreqScale::Linear
                           : (wcscmp(freqScale, L"mel") == 0)   ? VizFreqScale::Mel
+                          : (wcscmp(freqScale, L"bark") == 0)  ? VizFreqScale::Bark
+                          : (wcscmp(freqScale, L"erb") == 0)   ? VizFreqScale::Erb
                                                                 : VizFreqScale::Log;
     Wh_FreeStringSetting(freqScale);
 
@@ -6337,6 +14177,10 @@ void LoadSettings() {
     Wh_FreeStringSetting(pfV);
     g_settings.oscilloscopeMultibandEnabled =
         Wh_GetIntSetting(L"appearance.oscilloscopeMultibandEnabled") != 0;
+    g_settings.oscilloscopeWindowMs =
+        std::clamp(Wh_GetIntSetting(L"appearance.oscilloscopeWindowMs"), 5, 250);
+    g_settings.oscilloscopeDamping =
+        std::clamp(Wh_GetIntSetting(L"appearance.oscilloscopeDamping"), 0, 100);
 
     g_settings.mediaControlsEnabled = Wh_GetIntSetting(L"media_controls.enabled") != 0;
 
@@ -6383,6 +14227,295 @@ void LoadSettings() {
         ReadNumberSetting(L"media_controls.verticalPosition", L"Media Controls",
                           L"Vertical Position", 95.0f, 0.0f, 100.0f);
 
+    PCWSTR renderDevice = Wh_GetStringSetting(L"hardware.renderDevice");
+    g_settings.renderDevice = (wcscmp(renderDevice, L"integrated") == 0) ? VizRenderDevice::Integrated
+                            : (wcscmp(renderDevice, L"discrete") == 0)   ? VizRenderDevice::Discrete
+                            : (wcscmp(renderDevice, L"cpu") == 0)        ? VizRenderDevice::Cpu
+                                                                         : VizRenderDevice::Auto;
+    Wh_FreeStringSetting(renderDevice);
+
+    // ---- 2.0: Workload, Renderer, Opaque Panel --------------------------------------
+    {
+        PCWSTR v = Wh_GetStringSetting(L"hardware.workload");
+        g_settings.workload = (wcscmp(v, L"gpu") == 0)   ? VizWorkload::Gpu
+                            : (wcscmp(v, L"cpu") == 0)   ? VizWorkload::Cpu
+                            : (wcscmp(v, L"npu") == 0)   ? VizWorkload::Npu
+                                                         : VizWorkload::Hybrid;
+        Wh_FreeStringSetting(v);
+        v = Wh_GetStringSetting(L"hardware.renderer");
+        g_settings.renderer = (wcscmp(v, L"direct2d") == 0) ? VizRenderer::Direct2D : VizRenderer::D3D11;
+        Wh_FreeStringSetting(v);
+        v = Wh_GetStringSetting(L"hardware.opaquePanel");
+        g_settings.opaquePanel = (wcscmp(v, L"off") == 0) ? VizOpaquePanel::Off : VizOpaquePanel::Auto;
+        Wh_FreeStringSetting(v);
+    }
+
+    // ---- 2.0: Analysis ------------------------------------------------------------------
+    {
+        auto str = [](PCWSTR key, auto&& fn) {
+            PCWSTR v = Wh_GetStringSetting(key);
+            fn(v ? v : L"");
+            Wh_FreeStringSetting(v);
+        };
+        str(L"analysis.engine", [](PCWSTR v) {
+            g_settings.engine = (wcscmp(v, L"classic") == 0) ? VizEngineKind::Classic : VizEngineKind::Precision;
+        });
+        str(L"analysis.bandLayout", [](PCWSTR v) {
+            g_settings.bandLayout = (wcscmp(v, L"iec") == 0)       ? VizBandLayout::Iec
+                                  : (wcscmp(v, L"musical") == 0)   ? VizBandLayout::Musical
+                                                                   : VizBandLayout::Scale;
+        });
+        str(L"analysis.octaveFraction", [](PCWSTR v) {
+            int f = _wtoi(v);
+            g_settings.octaveFraction = (f == 1 || f == 3 || f == 6 || f == 12 || f == 24) ? f : 6;
+        });
+        g_settings.minFreq = std::clamp(Wh_GetIntSetting(L"analysis.minFrequency"), 10, 1000);
+        g_settings.maxFreq = std::clamp(Wh_GetIntSetting(L"analysis.maxFrequency"), 1000, 21000);
+        if (g_settings.maxFreq <= g_settings.minFreq * 2) g_settings.maxFreq = std::max(1000, g_settings.minFreq * 4);
+        {
+            int a4 = Wh_GetIntSetting(L"analysis.tuningA4");
+            g_settings.tuningA4 = (float)((a4 >= 400 && a4 <= 480) ? a4 : 440);
+        }
+        str(L"analysis.weighting", [](PCWSTR v) {
+            g_settings.weighting = (wcscmp(v, L"a") == 0) ? VizWeighting::A
+                                 : (wcscmp(v, L"c") == 0) ? VizWeighting::C
+                                                          : VizWeighting::Z;
+        });
+        str(L"analysis.tilt", [](PCWSTR v) {
+            float t = (float)_wtof(v);
+            g_settings.tiltDbPerOct = (*v) ? std::clamp(t, 0.f, 6.f) : 1.5f;
+        });
+        str(L"analysis.detector", [](PCWSTR v) {
+            g_settings.detector = (wcscmp(v, L"peak") == 0) ? VizDetector::Peak : VizDetector::Rms;
+        });
+        str(L"analysis.levelReference", [](PCWSTR v) {
+            g_settings.levelRef = (wcscmp(v, L"band") == 0) ? VizLevelRef::Band : VizLevelRef::ThirdOctave;
+        });
+        str(L"analysis.window", [](PCWSTR v) {
+            g_settings.window = (wcscmp(v, L"hamming") == 0)           ? VizWindowKind::Hamming
+                              : (wcscmp(v, L"blackman_harris") == 0)   ? VizWindowKind::BlackmanHarris
+                              : (wcscmp(v, L"flat_top") == 0)          ? VizWindowKind::FlatTop
+                                                                       : VizWindowKind::Hann;
+        });
+        str(L"analysis.bassDetail", [](PCWSTR v) {
+            g_settings.bassDetail = (*v) ? std::clamp(_wtoi(v), 0, 2) : 2;
+        });
+        str(L"analysis.channel", [](PCWSTR v) {
+            g_settings.channel = (wcscmp(v, L"left") == 0)    ? VizChannel::Left
+                               : (wcscmp(v, L"right") == 0)   ? VizChannel::Right
+                               : (wcscmp(v, L"mid") == 0)     ? VizChannel::Mid
+                               : (wcscmp(v, L"side") == 0)    ? VizChannel::Side
+                                                              : VizChannel::Mix;
+        });
+        g_settings.dbFloor = std::clamp(Wh_GetIntSetting(L"analysis.dbFloor"), -120, -20);
+        g_settings.dbCeiling = std::clamp(Wh_GetIntSetting(L"analysis.dbCeiling"), -60, 0);
+        if (g_settings.dbCeiling - g_settings.dbFloor < 10) {
+            ReportSettingIssue(L"Analysis", L"Display Ceiling (dBFS)", std::to_wstring(g_settings.dbCeiling).c_str(),
+                               L"at least 10 dB above Display Floor", L"Display Floor + 10");
+            g_settings.dbCeiling = g_settings.dbFloor + 10;
+        }
+        str(L"analysis.ballistics", [](PCWSTR v) {
+            g_settings.ballistics = (wcscmp(v, L"smooth") == 0)     ? VizBallisticsPreset::Smooth
+                                  : (wcscmp(v, L"analyzer") == 0)   ? VizBallisticsPreset::Analyzer
+                                  : (wcscmp(v, L"vu") == 0)         ? VizBallisticsPreset::Vu
+                                  : (wcscmp(v, L"ppm_ebu") == 0)    ? VizBallisticsPreset::PpmEbu
+                                  : (wcscmp(v, L"ppm_din") == 0)    ? VizBallisticsPreset::PpmDin
+                                  : (wcscmp(v, L"custom") == 0)     ? VizBallisticsPreset::Custom
+                                                                    : VizBallisticsPreset::Snappy;
+        });
+        g_settings.attackMs = std::clamp(Wh_GetIntSetting(L"analysis.attackMs"), 1, 500);
+        g_settings.releaseDbPerSec = std::clamp(Wh_GetIntSetting(L"analysis.releaseDbPerSecond"), 1, 200);
+        g_settings.peakHoldMs = std::clamp(Wh_GetIntSetting(L"analysis.peakHoldMs"), 0, 5000);
+        str(L"analysis.peakFall", [](PCWSTR v) {
+            g_settings.peakFall = (wcscmp(v, L"linear") == 0) ? VizPeakFall::Linear : VizPeakFall::Gravity;
+        });
+        str(L"analysis.readout", [](PCWSTR v) {
+            g_settings.readout = (wcscmp(v, L"loudness") == 0)        ? VizReadout::Loudness
+                               : (wcscmp(v, L"loudness_full") == 0)   ? VizReadout::LoudnessFull
+                               : (wcscmp(v, L"both") == 0)            ? VizReadout::Both
+                                                                      : VizReadout::Frequency;
+        });
+        g_settings.loudnessResetOnTrack = Wh_GetIntSetting(L"analysis.loudnessResetOnTrack") != 0;
+
+        // ---- 2.0: audio source, media widget, Terminal ------------------------------
+        str(L"audio.source", [](PCWSTR v) {
+            g_settings.audioSourceKey = (wcscmp(v, L"default_input") == 0) ? L"default_input"
+                                      : (wcscmp(v, L"named") == 0)         ? L"named"
+                                                                           : L"";
+        });
+        if (g_settings.audioSourceKey == L"named") {
+            PCWSTR raw = Wh_GetStringSetting(L"audio.deviceName");
+            std::wstring name = raw ? raw : L"";
+            Wh_FreeStringSetting(raw);
+            while (!name.empty() && iswspace(name.front())) name.erase(name.begin());
+            while (!name.empty() && iswspace(name.back())) name.pop_back();
+            if (name.empty()) {
+                ReportSettingIssue(L"Audio", L"Device Name", L"",
+                                   L"part of a device's name, as Windows' Sound settings show it",
+                                   L"the default output");
+                g_settings.audioSourceKey.clear();
+            } else {
+                g_settings.audioSourceKey = L"name:" + name;
+            }
+        }
+
+        str(L"appearance.nowPlayingLayout", [](PCWSTR v) {
+            g_settings.npLayout = (wcscmp(v, L"two_lines") == 0) ? VizNpLayout::TwoLines : VizNpLayout::OneLine;
+        });
+        str(L"appearance.nowPlayingPlacement", [](PCWSTR v) {
+            g_settings.npPlacement = (wcscmp(v, L"panel_top") == 0)      ? VizNpPlacement::PanelTop
+                                   : (wcscmp(v, L"panel_bottom") == 0)   ? VizNpPlacement::PanelBottom
+                                                                         : VizNpPlacement::Above;
+        });
+        str(L"appearance.nowPlayingAlign", [](PCWSTR v) {
+            g_settings.npAlign = (wcscmp(v, L"left") == 0)    ? VizTextAlignH::Left
+                               : (wcscmp(v, L"right") == 0)   ? VizTextAlignH::Right
+                                                              : VizTextAlignH::Center;
+        });
+        ReadColorSetting(L"appearance.nowPlayingArtistColor", L"Appearance", L"Now Playing Artist Color", 0xB3, 255,
+                         255, 255, &g_settings.npArtistA, &g_settings.npArtistR, &g_settings.npArtistG,
+                         &g_settings.npArtistB);
+        str(L"appearance.textRendering", [](PCWSTR v) { g_settings.textPixel = wcscmp(v, L"pixel") == 0; });
+
+        g_settings.progressEnabled = Wh_GetIntSetting(L"progress.enabled") != 0;
+        str(L"progress.placement", [](PCWSTR v) {
+            g_settings.progressPlacement = (wcscmp(v, L"above") == 0)          ? VizProgressPlacement::Above
+                                         : (wcscmp(v, L"panel_bottom") == 0)   ? VizProgressPlacement::PanelBottom
+                                                                               : VizProgressPlacement::Below;
+        });
+        g_settings.progressHeight = std::clamp(Wh_GetIntSetting(L"progress.height"), 1, 40);
+        g_settings.progressGap = std::clamp(Wh_GetIntSetting(L"progress.gap"), 0, 200);
+        ReadColorSetting(L"progress.color", L"Track Progress", L"Color", 255, 255, 255, 255, &g_settings.progressA,
+                         &g_settings.progressR, &g_settings.progressG, &g_settings.progressB);
+        ReadColorSetting(L"progress.trackColor", L"Track Progress", L"Track Color", 0x40, 255, 255, 255,
+                         &g_settings.progressTrackA, &g_settings.progressTrackR, &g_settings.progressTrackG,
+                         &g_settings.progressTrackB);
+
+        str(L"media_controls.anchor", [](PCWSTR v) {
+            g_settings.mediaAnchor = (wcscmp(v, L"panel_top_left") == 0)       ? VizMediaAnchor::PanelTopLeft
+                                   : (wcscmp(v, L"panel_top_right") == 0)      ? VizMediaAnchor::PanelTopRight
+                                   : (wcscmp(v, L"panel_bottom_left") == 0)    ? VizMediaAnchor::PanelBottomLeft
+                                   : (wcscmp(v, L"panel_bottom_right") == 0)   ? VizMediaAnchor::PanelBottomRight
+                                                                               : VizMediaAnchor::Screen;
+        });
+        g_settings.mediaAnchorOffsetX = std::clamp(Wh_GetIntSetting(L"media_controls.anchorOffsetX"), -2000, 2000);
+        g_settings.mediaAnchorOffsetY = std::clamp(Wh_GetIntSetting(L"media_controls.anchorOffsetY"), -2000, 2000);
+        str(L"interaction.contextMenu", [](PCWSTR v) {
+            g_settings.contextMenu = (wcscmp(v, L"ctrl_right_click") == 0) ? VizContextMenu::CtrlRightClick
+                                   : (wcscmp(v, L"off") == 0)              ? VizContextMenu::Off
+                                                                           : VizContextMenu::RightClick;
+        });
+
+        str(L"terminal.style", [](PCWSTR v) {
+            g_settings.termStyle = (wcscmp(v, L"waterfall") == 0) ? VizTermStyle::Waterfall
+                                 : (wcscmp(v, L"meters") == 0)    ? VizTermStyle::Meters
+                                                                  : VizTermStyle::Columns;
+        });
+        str(L"terminal.font", [](PCWSTR v) { g_settings.termFont = *v ? v : L"Consolas"; });
+        g_settings.termFontSize = std::clamp(Wh_GetIntSetting(L"terminal.fontSize"), 6, 96);
+        g_settings.termRows = std::clamp(Wh_GetIntSetting(L"terminal.rows"), 2, 128);
+        g_settings.termMeterColumns = std::clamp(Wh_GetIntSetting(L"terminal.meterColumns"), 20, 200);
+        g_settings.termHotThreshold = std::clamp(Wh_GetIntSetting(L"terminal.hotThreshold"), 1, 100);
+        g_settings.termScrollRate = std::clamp(Wh_GetIntSetting(L"terminal.scrollRate"), 1, 120);
+        // One printable ASCII character each; the atlas holds 32-126.
+        auto glyph = [](PCWSTR key, PCWSTR name, wchar_t def) {
+            PCWSTR v = Wh_GetStringSetting(key);
+            wchar_t c = (v && v[0]) ? v[0] : def;
+            if (c < 33 || c > 126) {
+                WCHAR d[2] = {def, 0};
+                ReportSettingIssue(L"Terminal", name, v ? v : L"", L"one printable ASCII character", d);
+                c = def;
+            }
+            Wh_FreeStringSetting(v);
+            return c;
+        };
+        g_settings.termColumnGlyph = glyph(L"terminal.columnGlyph", L"Column Glyph", L'#');
+        g_settings.termPeakGlyph = glyph(L"terminal.peakGlyph", L"Peak Glyph", L'-');
+        str(L"terminal.ramp", [](PCWSTR v) {
+            std::wstring r;
+            for (const wchar_t* p = v; *p; p++)
+                if (*p >= 32 && *p < 127) r.push_back(*p);
+            g_settings.termRamp = r.size() >= 2 ? r : L" .:-=+*#%@";
+        });
+        ReadColorSetting(L"terminal.dimColor", L"Terminal", L"Dim Color", 255, 0x1E, 0x6B, 0x34, &g_settings.termDimA,
+                         &g_settings.termDimR, &g_settings.termDimG, &g_settings.termDimB);
+        ReadColorSetting(L"terminal.lowColor", L"Terminal", L"Color", 255, 0x33, 0xFF, 0x66, &g_settings.termLowA,
+                         &g_settings.termLowR, &g_settings.termLowG, &g_settings.termLowB);
+        ReadColorSetting(L"terminal.highColor", L"Terminal", L"Hot Color", 255, 0xFF, 0x3B, 0x3B, &g_settings.termHighA,
+                         &g_settings.termHighR, &g_settings.termHighG, &g_settings.termHighB);
+        ReadColorSetting(L"terminal.labelColor", L"Terminal", L"Label Color", 255, 0xB8, 0xFF, 0xB8,
+                         &g_settings.termLabelA, &g_settings.termLabelR, &g_settings.termLabelG,
+                         &g_settings.termLabelB);
+
+        // Quick settings from the right-click menu sit on top of all of the
+        // above (and are cleared from the same menu).
+        VizApplyMenuOverrides();
+        if (g_settings.workload == VizWorkload::Gpu && g_settings.shape == VizShape::Terminal) {
+            ReportSettingWarning(L"Hardware", L"Workload",
+                                 L"The Terminal shape is built on the CPU from the bar levels, so with it the "
+                                 L"analysis runs on the CPU (Hybrid).");
+        }
+
+        // The IEC and musical layouts decide the bar count. Worked out here at
+        // 48 kHz; the range is capped at 21 kHz, below every common device's
+        // Nyquist limit, so the count is the same on 44.1 kHz.
+        g_settings.layoutBandCount = 0;
+        if (g_settings.engine == VizEngineKind::Precision && g_settings.bandLayout != VizBandLayout::Scale) {
+            std::vector<ttdsp::Band> b =
+                (g_settings.bandLayout == VizBandLayout::Iec)
+                    ? ttdsp::IecBands(g_settings.octaveFraction, g_settings.minFreq, g_settings.maxFreq)
+                    : ttdsp::MusicalBands(g_settings.octaveFraction, g_settings.tuningA4, g_settings.minFreq,
+                                          g_settings.maxFreq);
+            g_settings.layoutBandCount = std::clamp((int)b.size(), 1, VIZ_BARS_MAX);
+        }
+
+        // Combinations that can't be honoured, said out loud.
+        if (g_settings.workload == VizWorkload::Gpu && g_settings.engine == VizEngineKind::Classic) {
+            ReportSettingWarning(L"Hardware", L"Workload",
+                                 L"GPU analysis is the Precision engine on the GPU. With the Classic engine the "
+                                 L"analysis stays on the CPU (Hybrid).");
+        }
+        if (g_settings.workload == VizWorkload::Gpu && g_settings.renderer == VizRenderer::Direct2D) {
+            ReportSettingWarning(L"Hardware", L"Workload",
+                                 L"GPU analysis needs the Direct3D 11 renderer, so with Direct2D it runs on the "
+                                 L"CPU (Hybrid).");
+        }
+    }
+
+    {
+        // Same quote-stripping as the icon paths: "Copy as path" brings quotes.
+        PCWSTR raw = Wh_GetStringSetting(L"hardware.npuRuntimePath");
+        std::wstring path = raw ? raw : L"";
+        Wh_FreeStringSetting(raw);
+        while (!path.empty() && (path.front() == L'"' || path.front() == L' ')) path.erase(path.begin());
+        while (!path.empty() && (path.back() == L'"' || path.back() == L' ' || path.back() == L'\\'))
+            path.pop_back();
+        if (!path.empty() && g_settings.workload == VizWorkload::Npu) {
+            DWORD attr = GetFileAttributes(path.c_str());
+            if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+                ReportSettingIssue(L"Hardware", L"NPU Runtime Folder", path.c_str(),
+                                   L"a folder that exists (the one holding openvino_c.dll, or the "
+                                   L"root of the extracted OpenVINO archive)",
+                                   L"the automatic search");
+                path.clear();
+            }
+        }
+        g_settings.npuRuntimePath = path;
+    }
+
+    PCWSTR smoothMode = Wh_GetStringSetting(L"hardware.smoothMode");
+    g_settings.smoothMode = (wcscmp(smoothMode, L"on") == 0)    ? VizSmoothMode::On
+                          : (wcscmp(smoothMode, L"off") == 0)   ? VizSmoothMode::Off
+                                                                : VizSmoothMode::Auto;
+    Wh_FreeStringSetting(smoothMode);
+
+    // The NPU worker reads only its own copies, taken here.
+    ttnpu::Configure(g_settings.workload == VizWorkload::Npu, g_settings.npuRuntimePath);
+    VizPublishEngineConfig();
+    // Smooth Mode's Auto depends on the device, which may not exist yet on the
+    // first load; InitDirectX resolves it again once it does.
+    VizUpdateSmoothActive();
+
     FlushSettingsIssues();
 }
 
@@ -6390,6 +14523,7 @@ HANDLE g_uiThread = nullptr;
 DWORD g_uiThreadId = 0;
 
 DWORD WINAPI UiThreadProc(LPVOID) {
+    SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     // This mod runs as its own dedicated process (see the tool-mod boilerplate
     // at the end of this file). WhTool_ModInit's own calling thread does not
     // survive -- the tool-mod launcher hooks the process's real entry point
@@ -6466,6 +14600,16 @@ void WhTool_ModUninit() {
     UnregisterMediaWindowClass();
 
     StopVizCaptureThread();
+    // After the engine thread, which hands its NPU engine back on the way out.
+    ttnpu::Shutdown();
+    if (g_engineWake) {
+        CloseHandle(g_engineWake);
+        g_engineWake = nullptr;
+    }
+    if (g_engineClosed) {
+        CloseHandle(g_engineClosed);
+        g_engineClosed = nullptr;
+    }
     UninitDirectX();
 
     if (g_gsmtcStopEvent) {
@@ -6480,6 +14624,7 @@ void WhTool_ModUninit() {
         g_gsmtcStopEvent = nullptr;
     }
 
+    std::lock_guard<std::mutex> albumThreadLock(g_albumArtThreadMutex);
     if (g_albumArtThread) {
         if (g_albumArtThread->joinable()) {
             HANDLE hThread = g_albumArtThread->native_handle();
@@ -6556,8 +14701,17 @@ void ApplySettingsChanged() {
         if (g_settings.pauseOnFullscreen && IsFullscreenOrGameActive()) {
             PauseForFullscreen();
         }
-    } else if (!g_settings.pauseOnFullscreen) {
+    } else if (!g_settings.pauseOnFullscreen && !g_userPaused.load()) {
         ResumeFromFullscreen();
+    }
+
+    // Drawing Device changed, or (on Auto) the Monitor setting moved the
+    // widget onto a screen driven by another GPU. The rebuild creates the
+    // swap chain and visual resources from the new settings and redraws, so
+    // nothing below needs to run after it.
+    if (VizRenderDeviceNeedsRebuild()) {
+        VizRebuildRenderDevice(L"Drawing Device or monitor changed");
+        return;
     }
 
     if (!g_overlayWnd) return;
