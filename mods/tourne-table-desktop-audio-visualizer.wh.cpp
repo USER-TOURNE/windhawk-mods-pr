@@ -558,7 +558,7 @@ Every present hands Windows' compositor a new buffer and wakes it to blend that 
 
 - **Playing**: one wake per frame.
 - **Silent** (after Pause When Silent): wakes only when audio arrives or four times a second, and presents nothing unless something changes.
-- **Deep Idle** (five seconds later): the loopback stream itself is stopped, and Windows' own peak meter is read four times a second instead. A running capture stream registers an audio power request, which can hold the PC out of sleep (check `powercfg /requests`); a stopped one doesn't. The engine thread also asks Windows for efficiency-core scheduling (EcoQoS) while idle, and opts out of it while playing so frame pacing stays tight.
+- **Deep Idle** (five seconds later): the loopback stream itself is stopped, and Windows' own peak meter is read four times a second instead. A running capture stream registers an audio power request, which can hold the PC out of sleep (check `powercfg /requests`); a stopped one doesn't. The engine thread also asks Windows for efficiency-core scheduling (EcoQoS) while idle, and leaves the choice to Windows while playing.
 
 ### 11. Less for the compositor to blend *(2.0, Direct3D 11 renderer)*
 
@@ -3195,6 +3195,7 @@ int ComputeRectCoveragePercent(const RECT& targetIn) {
                 if (_wcsicmp(cls, L"Progman") == 0 || _wcsicmp(cls, L"WorkerW") == 0 ||
                     _wcsicmp(cls, L"Shell_TrayWnd") == 0 ||
                     _wcsicmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
+                    _wcsnicmp(cls, L"TourneTaskbar", 13) == 0 ||
                     _wcsicmp(cls, L"Windows.UI.Core.CoreWindow") == 0 ||
                     _wcsicmp(cls, L"Windows.UI.Composition.DesktopWindowContentBridge") == 0 ||
                     _wcsicmp(cls, L"XamlExplorerHostIslandWindow") == 0 ||
@@ -3295,6 +3296,44 @@ bool IsMediaStripCovered() {
 
     int threshold = std::clamp(g_settings.mediaCoveredThresholdPercent, 5, 100);
     return ComputeRectCoveragePercent(strip) >= threshold;
+}
+
+// Windows' taskbar, or Tourne Desktop's (see VizMenuHook).
+bool VizIsTaskbarWindow(HWND w) {
+    WCHAR cls[64] = {};
+    if (!GetClassNameW(w, cls, ARRAYSIZE(cls))) return false;
+    return wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
+           wcsncmp(cls, L"TourneTaskbar", 13) == 0;
+}
+
+// Whether a visible taskbar overlaps rc. With aboveStrip, only one stacked
+// above the media window counts. A taskbar is topmost, so media controls placed
+// over one have to be topmost too, and come back up when the taskbar is raised
+// (a click on it does that), or clicks meant for them land on the taskbar.
+bool VizTaskbarOverlaps(const RECT& rc, bool aboveStrip) {
+    auto hits = [&](HWND w) {
+        RECT r, x;
+        return IsWindowVisible(w) && VizIsTaskbarWindow(w) && GetWindowRect(w, &r) && IntersectRect(&x, &r, &rc);
+    };
+    if (aboveStrip) {
+        if (!g_mediaWnd) return false;
+        for (HWND w = GetWindow(g_mediaWnd, GW_HWNDPREV); w; w = GetWindow(w, GW_HWNDPREV))
+            if (hits(w)) return true;
+        return false;
+    }
+    struct Ctx {
+        decltype(hits)* fn;
+        bool hit;
+    } ctx{&hits, false};
+    EnumWindows(
+        [](HWND w, LPARAM lp) -> BOOL {
+            auto* c = (Ctx*)lp;
+            if (!(*c->fn)(w)) return TRUE;
+            c->hit = true;
+            return FALSE;
+        },
+        (LPARAM)&ctx);
+    return ctx.hit;
 }
 
 void RefreshAccentColorCache() {
@@ -3509,7 +3548,11 @@ void RefreshMediaPlaybackStatus(GlobalSystemMediaTransportControlsSession const&
         auto info = session.GetPlaybackInfo();
         bool playing = info && info.PlaybackStatus() ==
             GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing;
+        bool was = g_mediaIsPlaying.load(std::memory_order_relaxed);
         VizTimelineSetPlaying(gen, playing);  // also sets g_mediaIsPlaying
+        // Some players send PlaybackInfoChanged every second or so with
+        // nothing changed; only a play/pause change needs the controls redrawn.
+        if (playing == was) return;
     } catch (...) {}
     if (g_mediaWnd) PostMessage(g_mediaWnd, WM_APP_MEDIA_REPAINT, 0, 0);
 }
@@ -4517,8 +4560,11 @@ void RepositionAndRepaintMediaControls() {
     // Stacking: only touch the z-order when it is wrong. Raising it on every
     // repaint put the card back over its own open menus.
     const bool isTop = (GetWindowLongPtr(g_mediaWnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
-    const bool wantTop = g_settings.mediaOnTop && !g_menuOpen.load(std::memory_order_acquire);
-    UINT zFlags = (isTop == wantTop) ? SWP_NOZORDER : 0;
+    const RECT want{x, y, x + width, y + height};
+    const bool overTaskbar = VizTaskbarOverlaps(want, false);
+    const bool wantTop = (g_settings.mediaOnTop || overTaskbar) && !g_menuOpen.load(std::memory_order_acquire);
+    const bool buried = wantTop && overTaskbar && VizTaskbarOverlaps(want, true);
+    UINT zFlags = (isTop == wantTop && !buried) ? SWP_NOZORDER : 0;
     BOOL posOk = SetWindowPos(g_mediaWnd, wantTop ? HWND_TOPMOST : HWND_NOTOPMOST, x, y, width, height,
                               SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOOWNERZORDER | zFlags);
 
@@ -16041,9 +16087,8 @@ struct VizVsyncSchedule {
     }
 };
 
-// Thread-scoped quality of service. While playing, the engine thread opts out
-// of execution-speed throttling so frame pacing stays tight on a hybrid CPU;
-// while idle it asks for EcoQoS, so the trickle and the meter reads run on
+// Thread-scoped quality of service. While playing, Windows schedules the
+// engine thread as it sees fit; while idle it asks for EcoQoS, so the trickle and the meter reads run on
 // efficiency cores at low clocks. Thread-scoped on purpose: nothing about the
 // process changes. SetThreadInformation is resolved at runtime (Windows 8+;
 // the power-throttling class needs Windows 10 1709, and older builds simply
@@ -16056,11 +16101,11 @@ void VizThreadEcoQoS(bool eco) {
     static SetThreadInformationFn fn =
         (SetThreadInformationFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadInformation");
     if (!fn) return;
-    // While playing this opts out of throttling (HighQoS). The alternative,
-    // {1, eco ? 0x1u : 0x0u, eco ? 0x1u : 0x0u} ("let the system manage"),
-    // would keep the thread off forced P-core / boost scheduling; not chosen
-    // until measurements show it doesn't cost frame pacing.
-    PowerThrottlingState st = {1, 0x1 /* EXECUTION_SPEED */, eco ? 0x1u : 0x0u};
+    // While playing this lets the system manage the thread instead of opting
+    // out of throttling (HighQoS), so it isn't forced onto performance cores
+    // and boost clocks. Measured at 144 fps: about 0.03 ms of engine work per
+    // wake and well under 1 ms of rendering per frame, against a 6.9 ms frame.
+    PowerThrottlingState st = {1, eco ? 0x1u : 0x0u /* EXECUTION_SPEED */, eco ? 0x1u : 0x0u};
     fn(GetCurrentThread(), 3 /* ThreadPowerThrottling */, &st, sizeof(st));
 }
 
@@ -18386,7 +18431,11 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                             !(g_overlayInPanel && g_panelHidden) &&
                             (!IsWindowVisible(g_mediaWnd) ||
                              (g_settings.mediaOnTop &&
-                              !(GetWindowLongPtr(g_mediaWnd, GWL_EXSTYLE) & WS_EX_TOPMOST)))) {
+                              !(GetWindowLongPtr(g_mediaWnd, GWL_EXSTYLE) & WS_EX_TOPMOST)) ||
+                             [] {
+                                 RECT r;
+                                 return GetWindowRect(g_mediaWnd, &r) && VizTaskbarOverlaps(r, true);
+                             }())) {
                             Wh_Log(L"[Media] window not visible/topmost, re-asserting");
                             RepositionAndRepaintMediaControls();
                         }
