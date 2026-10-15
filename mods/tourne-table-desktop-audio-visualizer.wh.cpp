@@ -1507,7 +1507,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 - performance:
     - targetFps: 60
       $name: Target FPS
-      $description: Caps how often the visualizer redraws itself. 0 matches your display's refresh rate, whatever it is. With the Direct3D 11 renderer a frame where nothing moved is skipped entirely, so a high target costs far less than it used to during quiet or steady passages
+      $description: Caps how often the visualizer redraws itself. 0 matches your display's refresh rate, whatever it is, and a higher number than the refresh rate runs at the refresh rate, since extra frames never reach the screen. With the Direct3D 11 renderer a frame where nothing moved is skipped entirely, so a high target costs far less than it used to during quiet or steady passages
     - pauseOnFullscreen: true
       $name: Pause On Fullscreen
       $description: Stops rendering while any window is fullscreen, since the visualizer would be hidden behind it anyway
@@ -16211,6 +16211,8 @@ void RenderThreadProc() {
         double refreshHz = 0.0;
         if (vsPeriod > 0) refreshHz = (double)qpcFreq.QuadPart / (double)vsPeriod;
         if (fps <= 0) fps = (refreshHz > 0.0) ? (int)llround(refreshHz) : 60;  // 0 = match the display
+        // Frames past the display's refresh rate are never shown, only paid for.
+        if (refreshHz > 0.0) fps = std::min(fps, (int)llround(refreshHz));
         fps = std::max(1, fps);
         double intervalMs = 1000.0 / (double)fps;
 
@@ -16358,8 +16360,8 @@ void RenderThreadProc() {
             scheduled = true;
         } else {
             vsDue = absDue = 0;
-            // Target FPS 0 needs the refresh rate even without Smooth Mode.
-            if (g_settings.targetFps <= 0 && (vsPeriod == 0 || nowQpc.QuadPart - vsLastSync > qpcFreq.QuadPart * 2)) {
+            // The refresh rate, for Target FPS 0 and for the cap above.
+            if (vsLastSync == 0 || nowQpc.QuadPart - vsLastSync > qpcFreq.QuadPart * 2) {
                 DWM_TIMING_INFO ti = {};
                 ti.cbSize = sizeof(ti);
                 if (SUCCEEDED(DwmGetCompositionTimingInfo(nullptr, &ti)) && ti.qpcRefreshPeriod > 0)
