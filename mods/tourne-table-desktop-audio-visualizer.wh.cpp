@@ -79,7 +79,7 @@ The 1.4 analysis is still there as **Analysis Engine = Classic**.
 
 **Finer looks.** Outline and Shadow around every bar; bar modifiers Hollow, Dashed, Tilt, Afterimage (a slowly falling trail) and Mirror Gap; scale numbers on Spectrogram and VU Needles; album colours that ease in; any Unicode character in Terminal. Reflection now works on both renderers.
 
-**Exact sizes.** Bar width, gap, height, padding, borders, radii, fonts and offsets take decimals (turn Pixel Snap off to keep the fractions).
+**Exact sizes.** Bar width, gap, height, padding, borders, radii, fonts and offsets take decimals down to 0.01, and so do Sensitivity, Smoothing, Input Gain, Blur, Glow, Bloom, Shadow, Reflection, Afterimage, Beat Flash Intensity, Rainbow Speed and the dock, split and snap distances (turn Pixel Snap off to keep the fractions). The Style Editor's sliders step by 0.01 with the arrow keys.
 
 **Placement.** Drag snaps to the screen's edges and centre, the taskbar, the tray and the Start button (hold Shift to place freely). Position > Place In = Taskbar puts it inside the taskbar. Position > Dock To App keeps the visualizer beside an app's window as it moves, and Split Into Two Pieces cuts it in two, e.g. either side of the taskbar's centred icons, at almost no cost.
 
@@ -686,16 +686,16 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - vu: VU Needles (two analog meters, L and R)
         - stereo_field: Stereo Field (left above, right below)
         - particles: Particles (bars plus sparks on each beat)
-    - reflection: 0
+    - reflection: '0'
       $name: Reflection
       $description: 0-100. Mirrors the bars onto a floor beneath them, fading out over this percentage of Bar Max Size. Horizontal bars anchored to the bottom only, with the bar shapes, LED Meter, Line Spectrum and Particles. Both renderers (Direct2D draws it on the CPU, so it costs a little more there)
-    - fxGlow: 0
+    - fxGlow: '0'
       $name: Glow
       $description: 0-100. A soft halo around each bar, dot, line and spark, worked out in the same shader pass that draws them, so it costs next to nothing. Direct3D 11 renderer only
     - fxGlowRadius: '6'
       $name: Glow Radius
       $description: 1-32 pixels. How far the halo reaches. Decimals allowed; turn Pixel Snap (Position) off to keep the fractions
-    - fxBloom: 0
+    - fxBloom: '0'
       $name: Bloom
       $description: 0-100. Light bleeding out of the whole picture, like a camera lens, from a blurred copy at a quarter of the size added back on top. A little GPU work, and only on frames that change. Direct3D 11 renderer only
     - fxBloomRadius: '16'
@@ -707,7 +707,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - fxOutlineColor: '#B0FFFFFF'
       $name: Outline Color
       $description: '#AARRGGBB or #RRGGBB. The outline fades with the bar it belongs to'
-    - fxShadow: 0
+    - fxShadow: '0'
       $name: Shadow
       $description: 0-100. A drop shadow behind each bar, dot and line, worked out in the same shader pass as Glow, so it costs next to nothing. Both renderers
     - fxShadowColor: '#000000'
@@ -740,7 +740,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - barMirrorGap: '0'
       $name: Mirror Gap
       $description: Pixels, decimals allowed. With Anchor = Middle the bars already grow both ways from a centre line; this pulls the two halves apart, like a waveform with a spine. Bar shapes, Direct3D 11 renderer
-    - afterimage: 0
+    - afterimage: '0'
       $name: Afterimage
       $description: 0-100. A see-through trail behind each bar that jumps up with it and sinks back slowly. With Peak Hold on, the caps sit on the trail. Bar shapes, Direct3D 11 renderer; keeps the analysis on the CPU (Hybrid)
     - afterimageLength: '1.2'
@@ -792,7 +792,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - gradientColor2: '#FF00B4FF'
       $name: Gradient Color 2
       $description: 'End color for Gradient and Reactive Gradient modes. Format is #AARRGGBB, #RRGGBB, rgba(r, g, b, a), or rgb(r, g, b)'
-    - sensitivity: 150
+    - sensitivity: '150'
       $name: Sensitivity
       $description: How hard the bars react to audio. Range 0-300. Past a point, raising this mostly makes quiet passages louder rather than making loud passages hit any harder, since loud signal is already at max bar height, see Sensitivity Curve
     - sensitivityCurve: knee
@@ -802,7 +802,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - exponential: Exponential (Soft)
         - knee: Knee (Balanced)
         - power: Power (Headroom)
-    - inputGain: 0
+    - inputGain: '0'
       $name: Input Gain (dB)
       $description: A fixed level adjustment applied to the captured audio before anything else. Range -24 to +24, where 0 leaves the signal exactly as captured. Loopback capture sees each app's own volume slider but not the Windows master slider, so a music app sitting at 40% reads as quiet no matter how loud the system sounds. This is the control for that. Unlike Sensitivity it also scales the Oscilloscope waveform
     - autoGain: false
@@ -811,7 +811,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - autoGainMaxBoost: 12
       $name: Auto Gain Max Boost (dB)
       $description: The ceiling on how far Auto Gain may lift a quiet signal. Range 0 to 24. Lower it if quiet passages are getting flattened more than you want, raise it if a very quiet source still will not fill the bars. Only used when Auto Gain is on
-    - smoothing: 0
+    - smoothing: '0'
       $name: Motion Smoothing
       $description: Slows down how quickly bars rise and fall toward the target level, at the cost of a bit of lag. 0 is the original snappy response; higher values trade responsiveness for a steadier, easier-to-read motion -- helpful when bars are small on the desktop and fast jitter is hard to track
     - eqPreset: default
@@ -888,10 +888,10 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - beatFlashColor: '#FFFFFFFF'
       $name: Beat Flash Color
       $description: 'Color bars flash toward on a beat. Accepts #AARRGGBB, #RRGGBB, rgba(r, g, b, a) with alpha 0-1, or rgb(r, g, b). Alpha controls how strong the flash gets even at full intensity -- lower it for a subtler tint instead of a full color swap'
-    - beatFlashIntensity: 80
+    - beatFlashIntensity: '80'
       $name: Beat Flash Intensity
       $description: How quickly a beat reaches full Beat Flash Color. Only used when Beat Flash is on
-    - rainbowSpeed: 40
+    - rainbowSpeed: '40'
       $name: Rainbow Cycle Speed
       $description: Only used when Color Mode is Rainbow Cycle
     - nowPlayingEnabled: false
@@ -1248,22 +1248,22 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - start: Start (left or top)
         - center: Centre
         - end: End (right or bottom)
-    - dockGap: 0
+    - dockGap: '0'
       $name: Dock Gap
       $description: Pixels between the window and the visualizer. Negative overlaps
-    - dockShift: 0
+    - dockShift: '0'
       $name: Dock Shift
       $description: Pixels to slide it along the side from the alignment above
     - split: false
       $name: Split Into Two Pieces
       $description: Cuts the visualizer in two and moves the second piece by the gap and shift below, e.g. to sit either side of the taskbar's centred icons or a monitor bezel. Works with every shape and both renderers and costs next to nothing (Windows moves the piece; nothing is drawn twice). The background panel is cut at the same place. Drag, the right-click menu and Click to Seek answer on the first piece only
-    - splitAt: 50
+    - splitAt: '50'
       $name: Split Point
       $description: Percent of the way along where the cut goes. With bars it lands in the gap between two bars
-    - splitGap: 200
+    - splitGap: '200'
       $name: Split Gap
       $description: Pixels the second piece moves along the visualizer (right, or down when vertical). Negative moves it back
-    - splitShift: 0
+    - splitShift: '0'
       $name: Split Shift
       $description: Pixels the second piece moves across it (down, or right when vertical)
   $name: Position
@@ -1328,7 +1328,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - dragSnap: true
       $name: Snap While Dragging
       $description: While dragging, the visualizer's edges and centre catch on the screen's edges and centre, the taskbar's edge, the tray and the Start button. Hold Shift (Alt when Shift is the drag key) to place it freely
-    - dragSnapDistance: 8
+    - dragSnapDistance: '8'
       $name: Snap Distance
       $description: How close, in pixels, an edge has to come before it snaps
     - dragModifier: ctrl
@@ -1494,7 +1494,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - cornerRadius: '14'
       $name: Corner Radius
       $description: Roundness of the panel corners, in pixels. One value for all corners, or four space-separated values for top-left, top-right, bottom-right, bottom-left
-    - blur: 0
+    - blur: '0'
       $name: Blur
       $description: Gaussian blur strength behind the panel, in pixels. 0 disables it. Computed once and cached, not redrawn every frame, so raising this has minimal ongoing CPU cost
     - borderSize: '0'
@@ -1802,12 +1802,12 @@ struct Settings {
     BYTE colorA = 255, colorR = 255, colorG = 255, colorB = 255;
     BYTE grad1A = 255, grad1R = 30, grad1G = 215, grad1B = 96;
     BYTE grad2A = 255, grad2R = 0, grad2G = 180, grad2B = 255;
-    int sensitivity = 150;
+    float sensitivity = 150;
     VizSensitivityCurve sensitivityCurve = VizSensitivityCurve::Knee;
     float inputGainDb = 0.0f;
     bool autoGain = false;
     float autoGainMaxDb = 12.0f;
-    int smoothing = 0;
+    float smoothing = 0;
     VizEQ eq = VizEQ::Default;
 
     float horizontalPosition = 50.0f;
@@ -1849,7 +1849,7 @@ struct Settings {
     BYTE bgA = 0x60, bgR = 0, bgG = 0, bgB = 0;
     float bgPaddingL = 24, bgPaddingR = 24, bgPaddingT = 24, bgPaddingB = 24;
     float bgRadiusTL = 14.0f, bgRadiusTR = 14.0f, bgRadiusBR = 14.0f, bgRadiusBL = 14.0f;
-    int bgBlur = 0;
+    float bgBlur = 0;
     float bgBorderSize = 0;
     BYTE borderA = 0x40, borderR = 255, borderG = 255, borderB = 255;
 
@@ -1861,8 +1861,8 @@ struct Settings {
     BYTE peakHoldA = 255, peakHoldR = 0, peakHoldG = 180, peakHoldB = 255;
     bool beatFlashEnabled = false;
     BYTE beatFlashA = 255, beatFlashR = 255, beatFlashG = 255, beatFlashB = 255;
-    int beatFlashIntensity = 80;
-    int rainbowSpeed = 40;
+    float beatFlashIntensity = 80;
+    float rainbowSpeed = 40;
 
     bool nowPlayingEnabled = false;
     BYTE nowPlayingA = 255, nowPlayingR = 255, nowPlayingG = 255, nowPlayingB = 255;
@@ -1964,19 +1964,19 @@ struct Settings {
 
     // Styles (2.1): picked from the Shape list on top of an internal shape.
     VizStyle style = VizStyle::None;
-    int reflection = 0;  // %, of Bar Max Size
-    int fxGlow = 0, fxBloom = 0;
+    float reflection = 0;  // %, of Bar Max Size
+    float fxGlow = 0, fxBloom = 0;
     float fxBloomRadius = 16;
     float fxGlowRadius = 6;  // FX (2.1)
     float fxOutlineWidth = 0.f;  // px
     BYTE fxOutlineA = 0xB0, fxOutlineR = 255, fxOutlineG = 255, fxOutlineB = 255;
-    int fxShadow = 0;  // %
+    float fxShadow = 0;  // %
     BYTE fxShadowR = 0, fxShadowG = 0, fxShadowB = 0;
     float fxShadowX = 2.f, fxShadowY = 3.f, fxShadowSoft = 4.f;  // px
     bool barHollow = false;
     float barHollowWidth = 1.5f, barDash = 0.f, barDashGap = 2.f, barTilt = 0.f;  // px, px, px, degrees
     float barMirrorGap = 0.f;  // px
-    int afterimage = 0;  // %
+    float afterimage = 0;  // %
     float afterimageSeconds = 1.2f;
 
     // Media widget (2.0).
@@ -8736,7 +8736,7 @@ bool VizReflectionActive() {
            s == VizShape::Breathe || s == VizShape::Dots;
 }
 
-float VizReflectionDepth(float maxSize) { return maxSize * std::clamp(g_settings.reflection, 0, 100) / 100.f; }
+float VizReflectionDepth(float maxSize) { return maxSize * std::clamp(g_settings.reflection, 0.f, 100.f) / 100.f; }
 
 // ---- Scale numbers -----------------------------------------------------------------------
 // The Spectrogram legend's quarter ticks and the VU faces carry numbers. They
@@ -14254,9 +14254,9 @@ bool Render(const FrameInputs& in) {
     if (g_settings.colorMode == VizColorMode::RainbowCycle) MixF(hash, in.rainbowBase, 2.f);
     if (g_settings.beatFlashEnabled) MixF(hash, pulse, 128.f);
     Mix(hash, in.dragPause);
-    Mix(hash, (uint64_t)style * 1009u + (uint64_t)g_settings.reflection);
+    Mix(hash, (uint64_t)style * 1009u + (uint64_t)lroundf(g_settings.reflection * 100.f));
     for (int k = 0; k < 4; k++) MixF(hash, f.vu[k], 2048.f);
-    Mix(hash, (uint64_t)g_settings.fxGlow * 1000003u + (uint64_t)g_settings.fxBloom * 1009u);
+    Mix(hash, (uint64_t)lroundf(g_settings.fxGlow * 100.f) * 1000003u + (uint64_t)lroundf(g_settings.fxBloom * 100.f) * 1009u);
     MixF(hash, g_settings.fxGlowRadius + g_settings.fxBloomRadius * 257.f, 64.f);
     MixF(hash, f.fxLineW, 64.f);
     for (int k = 0; k < 4; k++) MixF(hash, f.fxLineColor[k] + f.fxShadowColor[k] * 7.f, 1024.f);
@@ -16907,13 +16907,13 @@ void VizApplyMenuOverrides() {
             float rad = std::clamp((float)_wtof(v), 0.f, 100.f);
             g_settings.barRadiusTL = g_settings.barRadiusTR = g_settings.barRadiusBR = g_settings.barRadiusBL = rad;
         } else if (k == L"reflection") {
-            g_settings.reflection = std::clamp(_wtoi(v), 0, 100);
+            g_settings.reflection = std::clamp((float)_wtof(v), 0.f, 100.f);
         } else if (k == L"fxGlow") {
-            g_settings.fxGlow = std::clamp(_wtoi(v), 0, 100);
+            g_settings.fxGlow = std::clamp((float)_wtof(v), 0.f, 100.f);
         } else if (k == L"fxGlowRadius") {
             g_settings.fxGlowRadius = std::clamp((float)_wtof(v), 0.5f, 32.f);
         } else if (k == L"fxBloom") {
-            g_settings.fxBloom = std::clamp(_wtoi(v), 0, 100);
+            g_settings.fxBloom = std::clamp((float)_wtof(v), 0.f, 100.f);
         } else if (k == L"fxBloomRadius") {
             g_settings.fxBloomRadius = std::clamp((float)_wtof(v), 4.f, 64.f);
         } else if (k == L"color") {
@@ -17223,7 +17223,7 @@ static std::wstring VizHexColor(BYTE a, BYTE r, BYTE g, BYTE b) {
 static // A size as text: '6', '1.25', never '6.000000'.
 std::wstring VizNumText(float v) {
     WCHAR b[32];
-    swprintf_s(b, L"%g", std::round(v * 1000.f) / 1000.f);
+    swprintf_s(b, L"%g", std::round(v * 100.f) / 100.f);
     return b;
 }
 
@@ -17239,10 +17239,10 @@ std::wstring VizLookValue(const std::wstring& key) {
     if (key == L"barGap") return VizNumText(s.barGap);
     if (key == L"barMaxSize") return VizNumText(s.barMaxSize);
     if (key == L"barRadius") return VizNumText(s.barRadiusTL);
-    if (key == L"reflection") return std::to_wstring(s.reflection);
-    if (key == L"fxGlow") return std::to_wstring(s.fxGlow);
+    if (key == L"reflection") return VizNumText(s.reflection);
+    if (key == L"fxGlow") return VizNumText(s.fxGlow);
     if (key == L"fxGlowRadius") return VizNumText(s.fxGlowRadius);
-    if (key == L"fxBloom") return std::to_wstring(s.fxBloom);
+    if (key == L"fxBloom") return VizNumText(s.fxBloom);
     if (key == L"fxBloomRadius") return VizNumText(s.fxBloomRadius);
     return L"";
 }
@@ -17342,14 +17342,14 @@ struct VizSetupKey {
 };
 static const VizSetupKey kSetupKeys[] = {
     {L"appearance.shape", L"stereo", true, 1},
-    {L"appearance.reflection", L"0", false, 1},
-    {L"appearance.fxGlow", L"0", false, 1},
+    {L"appearance.reflection", L"0", true, 1},
+    {L"appearance.fxGlow", L"0", true, 1},
     {L"appearance.fxGlowRadius", L"6", true, 1},
-    {L"appearance.fxBloom", L"0", false, 1},
+    {L"appearance.fxBloom", L"0", true, 1},
     {L"appearance.fxBloomRadius", L"16", true, 1},
     {L"appearance.fxOutlineWidth", L"0", true, 1},
     {L"appearance.fxOutlineColor", L"#B0FFFFFF", true, 1},
-    {L"appearance.fxShadow", L"0", false, 1},
+    {L"appearance.fxShadow", L"0", true, 1},
     {L"appearance.fxShadowColor", L"#000000", true, 1},
     {L"appearance.fxShadowX", L"2", true, 1},
     {L"appearance.fxShadowY", L"3", true, 1},
@@ -17360,7 +17360,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.barDashGap", L"2", true, 1},
     {L"appearance.barTilt", L"0", true, 1},
     {L"appearance.barMirrorGap", L"0", true, 1},
-    {L"appearance.afterimage", L"0", false, 1},
+    {L"appearance.afterimage", L"0", true, 1},
     {L"appearance.afterimageLength", L"1.2", true, 1},
     {L"appearance.orientation", L"horizontal", true, 1},
     {L"appearance.barCount", L"32", false, 1},
@@ -17373,12 +17373,12 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.color", L"#FFFFFFFF", true, 1},
     {L"appearance.gradientColor1", L"#FF1ED760", true, 1},
     {L"appearance.gradientColor2", L"#FF00B4FF", true, 1},
-    {L"appearance.sensitivity", L"150", false, 2},
+    {L"appearance.sensitivity", L"150", true, 2},
     {L"appearance.sensitivityCurve", L"knee", true, 2},
-    {L"appearance.inputGain", L"0", false, 2},
+    {L"appearance.inputGain", L"0", true, 2},
     {L"appearance.autoGain", L"0", false, 2},
     {L"appearance.autoGainMaxBoost", L"12", false, 2},
-    {L"appearance.smoothing", L"0", false, 2},
+    {L"appearance.smoothing", L"0", true, 2},
     {L"appearance.eqPreset", L"default", true, 2},
     {L"appearance.fftSize", L"2048", true, 2},
     {L"appearance.freqScale", L"log", true, 2},
@@ -17393,8 +17393,8 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.peakHoldColor", L"#FF00B4FF", true, 1},
     {L"appearance.beatFlashEnabled", L"0", false, 1},
     {L"appearance.beatFlashColor", L"#FFFFFFFF", true, 1},
-    {L"appearance.beatFlashIntensity", L"80", false, 1},
-    {L"appearance.rainbowSpeed", L"40", false, 1},
+    {L"appearance.beatFlashIntensity", L"80", true, 1},
+    {L"appearance.rainbowSpeed", L"40", true, 1},
     {L"appearance.nowPlayingEnabled", L"0", false, 4},
     {L"appearance.nowPlayingColor", L"#FFFFFFFF", true, 4},
     {L"appearance.nowPlayingFont", L"Segoe UI", true, 4},
@@ -17468,12 +17468,12 @@ static const VizSetupKey kSetupKeys[] = {
     {L"position.pixelSnap", L"1", false, 8},
     {L"position.dockSide", L"below", true, 8},
     {L"position.dockAlign", L"center", true, 8},
-    {L"position.dockGap", L"0", false, 8},
-    {L"position.dockShift", L"0", false, 8},
+    {L"position.dockGap", L"0", true, 8},
+    {L"position.dockShift", L"0", true, 8},
     {L"position.split", L"0", false, 8},
-    {L"position.splitAt", L"50", false, 8},
-    {L"position.splitGap", L"200", false, 8},
-    {L"position.splitShift", L"0", false, 8},
+    {L"position.splitAt", L"50", true, 8},
+    {L"position.splitGap", L"200", true, 8},
+    {L"position.splitShift", L"0", true, 8},
     {L"media_controls.enabled", L"0", false, 4},
     {L"media_controls.iconColor", L"#FFFFFFFF", true, 4},
     {L"media_controls.iconSize", L"32", true, 4},
@@ -17503,7 +17503,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"background.color", L"#60000000", true, 1},
     {L"background.padding", L"24", true, 1},
     {L"background.cornerRadius", L"14", true, 1},
-    {L"background.blur", L"0", false, 1},
+    {L"background.blur", L"0", true, 1},
     {L"background.borderSize", L"0", true, 1},
     {L"background.borderColor", L"#40FFFFFF", true, 1},
     {L"performance.targetFps", L"60", false, 2},
@@ -17912,14 +17912,15 @@ struct EditorSlider {
     const wchar_t* key;
     const wchar_t* label;
     int lo, hi;
-    int scale;  // slider steps per unit: 10 moves in tenths of a pixel
+    int scale;  // slider steps per unit: 100 moves in hundredths
 };
+// Every slider steps by 0.01 (arrow keys), 0.1 (Page Up / Down) or freely by dragging.
 const EditorSlider kSliders[] = {
-    {L"barWidth", L"Bar width", 1, 40, 10},       {L"barGap", L"Bar gap", 0, 30, 10},
-    {L"barMaxSize", L"Height", 10, 400, 1},       {L"barRadius", L"Corner radius", 0, 20, 10},
-    {L"reflection", L"Reflection", 0, 100, 1},    {L"fxGlow", L"Glow", 0, 100, 1},
-    {L"fxGlowRadius", L"Glow radius", 1, 32, 10}, {L"fxBloom", L"Bloom", 0, 100, 1},
-    {L"fxBloomRadius", L"Bloom radius", 4, 64, 1},
+    {L"barWidth", L"Bar width", 1, 40, 100},       {L"barGap", L"Bar gap", 0, 30, 100},
+    {L"barMaxSize", L"Height", 10, 400, 100},      {L"barRadius", L"Corner radius", 0, 20, 100},
+    {L"reflection", L"Reflection", 0, 100, 100},   {L"fxGlow", L"Glow", 0, 100, 100},
+    {L"fxGlowRadius", L"Glow radius", 1, 32, 100}, {L"fxBloom", L"Bloom", 0, 100, 100},
+    {L"fxBloomRadius", L"Bloom radius", 4, 64, 100},
 };
 HFONT s_editorFont = nullptr;
 COLORREF s_customColors[16] = {};
@@ -18027,10 +18028,14 @@ void EditorBuild(HWND hWnd) {
     y += rowH;
     for (int i = 0; i < (int)ARRAYSIZE(kSliders); i++) {
         label(kSliders[i].label);
-        HWND tb = add(TRACKBAR_CLASSW, L"", TBS_HORZ | TBS_NOTICKS | WS_TABSTOP, ctlX - px(4), y, ctlW - px(36), px(26),
+        HWND tb = add(TRACKBAR_CLASSW, L"", TBS_HORZ | TBS_NOTICKS | WS_TABSTOP, ctlX - px(4), y, ctlW - px(44), px(26),
                       kIdSliderBase + i);
-        SendMessageW(tb, TBM_SETRANGE, FALSE, MAKELPARAM(kSliders[i].lo * kSliders[i].scale, kSliders[i].hi * kSliders[i].scale));
-        add(L"STATIC", L"", SS_RIGHT, ctlX + ctlW - px(36), y + px(5), px(36), px(20), kIdSliderBase + 100 + i);
+        // MIN / MAX rather than SETRANGE: positions above 32767 don't fit its packed words.
+        SendMessageW(tb, TBM_SETRANGEMIN, FALSE, kSliders[i].lo * kSliders[i].scale);
+        SendMessageW(tb, TBM_SETRANGEMAX, FALSE, kSliders[i].hi * kSliders[i].scale);
+        SendMessageW(tb, TBM_SETLINESIZE, 0, 1);
+        SendMessageW(tb, TBM_SETPAGESIZE, 0, kSliders[i].scale / 10);
+        add(L"STATIC", L"", SS_RIGHT, ctlX + ctlW - px(44), y + px(5), px(44), px(20), kIdSliderBase + 100 + i);
         y += px(28);
     }
     y += px(4);
@@ -18593,10 +18598,10 @@ void LoadSettings() {
     PCWSTR shape = VizSettingString(L"appearance.shape");
     VizParseShape(shape, &g_settings.shape, &g_settings.style);
     VizSettingFree(shape);
-    g_settings.reflection = std::clamp(VizSettingInt(L"appearance.reflection"), 0, 100);
-    g_settings.fxGlow = std::clamp(VizSettingInt(L"appearance.fxGlow"), 0, 100);
+    g_settings.reflection = ReadSizeSetting(L"appearance.reflection", 0.f, 100.f, 0.f);
+    g_settings.fxGlow = ReadSizeSetting(L"appearance.fxGlow", 0.f, 100.f, 0.f);
     g_settings.fxGlowRadius = ReadSizeSetting(L"appearance.fxGlowRadius", 0.5f, 32.f, 6.f);
-    g_settings.fxBloom = std::clamp(VizSettingInt(L"appearance.fxBloom"), 0, 100);
+    g_settings.fxBloom = ReadSizeSetting(L"appearance.fxBloom", 0.f, 100.f, 0.f);
     g_settings.fxBloomRadius = ReadSizeSetting(L"appearance.fxBloomRadius", 4.f, 64.f, 16.f);
     g_settings.fxOutlineWidth = ReadNumberSetting(L"appearance.fxOutlineWidth", L"Appearance", L"Outline Width", 0.f, 0.f, 16.f);
     {
@@ -18606,7 +18611,7 @@ void LoadSettings() {
         ReadColorSetting(L"appearance.fxShadowColor", L"Appearance", L"Shadow Color", 255, 0, 0, 0,
                          &dummy, &g_settings.fxShadowR, &g_settings.fxShadowG, &g_settings.fxShadowB);
     }
-    g_settings.fxShadow = std::clamp(VizSettingInt(L"appearance.fxShadow"), 0, 100);
+    g_settings.fxShadow = ReadSizeSetting(L"appearance.fxShadow", 0.f, 100.f, 0.f);
     g_settings.fxShadowX = ReadNumberSetting(L"appearance.fxShadowX", L"Appearance", L"Shadow Offset X", 2.f, -32.f, 32.f);
     g_settings.fxShadowY = ReadNumberSetting(L"appearance.fxShadowY", L"Appearance", L"Shadow Offset Y", 3.f, -32.f, 32.f);
     g_settings.fxShadowSoft = ReadNumberSetting(L"appearance.fxShadowSoftness", L"Appearance", L"Shadow Softness", 4.f, 0.f, 32.f);
@@ -18616,7 +18621,7 @@ void LoadSettings() {
     g_settings.barDashGap = ReadSizeSetting(L"appearance.barDashGap", 0.f, 200.f, 2.f);
     g_settings.barTilt = ReadSizeSetting(L"appearance.barTilt", -60.f, 60.f, 0.f);
     g_settings.barMirrorGap = ReadSizeSetting(L"appearance.barMirrorGap", 0.f, 400.f, 0.f);
-    g_settings.afterimage = std::clamp(VizSettingInt(L"appearance.afterimage"), 0, 100);
+    g_settings.afterimage = ReadSizeSetting(L"appearance.afterimage", 0.f, 100.f, 0.f);
     g_settings.afterimageSeconds = ReadSizeSetting(L"appearance.afterimageLength", 0.1f, 10.f, 1.2f);
 
     PCWSTR orientation = VizSettingString(L"appearance.orientation");
@@ -18661,7 +18666,7 @@ void LoadSettings() {
                      255, 0, 180, 255,
                      &g_settings.grad2A, &g_settings.grad2R, &g_settings.grad2G, &g_settings.grad2B);
 
-    g_settings.sensitivity = std::clamp(VizSettingInt(L"appearance.sensitivity"), 0, 300);
+    g_settings.sensitivity = ReadSizeSetting(L"appearance.sensitivity", 0.f, 300.f, 150.f);
 
     PCWSTR sensCurve = VizSettingString(L"appearance.sensitivityCurve");
     g_settings.sensitivityCurve = (wcscmp(sensCurve, L"exponential") == 0) ? VizSensitivityCurve::Exponential
@@ -18670,12 +18675,12 @@ void LoadSettings() {
     VizSettingFree(sensCurve);
 
     g_settings.inputGainDb =
-        (float)std::clamp(VizSettingInt(L"appearance.inputGain"), -24, 24);
+        ReadSizeSetting(L"appearance.inputGain", -24.f, 24.f, 0.f);
     g_settings.autoGain = VizSettingInt(L"appearance.autoGain") != 0;
     g_settings.autoGainMaxDb =
         (float)std::clamp(VizSettingInt(L"appearance.autoGainMaxBoost"), 0, 24);
 
-    g_settings.smoothing = std::clamp(VizSettingInt(L"appearance.smoothing"), 0, 100);
+    g_settings.smoothing = ReadSizeSetting(L"appearance.smoothing", 0.f, 100.f, 0.f);
 
     PCWSTR eq = VizSettingString(L"appearance.eqPreset");
     g_settings.eq = (wcscmp(eq, L"bass") == 0)       ? VizEQ::Bass
@@ -18800,9 +18805,9 @@ void LoadSettings() {
         VizSettingFree(hotkey);
     }
     g_settings.splitEnabled = VizSettingInt(L"position.split") != 0;
-    g_settings.splitAt = std::clamp((float)VizSettingInt(L"position.splitAt"), 1.f, 99.f);
-    g_settings.splitGap = std::clamp((float)VizSettingInt(L"position.splitGap"), -8000.f, 8000.f);
-    g_settings.splitShift = std::clamp((float)VizSettingInt(L"position.splitShift"), -8000.f, 8000.f);
+    g_settings.splitAt = ReadSizeSetting(L"position.splitAt", 1.f, 99.f, 50.f);
+    g_settings.splitGap = ReadSizeSetting(L"position.splitGap", -8000.f, 8000.f, 200.f);
+    g_settings.splitShift = ReadSizeSetting(L"position.splitShift", -8000.f, 8000.f, 0.f);
     {
         PCWSTR app = VizSettingString(L"position.dockApp");
         std::wstring a = app ? app : L"";
@@ -18820,11 +18825,11 @@ void LoadSettings() {
         PCWSTR align = VizSettingString(L"position.dockAlign");
         g_settings.dockAlign = !wcscmp(align, L"start") ? 0 : !wcscmp(align, L"end") ? 2 : 1;
         VizSettingFree(align);
-        g_settings.dockGap = std::clamp((float)VizSettingInt(L"position.dockGap"), -400.f, 400.f);
-        g_settings.dockShift = std::clamp((float)VizSettingInt(L"position.dockShift"), -4000.f, 4000.f);
+        g_settings.dockGap = ReadSizeSetting(L"position.dockGap", -400.f, 400.f, 0.f);
+        g_settings.dockShift = ReadSizeSetting(L"position.dockShift", -4000.f, 4000.f, 0.f);
     }
     g_settings.dragSnap = VizSettingInt(L"interaction.dragSnap") != 0;
-    g_settings.dragSnapDistance = std::clamp((float)VizSettingInt(L"interaction.dragSnapDistance"), 1.f, 64.f);
+    g_settings.dragSnapDistance = ReadSizeSetting(L"interaction.dragSnapDistance", 1.f, 64.f, 8.f);
 
     PCWSTR dragModifier = VizSettingString(L"interaction.dragModifier");
     g_settings.dragModifier = (wcscmp(dragModifier, L"none") == 0)  ? VizDragModifier::None
@@ -18874,7 +18879,7 @@ void LoadSettings() {
         g_settings.bgRadiusBR = v[2];
         g_settings.bgRadiusBL = v[3];
     }
-    g_settings.bgBlur = std::max(0, VizSettingInt(L"background.blur"));
+    g_settings.bgBlur = ReadSizeSetting(L"background.blur", 0.f, 250.f, 0.f);
     g_settings.bgBorderSize = ReadSizeSetting(L"background.borderSize", 0.f, 100.f, 0.f);
 
     ReadColorSetting(L"background.borderColor", L"Background", L"Border Color", 0x40, 255, 255, 255,
@@ -18901,8 +18906,8 @@ void LoadSettings() {
                      &g_settings.beatFlashA, &g_settings.beatFlashR, &g_settings.beatFlashG,
                      &g_settings.beatFlashB);
 
-    g_settings.beatFlashIntensity = std::clamp(VizSettingInt(L"appearance.beatFlashIntensity"), 0, 300);
-    g_settings.rainbowSpeed = std::clamp(VizSettingInt(L"appearance.rainbowSpeed"), 1, 300);
+    g_settings.beatFlashIntensity = ReadSizeSetting(L"appearance.beatFlashIntensity", 0.f, 300.f, 80.f);
+    g_settings.rainbowSpeed = ReadSizeSetting(L"appearance.rainbowSpeed", 1.f, 300.f, 40.f);
 
     g_settings.nowPlayingEnabled = VizSettingInt(L"appearance.nowPlayingEnabled") != 0;
     ReadColorSetting(L"appearance.nowPlayingColor", L"Appearance", L"Now Playing Text Color",
