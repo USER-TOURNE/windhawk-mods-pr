@@ -1630,7 +1630,6 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 #include <atomic>
 #include <cmath>
 #include <cwctype>
-#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
