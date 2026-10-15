@@ -808,7 +808,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - autoGain: false
       $name: Auto Gain
       $description: Continuously adapts the level so quiet sources still fill the bars, without retuning Sensitivity per app or per track. Boost only, so loud material behaves exactly as it does with this off. Held steady through silence, which means the noise floor is never lifted and idle shutdown still works normally
-    - autoGainMaxBoost: 12
+    - autoGainMaxBoost: '12'
       $name: Auto Gain Max Boost (dB)
       $description: The ceiling on how far Auto Gain may lift a quiet signal. Range 0 to 24. Lower it if quiet passages are getting flattened more than you want, raise it if a very quiet source still will not fill the bars. Only used when Auto Gain is on
     - smoothing: '0'
@@ -863,10 +863,10 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - oscilloscopeMultibandEnabled: false
       $name: Multiband Oscilloscope Coloring
       $description: Tints the Oscilloscope trace by which part of the spectrum (low/mid/high) is currently dominant, overriding Color Mode for that shape
-    - oscilloscopeWindowMs: 24
+    - oscilloscopeWindowMs: '24'
       $name: Oscilloscope Time Window (ms)
       $description: How much audio the trace shows end to end, in milliseconds. Range 5 to 250. Low values stretch out individual wave cycles and look like a hardware scope; high values compress more of the signal into the same width and read as a rolling envelope. This is a real time base, independent of FFT Size, so changing frequency resolution no longer changes what the trace looks like. Around 150 to 180 is close to what FFT Size 8192 used to give. Only affects the Oscilloscope shape
-    - oscilloscopeDamping: 0
+    - oscilloscopeDamping: '0'
       $name: Oscilloscope Damping
       $description: Slows how fast the trace changes shape, without slowing how often it is drawn. Range 0 to 100. 0 is the raw trace, redrawn every frame. Higher values ease each point toward its new position so the waveform moves slowly enough to follow with your eyes, which is what makes a wide time window legible rather than busy. Pair it with a high Time Window. Costs nothing and does not change your frame rate. Only affects the Oscilloscope shape
     - verticalAnchor: bottom
@@ -906,7 +906,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - nowPlayingFontSize: '16'
       $name: Now Playing Font Size
       $description: Text size, in points. Decimals allowed; turn Pixel Snap (Position) off to keep the fractions
-    - nowPlayingDisplaySeconds: 6
+    - nowPlayingDisplaySeconds: '6'
       $name: Now Playing Display Seconds
       $description: How long the text stays visible after a track changes, before fading out. 0 keeps it on screen all the time, like a media widget
     - nowPlayingOffsetX: '0'
@@ -1047,7 +1047,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - meterColumns: 40
       $name: Meter Width
       $description: Width of the Meters style, in characters
-    - hotThreshold: 75
+    - hotThreshold: '75'
       $name: Hot Threshold (%)
       $description: Above this share of full height a character turns the Hot Color
     - columnGlyph: '#'
@@ -1059,7 +1059,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - ramp: ' .:-=+*#%@'
       $name: Waterfall Ramp
       $description: 'Characters from quiet to loud for the Waterfall, any characters, e.g. " ░▒▓█" or " ·•●". Up to 128 different non-ASCII characters across all three settings'
-    - scrollRate: 20
+    - scrollRate: '20'
       $name: Waterfall Speed
       $description: Lines per second
     - lowColor: '#FF33FF66'
@@ -1096,13 +1096,13 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - '6': 1/6 octave
         - '12': 1/12 octave (semitone)
         - '24': 1/24 octave (quarter tone)
-    - minFrequency: 20
+    - minFrequency: '20'
       $name: Min Frequency (Hz)
       $description: Bottom of the analysed range. Range 10 to 1000
-    - maxFrequency: 20000
+    - maxFrequency: '20000'
       $name: Max Frequency (Hz)
       $description: Top of the analysed range. Range 1000 to 21000; anything above the device's Nyquist limit is trimmed automatically
-    - tuningA4: 440
+    - tuningA4: '440'
       $name: Tuning (A4, Hz)
       $description: Reference pitch for the Musical layout. Range 400 to 480
     - weighting: z
@@ -1157,10 +1157,10 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - right: Right
         - mid: Mid (L+R)
         - side: Side (L-R)
-    - dbFloor: -72
+    - dbFloor: '-72'
       $name: Display Floor (dBFS)
       $description: The level that draws as an empty bar. Range -120 to -20. Lower shows quieter detail, at the cost of noise and hiss showing too
-    - dbCeiling: -12
+    - dbCeiling: '-12'
       $name: Display Ceiling (dBFS)
       $description: The level that draws as a full bar, before Sensitivity. Range -60 to 0. A full-scale sine is 0 dBFS; loud modern music sits around -20 per third-octave band
     - ballistics: snappy
@@ -1174,13 +1174,13 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - ppm_ebu: PPM, EBU (Type II)
         - ppm_din: PPM, DIN (Type I)
         - custom: Custom
-    - attackMs: 10
+    - attackMs: '10'
       $name: Custom Attack (ms)
       $description: Rise time constant for Ballistics = Custom. Range 1 to 500
-    - releaseDbPerSecond: 20
+    - releaseDbPerSecond: '20'
       $name: Custom Release (dB/s)
       $description: Fall rate for Ballistics = Custom. Range 1 to 200
-    - peakHoldMs: 500
+    - peakHoldMs: '500'
       $name: Peak Hold Time (ms)
       $description: How long a peak cap hangs before it falls. Range 0 to 5000. Only used with Peak Hold Caps on
     - peakFall: gravity
@@ -1511,7 +1511,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - pauseOnFullscreen: true
       $name: Pause On Fullscreen
       $description: Stops rendering while any window is fullscreen, since the visualizer would be hidden behind it anyway
-    - pauseWhenSilentSeconds: 10
+    - pauseWhenSilentSeconds: '10'
       $name: Pause When Silent (seconds)
       $description: After this long without audio, drawing drops to a trickle that presents nothing unless something actually changes. 0 disables this behavior, and Deep Idle with it
     - deepIdle: true
@@ -1523,7 +1523,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
     - autoHideEnabled: false
       $name: Auto-Hide When Idle
       $description: Fades the whole visualizer out after prolonged silence, instead of just idling
-    - autoHideDelaySeconds: 15
+    - autoHideDelaySeconds: '15'
       $name: Auto-Hide Delay (seconds)
       $description: How long to wait after audio goes silent before fading the visualizer out. Only used when Auto-Hide When Idle is on
     - pauseWhenObscured: false
@@ -1855,7 +1855,7 @@ struct Settings {
 
     int targetFps = 60;
     bool pauseOnFullscreen = true;
-    int pauseWhenSilentSeconds = 10;
+    float pauseWhenSilentSeconds = 10;
 
     bool peakHoldEnabled = false;
     BYTE peakHoldA = 255, peakHoldR = 0, peakHoldG = 180, peakHoldB = 255;
@@ -1868,7 +1868,7 @@ struct Settings {
     BYTE nowPlayingA = 255, nowPlayingR = 255, nowPlayingG = 255, nowPlayingB = 255;
     std::wstring nowPlayingFont = L"Segoe UI";
     float nowPlayingFontSize = 16;
-    int nowPlayingDisplaySeconds = 6;
+    float nowPlayingDisplaySeconds = 6;
     float nowPlayingOffsetY = 0;
     float nowPlayingOffsetX = 0;
     float peakFreqOffsetY = 0;
@@ -1889,7 +1889,7 @@ struct Settings {
     BYTE pfBgBorderA = 0x40, pfBgBorderR = 255, pfBgBorderG = 255, pfBgBorderB = 255;
 
     bool autoHideEnabled = false;
-    int autoHideDelaySeconds = 15;
+    float autoHideDelaySeconds = 15;
     bool pauseWhenObscured = false;
     int obscuredThresholdPercent = 100;
 
@@ -1899,8 +1899,8 @@ struct Settings {
     VizTextAlignH peakFreqAlignH = VizTextAlignH::Right;
     VizTextAlignV peakFreqAlignV = VizTextAlignV::Top;
     bool oscilloscopeMultibandEnabled = false;
-    int oscilloscopeWindowMs = 24;
-    int oscilloscopeDamping = 0;
+    float oscilloscopeWindowMs = 24;
+    float oscilloscopeDamping = 0;
 
     bool mediaControlsEnabled = false;
     BYTE mediaIconColorA = 255, mediaIconColorR = 255, mediaIconColorG = 255, mediaIconColorB = 255;
@@ -1941,7 +1941,7 @@ struct Settings {
     VizEngineKind engine = VizEngineKind::Precision;
     VizBandLayout bandLayout = VizBandLayout::Scale;
     int octaveFraction = 6;
-    int minFreq = 20, maxFreq = 20000;
+    float minFreq = 20, maxFreq = 20000;
     float tuningA4 = 440.f;
     VizWeighting weighting = VizWeighting::Z;
     float tiltDbPerOct = 1.5f;
@@ -1950,10 +1950,10 @@ struct Settings {
     VizWindowKind window = VizWindowKind::Hann;
     int bassDetail = 2;
     VizChannel channel = VizChannel::Mix;
-    int dbFloor = -72, dbCeiling = -12;
+    float dbFloor = -72, dbCeiling = -12;
     VizBallisticsPreset ballistics = VizBallisticsPreset::Snappy;
-    int attackMs = 10, releaseDbPerSec = 20;
-    int peakHoldMs = 500;
+    float attackMs = 10, releaseDbPerSec = 20;
+    float peakHoldMs = 500;
     VizPeakFall peakFall = VizPeakFall::Gravity;
     VizReadout readout = VizReadout::Frequency;
     bool loudnessResetOnTrack = true;
@@ -2005,11 +2005,11 @@ struct Settings {
     float termFontSize = 14;
     int termRows = 16;
     int termMeterColumns = 40;
-    int termHotThreshold = 75;
+    float termHotThreshold = 75;
     wchar_t termColumnGlyph = L'#';
     wchar_t termPeakGlyph = L'-';
     std::wstring termRamp = L" .:-=+*#%@";
-    int termScrollRate = 20;
+    float termScrollRate = 20;
     BYTE termDimA = 255, termDimR = 0x1E, termDimG = 0x6B, termDimB = 0x34;
     BYTE termLowA = 255, termLowR = 0x33, termLowG = 0xFF, termLowB = 0x66;
     BYTE termHighA = 255, termHighR = 0xFF, termHighG = 0x3B, termHighB = 0x3B;
@@ -6986,7 +6986,7 @@ private:
             if (m < 0) m += RING_CAP;
             return ring_[m];
         };
-        int windowMs = std::clamp(g_settings.oscilloscopeWindowMs, 5, 250);
+        float windowMs = std::clamp(g_settings.oscilloscopeWindowMs, 5.f, 250.f);
         int span = (int)((double)sampleRate_ * (double)windowMs / 1000.0);
         span = std::clamp(span, VIZ_WAVE_SAMPLES, RING_CAP / 2);
         // Trigger on the nearest rising zero crossing before the window's
@@ -8515,7 +8515,7 @@ void VizBuildTermGridCells() {
     VizTermGrid& g = g_termGrid;
     VizTermGridSize(&g.cols, &g.rows);
     g.cells.assign((size_t)g.cols * g.rows, TermCell(L' ', 0));
-    const float hot = std::clamp(g_settings.termHotThreshold, 1, 100) / 100.0f;
+    const float hot = std::clamp(g_settings.termHotThreshold, 1.f, 100.f) / 100.0f;
     auto at = [&](int c, int r) -> uint32_t& { return g.cells[(size_t)r * g.cols + c]; };
 
     if (g_settings.termStyle == VizTermStyle::Meters) {
@@ -8550,7 +8550,7 @@ void VizBuildTermGridCells() {
         }
         // Scroll by whole rows at the configured rate; the newest row always
         // shows the current levels, so the top line stays live between steps.
-        g_termScrollAcc += g_frameDt * (float)std::clamp(g_settings.termScrollRate, 1, 120);
+        g_termScrollAcc += g_frameDt * std::clamp(g_settings.termScrollRate, 1.f, 120.f);
         int steps = std::min((int)g_termScrollAcc, g.rows);
         g_termScrollAcc -= (float)(int)g_termScrollAcc;
         VizTermScrollHistory(g_termHistory.data(), g.rows, g.cols, steps, g_vizPeak);
@@ -14858,7 +14858,7 @@ void VizBuildTextFrame(VizTextFrame& t) {
     if (g_settings.nowPlayingEnabled && g_dwriteTextFormat && g_nowPlayingBrush) {
         ULONGLONG changedAt = g_nowPlayingChangedTick.load(std::memory_order_relaxed);
         ULONGLONG npElapsed = GetTickCount64() - changedAt;
-        ULONGLONG showMs = (ULONGLONG)std::max(0, g_settings.nowPlayingDisplaySeconds) * 1000ULL;
+        ULONGLONG showMs = (ULONGLONG)(std::max(0.f, g_settings.nowPlayingDisplaySeconds) * 1000.f);
         constexpr ULONGLONG kNpFadeMs = 800;
         if (changedAt != 0 && showMs == 0)
             t.npAlpha = 1.0f;  // Display Seconds 0: always shown, a widget rather than a toast
@@ -15163,8 +15163,8 @@ bool RenderVisualizerD3D(float sceneAlpha) {
     const float scaleGap = VizPx((float)std::max(0.f, g_settings.barGap));
     const float scaleThick = scaleBars * (scaleBarW + scaleGap) - scaleGap;
     if (scale) {
-        ttgfx::Mix(key, 7u + (uint64_t)g_settings.style * 131u + (uint64_t)(g_settings.dbFloor + 200) * 1009u +
-                            (uint64_t)(g_settings.dbCeiling + 200) * 65537u + (uint64_t)g_settings.engine);
+        ttgfx::Mix(key, 7u + (uint64_t)g_settings.style * 131u + (uint64_t)lroundf((g_settings.dbFloor + 200) * 100) * 1009u +
+                            (uint64_t)lroundf((g_settings.dbCeiling + 200) * 100) * 65537u + (uint64_t)g_settings.engine);
         ttgfx::MixF(key, scaleMax, 64.f);
         ttgfx::MixF(key, scaleThick, 64.f);
         ttgfx::Mix(key, scaleHorizontal ? 1u : 2u);
@@ -15236,7 +15236,7 @@ void RenderVisualizer() {
     float sceneAlpha = 1.0f;
     if (g_settings.autoHideEnabled) {
         ULONGLONG idleMs = GetTickCount64() - g_lastAudibleTickMs.load(std::memory_order_relaxed);
-        ULONGLONG delayMs = (ULONGLONG)std::max(0, g_settings.autoHideDelaySeconds) * 1000ULL;
+        ULONGLONG delayMs = (ULONGLONG)(std::max(0.f, g_settings.autoHideDelaySeconds) * 1000.f);
         constexpr ULONGLONG kFadeMs = 1500;
         if (idleMs > delayMs) {
             ULONGLONG fadeElapsed = idleMs - delayMs;
@@ -16171,12 +16171,12 @@ void RenderThreadProc() {
 
         // ---- Idle ladder ----------------------------------------------------------
         ULONGLONG idleMs = now - g_lastAudibleTickMs.load(std::memory_order_relaxed);
-        ULONGLONG silentAfter = (ULONGLONG)std::max(0, g_settings.pauseWhenSilentSeconds) * 1000ULL;
+        ULONGLONG silentAfter = (ULONGLONG)(std::max(0.f, g_settings.pauseWhenSilentSeconds) * 1000.f);
         bool silent = g_settings.pauseWhenSilentSeconds > 0 && idleMs > silentAfter;
         // An auto-hide fade in progress still wants full frames.
         bool fading = false;
         if (g_settings.autoHideEnabled) {
-            ULONGLONG d = (ULONGLONG)std::max(0, g_settings.autoHideDelaySeconds) * 1000ULL;
+            ULONGLONG d = (ULONGLONG)(std::max(0.f, g_settings.autoHideDelaySeconds) * 1000.f);
             fading = idleMs > d && idleMs < d + 2000;
         }
         g_slowMode = silent && !fading;
@@ -17391,7 +17391,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.sensitivityCurve", L"knee", true, 2},
     {L"appearance.inputGain", L"0", true, 2},
     {L"appearance.autoGain", L"0", false, 2},
-    {L"appearance.autoGainMaxBoost", L"12", false, 2},
+    {L"appearance.autoGainMaxBoost", L"12", true, 2},
     {L"appearance.smoothing", L"0", true, 2},
     {L"appearance.eqPreset", L"default", true, 2},
     {L"appearance.fftSize", L"2048", true, 2},
@@ -17400,8 +17400,8 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.peakFreqAlignH", L"right", true, 4},
     {L"appearance.peakFreqAlignV", L"top", true, 4},
     {L"appearance.oscilloscopeMultibandEnabled", L"0", false, 2},
-    {L"appearance.oscilloscopeWindowMs", L"24", false, 2},
-    {L"appearance.oscilloscopeDamping", L"0", false, 2},
+    {L"appearance.oscilloscopeWindowMs", L"24", true, 2},
+    {L"appearance.oscilloscopeDamping", L"0", true, 2},
     {L"appearance.verticalAnchor", L"bottom", true, 1},
     {L"appearance.peakHoldEnabled", L"0", false, 1},
     {L"appearance.peakHoldColor", L"#FF00B4FF", true, 1},
@@ -17413,7 +17413,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"appearance.nowPlayingColor", L"#FFFFFFFF", true, 4},
     {L"appearance.nowPlayingFont", L"Segoe UI", true, 4},
     {L"appearance.nowPlayingFontSize", L"16", true, 4},
-    {L"appearance.nowPlayingDisplaySeconds", L"6", false, 4},
+    {L"appearance.nowPlayingDisplaySeconds", L"6", true, 4},
     {L"appearance.nowPlayingOffsetX", L"0", true, 4},
     {L"appearance.nowPlayingOffsetY", L"0", true, 4},
     {L"appearance.nowPlayingBgColor", L"#00000000", true, 4},
@@ -17444,11 +17444,11 @@ static const VizSetupKey kSetupKeys[] = {
     {L"terminal.fontSize", L"14", true, 1},
     {L"terminal.rows", L"16", false, 1},
     {L"terminal.meterColumns", L"40", false, 1},
-    {L"terminal.hotThreshold", L"75", false, 1},
+    {L"terminal.hotThreshold", L"75", true, 1},
     {L"terminal.columnGlyph", L"#", true, 1},
     {L"terminal.peakGlyph", L"-", true, 1},
     {L"terminal.ramp", L" .:-=+*#%@", true, 1},
-    {L"terminal.scrollRate", L"20", false, 1},
+    {L"terminal.scrollRate", L"20", true, 1},
     {L"terminal.lowColor", L"#FF33FF66", true, 1},
     {L"terminal.highColor", L"#FFFF3B3B", true, 1},
     {L"terminal.dimColor", L"#FF1E6B34", true, 1},
@@ -17456,9 +17456,9 @@ static const VizSetupKey kSetupKeys[] = {
     {L"analysis.engine", L"precision", true, 2},
     {L"analysis.bandLayout", L"scale", true, 2},
     {L"analysis.octaveFraction", L"6", true, 2},
-    {L"analysis.minFrequency", L"20", false, 2},
-    {L"analysis.maxFrequency", L"20000", false, 2},
-    {L"analysis.tuningA4", L"440", false, 2},
+    {L"analysis.minFrequency", L"20", true, 2},
+    {L"analysis.maxFrequency", L"20000", true, 2},
+    {L"analysis.tuningA4", L"440", true, 2},
     {L"analysis.weighting", L"z", true, 2},
     {L"analysis.tilt", L"1.5", true, 2},
     {L"analysis.detector", L"rms", true, 2},
@@ -17466,12 +17466,12 @@ static const VizSetupKey kSetupKeys[] = {
     {L"analysis.window", L"hann", true, 2},
     {L"analysis.bassDetail", L"2", true, 2},
     {L"analysis.channel", L"mix", true, 2},
-    {L"analysis.dbFloor", L"-72", false, 2},
-    {L"analysis.dbCeiling", L"-12", false, 2},
+    {L"analysis.dbFloor", L"-72", true, 2},
+    {L"analysis.dbCeiling", L"-12", true, 2},
     {L"analysis.ballistics", L"snappy", true, 2},
-    {L"analysis.attackMs", L"10", false, 2},
-    {L"analysis.releaseDbPerSecond", L"20", false, 2},
-    {L"analysis.peakHoldMs", L"500", false, 2},
+    {L"analysis.attackMs", L"10", true, 2},
+    {L"analysis.releaseDbPerSecond", L"20", true, 2},
+    {L"analysis.peakHoldMs", L"500", true, 2},
     {L"analysis.peakFall", L"gravity", true, 2},
     {L"analysis.readout", L"frequency", true, 4},
     {L"analysis.loudnessResetOnTrack", L"1", false, 4},
@@ -18692,7 +18692,7 @@ void LoadSettings() {
         ReadSizeSetting(L"appearance.inputGain", -24.f, 24.f, 0.f);
     g_settings.autoGain = VizSettingInt(L"appearance.autoGain") != 0;
     g_settings.autoGainMaxDb =
-        (float)std::clamp(VizSettingInt(L"appearance.autoGainMaxBoost"), 0, 24);
+        ReadSizeSetting(L"appearance.autoGainMaxBoost", 0.f, 24.f, 12.f);
 
     g_settings.smoothing = ReadSizeSetting(L"appearance.smoothing", 0.f, 100.f, 0.f);
 
@@ -18903,7 +18903,7 @@ void LoadSettings() {
     // 0 = match the display (the engine thread reads the refresh rate).
     g_settings.targetFps = std::max(0, VizSettingInt(L"performance.targetFps"));
     g_settings.pauseOnFullscreen = VizSettingInt(L"performance.pauseOnFullscreen") != 0;
-    g_settings.pauseWhenSilentSeconds = std::max(0, VizSettingInt(L"performance.pauseWhenSilentSeconds"));
+    g_settings.pauseWhenSilentSeconds = ReadSizeSetting(L"performance.pauseWhenSilentSeconds", 0.f, 86400.f, 10.f);
     g_settings.deepIdle = VizSettingInt(L"performance.deepIdle") != 0;
     g_perfStatsEnabled.store(VizSettingInt(L"performance.perfStats") != 0, std::memory_order_relaxed);
 
@@ -18947,7 +18947,7 @@ void LoadSettings() {
     VizSettingFree(nowPlayingFont);
     g_settings.nowPlayingFontSize = ReadSizeSetting(L"appearance.nowPlayingFontSize", 6.f, 400.f, 16.f);
     g_settings.nowPlayingDisplaySeconds =
-        std::max(0, VizSettingInt(L"appearance.nowPlayingDisplaySeconds"));
+        ReadSizeSetting(L"appearance.nowPlayingDisplaySeconds", 0.f, 86400.f, 6.f);
 
     // Clamped rather than free: each pixel of offset widens the render surface
     // by the same amount, so a stray extra zero shouldn't silently cost memory
@@ -18980,7 +18980,7 @@ void LoadSettings() {
                      &g_settings.pfBgBorderG, &g_settings.pfBgBorderB);
 
     g_settings.autoHideEnabled = VizSettingInt(L"performance.autoHideEnabled") != 0;
-    g_settings.autoHideDelaySeconds = std::max(0, VizSettingInt(L"performance.autoHideDelaySeconds"));
+    g_settings.autoHideDelaySeconds = ReadSizeSetting(L"performance.autoHideDelaySeconds", 0.f, 86400.f, 15.f);
     g_settings.pauseWhenObscured = VizSettingInt(L"performance.pauseWhenObscured") != 0;
     g_settings.obscuredThresholdPercent =
         ReadThresholdPercentSetting(L"performance.obscuredThresholdPercent", L"Performance",
@@ -19018,9 +19018,9 @@ void LoadSettings() {
     g_settings.oscilloscopeMultibandEnabled =
         VizSettingInt(L"appearance.oscilloscopeMultibandEnabled") != 0;
     g_settings.oscilloscopeWindowMs =
-        std::clamp(VizSettingInt(L"appearance.oscilloscopeWindowMs"), 5, 250);
+        ReadSizeSetting(L"appearance.oscilloscopeWindowMs", 5.f, 250.f, 24.f);
     g_settings.oscilloscopeDamping =
-        std::clamp(VizSettingInt(L"appearance.oscilloscopeDamping"), 0, 100);
+        ReadSizeSetting(L"appearance.oscilloscopeDamping", 0.f, 100.f, 0.f);
 
     g_settings.mediaControlsEnabled = VizSettingInt(L"media_controls.enabled") != 0;
 
@@ -19130,12 +19130,12 @@ void LoadSettings() {
             int f = _wtoi(v);
             g_settings.octaveFraction = (f == 1 || f == 3 || f == 6 || f == 12 || f == 24) ? f : 6;
         });
-        g_settings.minFreq = std::clamp(VizSettingInt(L"analysis.minFrequency"), 10, 1000);
-        g_settings.maxFreq = std::clamp(VizSettingInt(L"analysis.maxFrequency"), 1000, 21000);
-        if (g_settings.maxFreq <= g_settings.minFreq * 2) g_settings.maxFreq = std::max(1000, g_settings.minFreq * 4);
+        g_settings.minFreq = ReadSizeSetting(L"analysis.minFrequency", 10.f, 1000.f, 20.f);
+        g_settings.maxFreq = ReadSizeSetting(L"analysis.maxFrequency", 1000.f, 21000.f, 20000.f);
+        if (g_settings.maxFreq <= g_settings.minFreq * 2) g_settings.maxFreq = std::max(1000.f, g_settings.minFreq * 4);
         {
-            int a4 = VizSettingInt(L"analysis.tuningA4");
-            g_settings.tuningA4 = (float)((a4 >= 400 && a4 <= 480) ? a4 : 440);
+            float a4 = ReadSizeSetting(L"analysis.tuningA4", 0.f, 1000.f, 440.f);
+            g_settings.tuningA4 = (a4 >= 400.f && a4 <= 480.f) ? a4 : 440.f;
         }
         str(L"analysis.weighting", [](PCWSTR v) {
             g_settings.weighting = (wcscmp(v, L"a") == 0) ? VizWeighting::A
@@ -19168,10 +19168,10 @@ void LoadSettings() {
                                : (wcscmp(v, L"side") == 0)    ? VizChannel::Side
                                                               : VizChannel::Mix;
         });
-        g_settings.dbFloor = std::clamp(VizSettingInt(L"analysis.dbFloor"), -120, -20);
-        g_settings.dbCeiling = std::clamp(VizSettingInt(L"analysis.dbCeiling"), -60, 0);
+        g_settings.dbFloor = ReadSizeSetting(L"analysis.dbFloor", -120.f, -20.f, -72.f);
+        g_settings.dbCeiling = ReadSizeSetting(L"analysis.dbCeiling", -60.f, 0.f, -12.f);
         if (g_settings.dbCeiling - g_settings.dbFloor < 10) {
-            ReportSettingIssue(L"Analysis", L"Display Ceiling (dBFS)", std::to_wstring(g_settings.dbCeiling).c_str(),
+            ReportSettingIssue(L"Analysis", L"Display Ceiling (dBFS)", VizNumText(g_settings.dbCeiling).c_str(),
                                L"at least 10 dB above Display Floor", L"Display Floor + 10");
             g_settings.dbCeiling = g_settings.dbFloor + 10;
         }
@@ -19184,9 +19184,9 @@ void LoadSettings() {
                                   : (wcscmp(v, L"custom") == 0)     ? VizBallisticsPreset::Custom
                                                                     : VizBallisticsPreset::Snappy;
         });
-        g_settings.attackMs = std::clamp(VizSettingInt(L"analysis.attackMs"), 1, 500);
-        g_settings.releaseDbPerSec = std::clamp(VizSettingInt(L"analysis.releaseDbPerSecond"), 1, 200);
-        g_settings.peakHoldMs = std::clamp(VizSettingInt(L"analysis.peakHoldMs"), 0, 5000);
+        g_settings.attackMs = ReadSizeSetting(L"analysis.attackMs", 1.f, 500.f, 10.f);
+        g_settings.releaseDbPerSec = ReadSizeSetting(L"analysis.releaseDbPerSecond", 1.f, 200.f, 20.f);
+        g_settings.peakHoldMs = ReadSizeSetting(L"analysis.peakHoldMs", 0.f, 5000.f, 500.f);
         str(L"analysis.peakFall", [](PCWSTR v) {
             g_settings.peakFall = (wcscmp(v, L"linear") == 0) ? VizPeakFall::Linear : VizPeakFall::Gravity;
         });
@@ -19297,8 +19297,8 @@ void LoadSettings() {
         g_settings.termFontSize = ReadSizeSetting(L"terminal.fontSize", 6.f, 96.f, 14.f);
         g_settings.termRows = std::clamp(VizSettingInt(L"terminal.rows"), 2, 128);
         g_settings.termMeterColumns = std::clamp(VizSettingInt(L"terminal.meterColumns"), 20, 200);
-        g_settings.termHotThreshold = std::clamp(VizSettingInt(L"terminal.hotThreshold"), 1, 100);
-        g_settings.termScrollRate = std::clamp(VizSettingInt(L"terminal.scrollRate"), 1, 120);
+        g_settings.termHotThreshold = ReadSizeSetting(L"terminal.hotThreshold", 1.f, 100.f, 75.f);
+        g_settings.termScrollRate = ReadSizeSetting(L"terminal.scrollRate", 1.f, 120.f, 20.f);
         // Any one character each (2.1): ASCII as itself, anything else as a
         // custom glyph code. The font has to have it.
         g_termCustomGlyphs.clear();
