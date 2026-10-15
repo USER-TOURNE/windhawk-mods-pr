@@ -47,7 +47,7 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 ## ✧ NEW IN 2.0 AND 2.1
 
-2.1 replaces 1.x. If you ran one of the 2.0 test builds from GitHub, turn it off: only one Tourne'Table should run. The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
+2.1 replaces 1.x. If you ran one of the 2.0 test builds from GitHub, turn it off: only one Tourne'Table should run. If you also use **Tourne Desktop** (my separate desktop app, not part of Windhawk), its taskbar counts as the taskbar for Place In = Taskbar, and it can show, hide or pin the panel through the window message `TourneTable.Panel`. The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
 
 **Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** opens the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) in your browser (bring one in with **Paste code** or **Open file**; the mod itself never goes online) or opens a ready GitHub issue to share yours. Your audio device, hotkeys, file paths and hardware never go in a setup. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
 
@@ -2063,6 +2063,9 @@ std::atomic<HWND> g_overlayWnd{nullptr};
 // Place In = Panel: whether the current overlay window is the panel,
 // and the panel's own state (kept in the "panel" mod value).
 bool g_overlayInPanel = false;
+// RegisterWindowMessage("TourneTable.Panel"): wParam 0 toggles the panel, 1 shows, 2 hides, 3 toggles
+// Keep on Top. Tourne Desktop sends it from its taskbar; any other launcher or script can too.
+UINT g_panelMsg = 0;
 bool g_panelHidden = false;
 bool g_panelPinned = false;
 float g_panelZoom = 1.0f;
@@ -10407,7 +10410,10 @@ bool VizDesktopUnderPoint(POINT pt) {
     WCHAR cls[32] = {};
     GetClassNameW(root, cls, ARRAYSIZE(cls));
     if (g_overlayInPanel && root == g_overlayWnd) return true;
-    if (g_settings.hostTaskbar && (wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0))
+    // Tourne Desktop (the author's separate desktop app, not in the catalog) can draw its own taskbar over
+    // Windows' one; the empty space between its segments takes clicks, so it counts as the taskbar too.
+    if (g_settings.hostTaskbar && (wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
+                                   wcsncmp(cls, L"TourneTaskbar", 13) == 0))
         return true;
     return wcscmp(cls, L"WorkerW") == 0 || wcscmp(cls, L"Progman") == 0;
 }
@@ -16521,6 +16527,7 @@ void VizPanelKeepOnScreen() {
 }
 
 void VizCreatePanelWindow(HINSTANCE hInstance) {
+    if (!g_panelMsg) g_panelMsg = RegisterWindowMessageW(L"TourneTable.Panel");
     VizPanelLoad();
     RECT r = g_panelRect;
     if (r.right <= r.left || r.bottom <= r.top) {
@@ -16656,6 +16663,13 @@ void CreateOverlayWindow();
 void ApplySettingsChanged();
 
 LRESULT CALLBACK OverlayWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+    if (g_overlayInPanel && g_panelMsg && uMsg == g_panelMsg) {
+        if (wParam == 0) VizPanelShow(g_panelHidden);
+        else if (wParam == 1) VizPanelShow(true);
+        else if (wParam == 2) VizPanelShow(false);
+        else if (wParam == 3) VizPanelPin(!g_panelPinned);
+        return g_panelHidden ? 0 : 1;
+    }
     if (g_overlayInPanel) {
         switch (uMsg) {
             case WM_NCCALCSIZE:
