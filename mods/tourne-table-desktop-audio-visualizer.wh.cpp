@@ -9,7 +9,7 @@
 // @donateUrl           https://ko-fi.com/tourne
 // @license             MIT
 // @include             windhawk.exe
-// @compilerOptions     -lcabinet -lurlmon -ldxgi -ld2d1 -ld3d11 -ldcomp -ldwmapi -ldwrite -lgdi32 -lshcore -lshlwapi -lole32 -lshell32 -lksuser -lwindowscodecs -lruntimeobject -lwindowsapp -luuid -luser32 -ladvapi32 -lcomctl32 -lcomdlg32
+// @compilerOptions     -lcabinet -ldxgi -ld2d1 -ld3d11 -ldcomp -ldwmapi -ldwrite -lgdi32 -lshcore -lshlwapi -lole32 -lshell32 -lksuser -lwindowscodecs -lruntimeobject -lwindowsapp -luuid -luser32 -ladvapi32 -lcomctl32 -lcomdlg32
 // ==/WindhawkMod==
 
 // ==WindhawkModReadme==
@@ -49,7 +49,7 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 2.1 is the build that runs inside Tourne Desktop, as a Windhawk mod of its own. It replaces the 1.x release and the 2.0 betas (turn those off: only one Tourne'Table should run). The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
 
-**Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** lists the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) (read only when you press it) and opens a ready GitHub issue to share yours. Your audio device, hotkeys, file paths and hardware never go in a setup. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
+**Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** opens the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) in your browser (bring one in with **Paste code** or **Open file**; the mod itself never goes online) or opens a ready GitHub issue to share yours. Your audio device, hotkeys, file paths and hardware never go in a setup. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
 
 **Every bar is its own measurement now.** Up to 1.5 the analysis split the sound into 7 fixed bands and every bar interpolated between those 7 numbers, so Bar Count and FFT Size changed how many bars you saw, not how much they knew. The new **Precision** engine gives each bar its own frequency band with its own edges, measured straight from the spectrum:
 
@@ -73,7 +73,7 @@ The 1.4 analysis is still there as **Analysis Engine = Classic**.
 
 **Glow and Bloom.** A soft halo around every bar, worked out in the same shader pass that draws it, and a lens-style bloom from a quarter-size blur that only runs on frames that change. Direct3D 11 renderer.
 
-**A Media Card.** Media Controls > Layout = Card: album art with previous / play / next on hover, a seek bar, one-click output switching and a volume slider. Theme its background, border, corner radius, art size and accent (icon colour, custom, album art or your Windows accent).
+**A Media Card.** Media Controls > Layout = Card: album art with previous / play / next on hover, a seek bar, one-click output switching and a volume slider. The output button changes the **Windows default output** for every app (through the same undocumented Windows interface sound-switcher tools use), and the slider sets the **system master volume**; both act only when you click, drag or scroll them. Theme its background, border, corner radius, art size and accent (icon colour, custom, album art or your Windows accent).
 
 **My Styles.** Right-click > My Styles > Style Editor: mix a base style, colours, bar sizes, reflection, glow and bloom while the visualizer previews it live, save it under a name, and pick it from the menu any time.
 
@@ -489,7 +489,7 @@ If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop s
 
 **Opaque Panel**: When the background panel can't show anything behind it (**Blur** on, or a panel colour with full alpha) and **Auto-Hide** is off, the Direct3D 11 renderer creates the panel's surface with alpha ignored and lets the compositor cut the rounded corners. Windows then copies those pixels instead of blending them every frame; Chromium measured the same switch at 3.12 W against 2.28 W. **Off** always blends, for comparison.
 
-**NPU Runtime Folder**: Where Intel's OpenVINO runtime lives. Blank searches the usual places. Only read when Workload is NPU.
+**NPU Runtime Folder**: Where Intel's OpenVINO runtime lives. Required for Workload = NPU: the mod only loads OpenVINO from the folder you name here and never searches for it.
 
 **Smooth Mode**: Frame timing locked to the display, and motion on elapsed time. **Auto** *(default)* turns it on when drawing runs on an integrated GPU or the CPU; **On** works on any GPU and is worth trying on a discrete one too; **Off** is the 1.4 timing. What it changes:
 
@@ -520,10 +520,9 @@ It stays as an option because the plumbing is the hard, reusable part (finding t
 2. If it's missing, install the **Intel NPU driver** (from Dell's support page for the Aurora, or Intel's own "Intel NPU Driver - Windows" download). It needs Windows 11.
 3. Still missing after that: check the BIOS for an NPU / AI Boost switch. Some Arrow Lake firmware ships one, and Intel's own guidance for Windows 10 machines is to turn the NPU off there.
 
-**Giving this mod a way to talk to it.** Intel exposes the NPU through its **OpenVINO** runtime, which this mod loads at runtime if it's present. Nothing is bundled and nothing is installed for you. Any of these works:
-- Download the OpenVINO archive for Windows from Intel and extract it (to `C:\Program Files (x86)\Intel\openvino_<version>` is the conventional spot, which the mod searches on its own), or
-- `pip install openvino` into a Python install (the mod searches the usual Python locations too), or
-- put the folder holding `openvino_c.dll` into **NPU Runtime Folder**.
+**Giving this mod a way to talk to it.** Intel exposes the NPU through its **OpenVINO** runtime, which this mod loads at runtime if it's present. Nothing is bundled and nothing is installed for you. Get it one of these ways, then put its folder into **NPU Runtime Folder** (the mod loads it only from there):
+- download the OpenVINO archive for Windows from Intel and extract it (`C:\Program Files (x86)\Intel\openvino_<version>` is the conventional spot), or
+- `pip install openvino` into a Python install and use its `Lib\site-packages\openvino\libs` folder.
 
 Use an OpenVINO version at least as new as the one your NPU driver's release notes name. Then set **Workload** to **NPU**. The Windhawk log says what happened: which runtime and device it found, how long the model took to compile, and every 30 seconds the mean and worst NPU time per FFT. If anything is missing, the settings-problems window says which piece and what to do, and the analysis stays on the CPU in the meantime.
 
@@ -1297,9 +1296,9 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
       $description: Pixels the second piece moves across it (down, or right when vertical)
   $name: Position
 - interaction:
-    - keyMoveEnabled: true
+    - keyMoveEnabled: false
       $name: Enable Keyboard Move
-      $description: Hold the modifier below and tap a direction key to nudge the visualizer one pixel at a time, the way a window manager moves a tiled window. This is the precise way to place it -- it lands exactly where you put it, with no cursor to keep up with. Hold the Fast Key as well to jump by the larger step instead. The same combo with 1, 2, 3 or 4 switches what the direction keys steer -- 1 the visualizer, 2 the Now Playing text, 3 the frequency readout, 4 the Media Controls strip -- so everything movable is placed with one shortcut, and the choice sticks until you change it. Modifier + Home resets whichever is selected. Worth knowing -- the visualizer and the strip store a percentage that REPLACES their Position settings, so those fields stop having any effect until you reset; the two text overlays instead store a delta ADDED to their Offset settings, so those fields always still count. Also, if the strip is currently parked by Hide When Covered, nudging it still works but you will not see it move until it comes back
+      $description: Off by default. While it is off the mod doesn't watch the keyboard at all. Hold the modifier below and tap a direction key to nudge the visualizer one pixel at a time, the way a window manager moves a tiled window. This is the precise way to place it -- it lands exactly where you put it, with no cursor to keep up with. Hold the Fast Key as well to jump by the larger step instead. The same combo with 1, 2, 3 or 4 switches what the direction keys steer -- 1 the visualizer, 2 the Now Playing text, 3 the frequency readout, 4 the Media Controls strip -- so everything movable is placed with one shortcut, and the choice sticks until you change it. Modifier + Home resets whichever is selected. Worth knowing -- the visualizer and the strip store a percentage that REPLACES their Position settings, so those fields stop having any effect until you reset; the two text overlays instead store a delta ADDED to their Offset settings, so those fields always still count. Also, if the strip is currently parked by Hide When Covered, nudging it still works but you will not see it move until it comes back
     - keyMoveModifier: ctrl_alt
       $name: Keyboard Move Modifier
       $description: Held down while tapping a direction key. Use a two-key combo. This mod swallows the keypress outright, so the app underneath does not fall back to its own behaviour -- it simply never hears about it. With a one-key modifier that means real losses -- Ctrl with WASD eats Ctrl+A and, worse, Ctrl+S, so a save you think you made silently does not happen. Ctrl with arrows eats word-by-word cursor movement. Pick a one-key modifier and the mod will warn you on load listing exactly what you gave up
@@ -1479,7 +1478,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
       $description: Distance in from the panel's top or bottom edge, in pixels. Only used with a panel anchor. Decimals allowed; the media controls round to whole pixels
     - layout: strip
       $name: Layout
-      $description: Strip is the three buttons. Card is a small media card in the same place, sized from Icon Size and Icon Spacing - the album art (hover it for previous / play / next), a seek bar (click or drag), a speaker button that switches the Windows default output in one click, and a volume slider (drag it, or scroll anywhere on the card)
+      $description: Strip is the three buttons. Card is a small media card in the same place, sized from Icon Size and Icon Spacing - the album art (hover it for previous / play / next), a seek bar (click or drag), a speaker button that switches the Windows default output device for all apps in one click, and a volume slider that sets the system master volume (drag it, or scroll anywhere on the card)
       $options:
         - strip: Strip (three buttons)
         - card: Card (art, seek, output, volume)
@@ -1614,7 +1613,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - 'off': 'Off'
     - npuRuntimePath: ''
       $name: NPU Runtime Folder
-      $description: The folder that contains openvino_c.dll, or the root of an extracted OpenVINO archive. Leave blank to search the usual places - INTEL_OPENVINO_DIR, Program Files\Intel\openvino*, a pip-installed openvino package, and PATH. Only used when Workload is NPU
+      $description: The folder that contains openvino_c.dll, or the root of an extracted OpenVINO archive. Required for Workload = NPU: the mod loads OpenVINO only from this folder and never searches for it
     - smoothMode: auto
       $name: Smooth Mode
       $description: Frame timing locked to the display's refresh so every frame lands on its own refresh, and motion that scales with real elapsed time. Target FPS is rounded to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) because that is what makes motion even. With the Direct2D renderer it also bakes the panel and batches the bars. Auto turns it on when drawing runs on an integrated GPU or the CPU. On works with any GPU. Off is the 1.4 timing
@@ -1657,7 +1656,6 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 #include <commctrl.h>
 #include <commdlg.h>
 #include <compressapi.h>
-#include <urlmon.h>
 #include <tlhelp32.h>
 
 #include <algorithm>
@@ -1768,6 +1766,8 @@ void VizSettingFree(PCWSTR s) { delete[] s; }
 #define WM_APP_REBUILD_DEVICE (WM_APP + 8)   // wParam: 1 = device was lost
 #define WM_APP_CONTEXT_MENU (WM_APP + 9)     // wParam, lParam: screen x, y
 #define WM_APP_PANEL_FIT (WM_APP + 10)       // Place In = Panel: size the window to the box
+#define WM_APP_MENU_OUTSIDE (WM_APP + 11)    // a click while the menu is up; wParam, lParam: screen x, y
+#define WM_APP_SEEK_AT (WM_APP + 12)         // Click to Seek; wParam: screen x
 #define OVERLAY_WINDOW_CLASS (L"DesktopAudioVisOverlay_" WH_MOD_ID)
 #define MESSAGE_WINDOW_CLASS (L"DesktopAudioVisMessage_" WH_MOD_ID)
 #define MEDIA_WINDOW_CLASS (L"DesktopAudioVisMedia_" WH_MOD_ID)
@@ -1849,7 +1849,7 @@ struct Settings {
     int monitor = 1;
     VizAnchor verticalAnchor = VizAnchor::Bottom;
 
-    bool keyMoveEnabled = true;
+    bool keyMoveEnabled = false;
     unsigned keyMoveModifier = VIZ_MOD_CTRL | VIZ_MOD_ALT;
     VizKeyMoveKeys keyMoveKeys = VizKeyMoveKeys::Both;
     float keyMoveStep = 1;
@@ -6304,70 +6304,17 @@ inline bool DirHasRuntime(const std::wstring& dir) {
     return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-inline std::wstring EnvVar(PCWSTR name) {
-    WCHAR buf[MAX_PATH * 2];
-    DWORD n = GetEnvironmentVariableW(name, buf, ARRAYSIZE(buf));
-    return (n > 0 && n < ARRAYSIZE(buf)) ? std::wstring(buf, n) : std::wstring();
-}
-
-// Directories matching parent\pattern, newest-looking (highest name) first.
-inline std::vector<std::wstring> GlobDirs(const std::wstring& parent, PCWSTR pattern) {
-    std::vector<std::wstring> out;
-    if (parent.empty()) return out;
-    WIN32_FIND_DATAW fd;
-    HANDLE h = FindFirstFileW((parent + L"\\" + pattern).c_str(), &fd);
-    if (h == INVALID_HANDLE_VALUE) return out;
-    do {
-        if ((fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && fd.cFileName[0] != L'.')
-            out.push_back(parent + L"\\" + fd.cFileName);
-    } while (FindNextFileW(h, &fd));
-    FindClose(h);
-    std::sort(out.begin(), out.end(), [](const std::wstring& a, const std::wstring& b) {
-        return _wcsicmp(a.c_str(), b.c_str()) > 0;
-    });
-    return out;
-}
-
-// Every place OpenVINO's C runtime is commonly found, most specific first.
+// Only the folder named in NPU Runtime Folder: the mod never searches the disk
+// or PATH for a DLL to load into Windhawk. That folder may be the one holding
+// openvino_c.dll, an extracted archive, a site-packages folder or the
+// openvino package folder.
 inline std::vector<std::wstring> CandidateDirs(const std::wstring& userPath) {
     std::vector<std::wstring> dirs;
-    auto addRoot = [&](const std::wstring& root) {
-        if (root.empty()) return;
-        dirs.push_back(root);                                   // the folder itself
-        dirs.push_back(root + L"\\runtime\\bin\\intel64\\Release");  // extracted archive
-        dirs.push_back(root + L"\\openvino\\libs");             // a site-packages folder
-        dirs.push_back(root + L"\\libs");                       // the openvino package folder
-    };
-
-    addRoot(userPath);
-    addRoot(EnvVar(L"INTEL_OPENVINO_DIR"));
-
-    for (PCWSTR base : {L"ProgramFiles(x86)", L"ProgramFiles", L"ProgramW6432"}) {
-        std::wstring pf = EnvVar(base);
-        for (const auto& d : GlobDirs(pf + L"\\Intel", L"openvino*")) addRoot(d);
-    }
-    // Not C:\Intel or C:\openvino*: any user can create folders at the root
-    // of C:, and a DLL loaded from one would run inside Windhawk. An archive
-    // extracted there still works through NPU Runtime Folder.
-
-    // pip: per-user and all-users CPython installs, plus `pip install --user`.
-    std::wstring localApp = EnvVar(L"LOCALAPPDATA");
-    for (const auto& py : GlobDirs(localApp + L"\\Programs\\Python", L"Python3*"))
-        dirs.push_back(py + L"\\Lib\\site-packages\\openvino\\libs");
-    for (PCWSTR base : {L"ProgramFiles", L"ProgramW6432"}) {
-        for (const auto& py : GlobDirs(EnvVar(base), L"Python3*"))
-            dirs.push_back(py + L"\\Lib\\site-packages\\openvino\\libs");
-    }
-    for (const auto& py : GlobDirs(EnvVar(L"APPDATA") + L"\\Python", L"Python3*"))
-        dirs.push_back(py + L"\\site-packages\\openvino\\libs");
-
-    // Finally PATH, the way setupvars.bat leaves things.
-    WCHAR found[MAX_PATH];
-    if (SearchPathW(nullptr, L"openvino_c.dll", nullptr, ARRAYSIZE(found), found, nullptr)) {
-        std::wstring p = found;
-        size_t slash = p.find_last_of(L"\\/");
-        if (slash != std::wstring::npos) dirs.push_back(p.substr(0, slash));
-    }
+    if (userPath.empty()) return dirs;
+    dirs.push_back(userPath);
+    dirs.push_back(userPath + L"\\runtime\\bin\\intel64\\Release");
+    dirs.push_back(userPath + L"\\openvino\\libs");
+    dirs.push_back(userPath + L"\\libs");
     return dirs;
 }
 
@@ -6480,7 +6427,7 @@ inline bool EnsureRuntime(const std::wstring& userPath, std::wstring* err) {
             g_runtimeError = L"No openvino_c.dll in \"" + userPath +
                              L"\" (or its runtime\\bin\\intel64\\Release folder).";
         } else {
-            g_runtimeError = L"The OpenVINO runtime isn't installed, or isn't anywhere this mod looks.";
+            g_runtimeError = L"NPU Runtime Folder is empty. Set it to the folder that holds openvino_c.dll.";
         }
         g_runtimeError +=
             npu.empty()
@@ -8367,7 +8314,9 @@ private:
 // The capture "thread" is now a state of the engine thread. These keep their
 // 1.5 names and meaning for the callers (pause on fullscreen, resume, unload):
 // Start asks for the stream, Stop asks for it to be closed and waits until it
-// is, then clears the bars, exactly as joining the old thread did.
+// is. Closing clears the bars (Close -> ResetAnalysis), on the engine thread:
+// the bars have exactly one writer, because two publishers racing on the
+// seqlock can leave its count odd, and every reader would then spin forever.
 void StartVizCaptureThread() {
     g_captureWanted.store(true);
     if (g_engineWake) SetEvent(g_engineWake);
@@ -8377,10 +8326,6 @@ void StopVizCaptureThread() {
     g_captureWanted.store(false);
     if (g_engineWake) SetEvent(g_engineWake);
     if (g_engineClosed && g_audioOpen.load()) WaitForSingleObject(g_engineClosed, 1500);
-    float zeroBands[VIZ_NUM_BANDS] = {};
-    PublishBands(zeroBands);
-    VizBandFrame empty;
-    PublishBandFrame(empty);
 }
 
 int VizEffectiveBarCount();
@@ -8398,7 +8343,8 @@ void UpdateVisualizerTargets() {
     auto eq = GetVizEQMultipliers(g_settings.eq);
 
     auto sampleBands = [&](float t) -> float {
-        float pos = t * (VIZ_NUM_BANDS - 1);
+        // warpT can return a hair over 1 (HzToBandPos gives VIZ_NUM_BANDS at the top edge).
+        float pos = std::clamp(t, 0.f, 1.f) * (VIZ_NUM_BANDS - 1);
         int lo = (int)pos;
         int hi = std::min(lo + 1, VIZ_NUM_BANDS - 1);
         return bands[lo] * (1.f - (pos - (float)lo)) + bands[hi] * (pos - (float)lo);
@@ -11127,8 +11073,12 @@ void RequestPositionOverrideSave() {
 
 bool ModKeysHeld(unsigned flags) {
     if (flags == VIZ_MOD_NONE) return false;
+    // Right Alt is AltGr on many layouts, which Windows reports as Ctrl + Alt
+    // (AltGr+2 is @ on a Nordic keyboard). Never treat it as a modifier, so
+    // typing those characters always reaches the app.
+    if (GetAsyncKeyState(VK_RMENU) & 0x8000) return false;
     if ((flags & VIZ_MOD_CTRL)  && !(GetAsyncKeyState(VK_CONTROL) & 0x8000)) return false;
-    if ((flags & VIZ_MOD_ALT)   && !(GetAsyncKeyState(VK_MENU)    & 0x8000)) return false;
+    if ((flags & VIZ_MOD_ALT)   && !(GetAsyncKeyState(VK_LMENU)   & 0x8000)) return false;
     if ((flags & VIZ_MOD_SHIFT) && !(GetAsyncKeyState(VK_SHIFT)   & 0x8000)) return false;
     if ((flags & VIZ_MOD_WIN)   && !((GetAsyncKeyState(VK_LWIN) & 0x8000) ||
                                      (GetAsyncKeyState(VK_RWIN) & 0x8000))) return false;
@@ -11403,6 +11353,8 @@ bool VizMenuHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
             g_menuButtonDown = false;
             return true;
         }
+        if ((wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN || wParam == WM_MBUTTONDOWN) && g_messageWnd)
+            PostMessage(g_messageWnd, WM_APP_MENU_OUTSIDE, (WPARAM)info->pt.x, (LPARAM)info->pt.y);
         return false;
     }
     if (wParam == WM_RBUTTONDOWN) {
@@ -11434,31 +11386,35 @@ bool VizMenuHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
 // ---- Click to Seek (2.1) -----------------------------------------------------------------
 // A left press on the progress bar jumps there; dragging and releasing jumps
 // again where it's let go. The cursor moves freely meanwhile (moves are
-// never swallowed). The app list is checked against running processes at
-// most every 3 s, and only on a press that lands on the bar.
-bool VizSeekAppsAllow() {
+// never swallowed). The hook only decides and posts: the app list is checked
+// by the message window's 1-second timer (a process snapshot every 3 s, only
+// while Click to Seek has a list), and the seek itself runs on that thread.
+std::atomic<bool> g_seekAppsAllowed{true};
+
+void VizSeekAppsRefresh() {
     const auto& apps = g_settings.progressSeekApps;
-    if (apps.empty()) return true;
-    static ULONGLONG s_tick = 0;
-    static bool s_anyRunning = false;
-    ULONGLONG now = GetTickCount64();
-    if (s_tick == 0 || now - s_tick > 3000) {
-        s_tick = now;
-        s_anyRunning = false;
-        HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (snap != INVALID_HANDLE_VALUE) {
-            PROCESSENTRY32W pe = {sizeof(pe)};
-            for (BOOL more = Process32FirstW(snap, &pe); more && !s_anyRunning; more = Process32NextW(snap, &pe)) {
-                std::wstring n = pe.szExeFile;
-                for (auto& ch : n) ch = (WCHAR)towlower(ch);
-                if (n.size() > 4 && n.compare(n.size() - 4, 4, L".exe") == 0) n.resize(n.size() - 4);
-                for (const auto& a : apps)
-                    if (n == a) s_anyRunning = true;
-            }
-            CloseHandle(snap);
-        }
+    if (!g_settings.progressSeek || apps.empty()) {
+        g_seekAppsAllowed.store(true, std::memory_order_relaxed);
+        return;
     }
-    return g_settings.progressSeekOnlyListed ? s_anyRunning : !s_anyRunning;
+    static ULONGLONG s_tick = 0;
+    ULONGLONG now = GetTickCount64();
+    if (s_tick != 0 && now - s_tick < 3000) return;
+    s_tick = now;
+    bool anyRunning = false;
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap != INVALID_HANDLE_VALUE) {
+        PROCESSENTRY32W pe = {sizeof(pe)};
+        for (BOOL more = Process32FirstW(snap, &pe); more && !anyRunning; more = Process32NextW(snap, &pe)) {
+            std::wstring n = pe.szExeFile;
+            for (auto& ch : n) ch = (WCHAR)towlower(ch);
+            if (n.size() > 4 && n.compare(n.size() - 4, 4, L".exe") == 0) n.resize(n.size() - 4);
+            for (const auto& a : apps)
+                if (n == a) anyRunning = true;
+        }
+        CloseHandle(snap);
+    }
+    g_seekAppsAllowed.store(g_settings.progressSeekOnlyListed ? anyRunning : !anyRunning, std::memory_order_relaxed);
 }
 
 void VizSeekAtX(LONG x) {
@@ -11466,15 +11422,22 @@ void VizSeekAtX(LONG x) {
     if (r > l) CardSeek((float)(x - l) / (float)(r - l));
 }
 
+void VizPostSeek(LONG x) {
+    if (g_messageWnd) PostMessage(g_messageWnd, WM_APP_SEEK_AT, (WPARAM)(int)x, 0);
+}
+
 bool VizSeekHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
     static bool s_seeking = false;
     if (s_seeking) {
         if (wParam == WM_LBUTTONUP) {
             s_seeking = false;
-            VizSeekAtX(info->pt.x);
+            VizPostSeek(info->pt.x);
             return true;
         }
-        return false;
+        // A press while we think the button is still down: its release was
+        // lost (Win+L, a UAC prompt), so the earlier seek is over.
+        if (wParam != WM_LBUTTONDOWN) return false;
+        s_seeking = false;
     }
     if (wParam != WM_LBUTTONDOWN || !g_settings.progressSeek || !g_seekRectValid.load(std::memory_order_relaxed))
         return false;
@@ -11485,9 +11448,11 @@ bool VizSeekHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
     if (pt.x < g_seekRectL.load(std::memory_order_relaxed) || pt.x >= g_seekRectR.load(std::memory_order_relaxed) ||
         pt.y < g_seekRectT.load(std::memory_order_relaxed) || pt.y >= g_seekRectB.load(std::memory_order_relaxed))
         return false;
-    if (!g_tlValid.load(std::memory_order_relaxed) || !VizDesktopUnderPoint(pt) || !VizSeekAppsAllow()) return false;
+    if (!g_tlValid.load(std::memory_order_relaxed) || !g_seekAppsAllowed.load(std::memory_order_relaxed) ||
+        !VizDesktopUnderPoint(pt))
+        return false;
     s_seeking = true;
-    VizSeekAtX(pt.x);
+    VizPostSeek(pt.x);
     return true;
 }
 
@@ -11515,6 +11480,12 @@ LRESULT CALLBACK DragMouseHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
             if (wParam == WM_MOUSEMOVE) {
                 UpdateDrag(info->pt);
                 return 1;
+            }
+            // A second press of the drag button: the release of the first one
+            // never came (see VizDesktopSwitchProc), so that drag is over.
+            if (wParam == downMsg) {
+                EndDrag();
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
             }
             if (wParam == upMsg) {
                 POINT pt = info->pt;
@@ -11555,6 +11526,15 @@ HHOOK g_moveKeyboardHook = nullptr;
 HANDLE g_inputHookThread = nullptr;
 DWORD g_inputHookThreadId = 0;
 
+// Win+L, Ctrl+Alt+Del and UAC prompts switch to a secure desktop, and a button
+// released there never reaches the mouse hook. A drag left running would keep
+// swallowing every mouse move, holding the cursor still everywhere after
+// unlocking, so a desktop switch ends it. Runs on the input hook thread.
+void CALLBACK VizDesktopSwitchProc(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD) {
+    if (g_dragInProgress) EndDrag();
+}
+constexpr UINT WM_APP_KEYMOVE_SYNC = WM_APP + 90;  // thread message to the input hook thread
+
 // Both low-level input hooks run on this thread, deliberately kept away from
 // the UI thread that also handles WM_APP_RENDER_TICK. Direct2D's Present() can
 // block that thread for real time each frame; a hook living there has its
@@ -11567,25 +11547,40 @@ DWORD WINAPI InputHookThreadProc(LPVOID) {
     HINSTANCE hInst = (HINSTANCE)GetCurrentModuleHandle();
 
     g_dragMouseHook = SetWindowsHookEx(WH_MOUSE_LL, DragMouseHookProc, hInst, 0);
+    HWINEVENTHOOK desktopSwitch = SetWinEventHook(EVENT_SYSTEM_DESKTOPSWITCH, EVENT_SYSTEM_DESKTOPSWITCH, nullptr,
+                                                  VizDesktopSwitchProc, 0, 0, WINEVENT_OUTOFCONTEXT);
     if (!g_dragMouseHook) {
         Wh_Log(L"[Drag] SetWindowsHookEx(WH_MOUSE_LL) failed, error=%lu", GetLastError());
     }
 
-    g_moveKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, MoveKeyboardHookProc, hInst, 0);
-    if (!g_moveKeyboardHook) {
-        Wh_Log(L"[KeyMove] SetWindowsHookEx(WH_KEYBOARD_LL) failed, error=%lu", GetLastError());
-    }
-
-    if (!g_dragMouseHook && !g_moveKeyboardHook) return 1;
+    // The keyboard hook exists only while Keyboard Move is on; turning it on
+    // or off in the settings posts WM_APP_KEYMOVE_SYNC here.
+    auto syncKeyboardHook = [hInst] {
+        bool want = g_settings.keyMoveEnabled;
+        if (want && !g_moveKeyboardHook) {
+            g_moveKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, MoveKeyboardHookProc, hInst, 0);
+            if (!g_moveKeyboardHook)
+                Wh_Log(L"[KeyMove] SetWindowsHookEx(WH_KEYBOARD_LL) failed, error=%lu", GetLastError());
+        } else if (!want && g_moveKeyboardHook) {
+            UnhookWindowsHookEx(g_moveKeyboardHook);
+            g_moveKeyboardHook = nullptr;
+        }
+    };
+    syncKeyboardHook();
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0) > 0) {
+        if (!msg.hwnd && msg.message == WM_APP_KEYMOVE_SYNC) {
+            syncKeyboardHook();
+            continue;
+        }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
     // Low-level hooks have to be removed by the thread that installed them,
     // which is why this happens here rather than in UninitInputHooks.
+    if (desktopSwitch) UnhookWinEvent(desktopSwitch);
     if (g_dragMouseHook) {
         UnhookWindowsHookEx(g_dragMouseHook);
         g_dragMouseHook = nullptr;
@@ -11595,6 +11590,12 @@ DWORD WINAPI InputHookThreadProc(LPVOID) {
         g_moveKeyboardHook = nullptr;
     }
     return 0;
+}
+
+// Settings changed: let the input thread add or remove the keyboard hook
+// (a low-level hook has to be set and removed by the thread that owns it).
+void VizSyncKeyboardHook() {
+    if (g_inputHookThreadId) PostThreadMessage(g_inputHookThreadId, WM_APP_KEYMOVE_SYNC, 0, 0);
 }
 
 void InitInputHooks() {
@@ -18057,14 +18058,12 @@ void VizShowContextMenu(POINT pt) {
     AppendMenuW(menu, MF_STRING | (g_menuOverrides.empty() && g_setupLayer.empty() ? MF_GRAYED : 0), kMenuReset, reset.c_str());
 
     // A menu only closes on an outside click when its owner is foreground.
-    // The right-click went to the desktop (the hook swallowed it), so borrow
-    // the foreground thread's input state long enough to take foreground.
-    HWND fg = GetForegroundWindow();
-    DWORD fgThread = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
-    DWORD me = GetCurrentThreadId();
-    bool attached = fgThread && fgThread != me && AttachThreadInput(me, fgThread, TRUE);
+    // Windows may refuse that here (the right-click went to the desktop and
+    // the hook swallowed it), and attaching to another thread's input to force
+    // it can hang if that app is not responding. So just ask, and if it is
+    // refused the mouse hook reports each click while the menu is up
+    // (WM_APP_MENU_OUTSIDE) and one that lands outside the menu closes it.
     SetForegroundWindow(g_messageWnd);
-    if (attached) AttachThreadInput(me, fgThread, FALSE);
 
     // While the menu is up the mouse hook passes every click through, so a
     // right-click elsewhere closes it instead of being swallowed.
@@ -18451,7 +18450,6 @@ static const VizQuickPart kQuickParts[] = {
     {L"progress", kPartExtras},   {L"mediaControls", kPartExtras}, {L"readout", kPartExtras}, {L"pixelSnap", kPartPlace},
 };
 
-static const wchar_t kCommunityFiles[] = L"https://raw.githubusercontent.com/USER-TOURNE/Tourne-Style/main/community/setups/";
 static const wchar_t kCommunityFolder[] = L"https://github.com/USER-TOURNE/Tourne-Style/tree/main/community/setups";
 static const wchar_t kCommunityIssue[] = L"https://github.com/USER-TOURNE/Tourne-Style/issues/new";
 
@@ -18777,77 +18775,8 @@ bool VizOpenSetupFile(HWND owner, std::wstring* text) {
 }
 
 // ---- The community list: setups in a folder of the Tourne-Style repository on GitHub ----
-// index.txt there has a line per setup, "file|name|author|about". Nothing is fetched until the
-// Community button is pressed, and then only those small text files.
-struct VizCommunityItem {
-    std::wstring file, name, author;
-};
-constexpr UINT WM_APP_SHARE_LIST = WM_APP + 60;   // wParam: reached; lParam: std::vector<VizCommunityItem>*
-constexpr UINT WM_APP_SHARE_SETUP = WM_APP + 61;  // lParam: std::wstring* (empty: not reached)
-
-bool VizFetchText(const std::wstring& url, std::wstring* out) {
-    IStream* stream = nullptr;
-    if (url.rfind(L"https://", 0) != 0 || FAILED(URLOpenBlockingStreamW(nullptr, url.c_str(), &stream, 0, nullptr)) || !stream)
-        return false;
-    std::string data;
-    char buf[8192];
-    for (;;) {
-        ULONG got = 0;
-        HRESULT hr = stream->Read(buf, sizeof(buf), &got);
-        if (FAILED(hr) || !got) break;
-        data.append(buf, got);
-        if (data.size() > 256 * 1024) break;
-    }
-    stream->Release();
-    if (data.empty() || data.size() > 256 * 1024) return false;
-    *out = VizShareWide(data);
-    return true;
-}
-
-bool VizCommunityFileName(const std::wstring& f) {
-    if (f.size() < 9 || f.size() > 80 || f.compare(f.size() - 8, 8, L".ttstyle") != 0) return false;
-    for (wchar_t c : f)
-        if (!(iswalnum(c) || c == L'-' || c == L'_' || c == L'.')) return false;
-    return f.find(L"..") == std::wstring::npos;
-}
-
-void VizFetchCommunityList(HWND notify) {
-    std::thread([notify] {
-        HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        auto* items = new std::vector<VizCommunityItem>;
-        std::wstring text;
-        bool ok = VizFetchText(std::wstring(kCommunityFiles) + L"index.txt?t=" + std::to_wstring(GetTickCount64()), &text);
-        for (size_t pos = 0; ok && pos < text.size() && items->size() < 200;) {
-            size_t nl = text.find(L'\n', pos);
-            if (nl == std::wstring::npos) nl = text.size();
-            std::wstring line = text.substr(pos, nl - pos);
-            pos = nl + 1;
-            while (!line.empty() && iswspace(line.back())) line.pop_back();
-            if (line.empty() || line[0] == L'#') continue;
-            std::wstring parts[4];
-            size_t at = 0;
-            for (int i = 0; i < 4; i++) {
-                size_t bar = i < 3 ? line.find(L'|', at) : std::wstring::npos;
-                parts[i] = line.substr(at, bar == std::wstring::npos ? std::wstring::npos : bar - at);
-                if (bar == std::wstring::npos) break;
-                at = bar + 1;
-            }
-            if (VizCommunityFileName(parts[0])) items->push_back({parts[0], parts[1].substr(0, 60), parts[2].substr(0, 40)});
-        }
-        if (SUCCEEDED(com)) CoUninitialize();
-        if (!PostMessageW(notify, WM_APP_SHARE_LIST, ok, (LPARAM)items)) delete items;
-    }).detach();
-}
-
-void VizFetchCommunitySetup(HWND notify, const std::wstring& file) {
-    std::thread([notify, file] {
-        HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-        auto* text = new std::wstring;
-        if (!VizFetchText(std::wstring(kCommunityFiles) + file, text)) text->clear();
-        if (SUCCEEDED(com)) CoUninitialize();
-        if (!PostMessageW(notify, WM_APP_SHARE_SETUP, 0, (LPARAM)text)) delete text;
-    }).detach();
-}
+// The mod never downloads anything itself: Community opens the folder in the browser, and a setup
+// found there comes in with Paste code or Open file.
 
 std::wstring VizUrlEncode(const std::wstring& w) {
     std::string s = VizShareUtf8(w);
@@ -18889,7 +18818,6 @@ enum : int {
     kIdPartLook, kIdPartMotion, kIdPartExtras, kIdPartPlace,
 };
 constexpr UINT_PTR kShareTimer = 2;
-bool s_communityBusy = false;
 
 // The ticked parts (Look, Motion, Extras, Place).
 unsigned EditorParts(HWND hWnd) {
@@ -19036,7 +18964,7 @@ void EditorBuild(HWND hWnd) {
     add(L"STATIC",
         L"Changes apply at once. Reset Quick Settings in the right-click menu returns to the settings page. "
         L"Reflection, Glow and Bloom need the Direct3D 11 renderer. Share carries the ticked parts; your audio "
-        L"device, hotkeys and file paths stay out. Community reads its list from GitHub only when pressed.",
+        L"device, hotkeys and file paths stay out. Community opens GitHub in your browser.",
         SS_LEFT, L, y, labelW + ctlW, px(80), -1);
     y += px(88);
     RECT rc = {0, 0, labelW + ctlW + L * 2, y};
@@ -19113,10 +19041,20 @@ LRESULT CALLBACK StyleEditorProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
                 VizImportSetup(hWnd, text, EditorParts(hWnd));
                 EditorSync(hWnd);
             } else if (id == kIdShareCommunity) {
-                if (s_communityBusy) return 0;
-                s_communityBusy = true;
-                SetDlgItemTextW(hWnd, kIdShareCommunity, L"Loading...");
-                VizFetchCommunityList(hWnd);
+                HMENU m = CreatePopupMenu();
+                AppendMenuW(m, MF_STRING, 1001, L"Browse Community Setups (opens GitHub)");
+                AppendMenuW(m, MF_STRING, 1000, L"Share Mine to the Community...");
+                RECT rc = {};
+                GetWindowRect(GetDlgItem(hWnd, kIdShareCommunity), &rc);
+                UINT cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON, rc.left, rc.bottom, 0, hWnd, nullptr);
+                DestroyMenu(m);
+                if (cmd == 1000) {
+                    unsigned parts = EditorParts(hWnd);
+                    if (parts) VizShareToCommunity(hWnd, parts, EditorSetupName(hWnd));
+                    else MessageBeep(MB_ICONWARNING);
+                } else if (cmd == 1001) {
+                    ShellExecuteW(nullptr, L"open", kCommunityFolder, nullptr, nullptr, SW_SHOWNORMAL);
+                }
             } else if (id == kIdLoad || id == kIdSave || id == kIdDelete) {
                 WCHAR name[64] = {};
                 GetDlgItemTextW(hWnd, kIdPreset, name, ARRAYSIZE(name));
@@ -19138,54 +19076,12 @@ LRESULT CALLBACK StyleEditorProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
             }
             return 0;
         }
-        case WM_APP_SHARE_LIST: {
-            std::unique_ptr<std::vector<VizCommunityItem>> items((std::vector<VizCommunityItem>*)lParam);
-            s_communityBusy = false;
-            SetDlgItemTextW(hWnd, kIdShareCommunity, L"Community");
-            HMENU m = CreatePopupMenu();
-            if (!wParam) AppendMenuW(m, MF_STRING | MF_GRAYED, 0, L"Couldn't reach the community list");
-            else if (items->empty()) AppendMenuW(m, MF_STRING | MF_GRAYED, 0, L"No community setups yet");
-            for (size_t i = 0; i < items->size() && i < 60; i++) {
-                const auto& it = (*items)[i];
-                std::wstring text = (it.name.empty() ? it.file : it.name) + (it.author.empty() ? L"" : L"  (by " + it.author + L")");
-                AppendMenuW(m, MF_STRING, 1 + i, text.c_str());
-            }
-            AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
-            AppendMenuW(m, MF_STRING, 1000, L"Share Mine to the Community...");
-            AppendMenuW(m, MF_STRING, 1001, L"Open the Community Folder");
-            RECT rc = {};
-            GetWindowRect(GetDlgItem(hWnd, kIdShareCommunity), &rc);
-            UINT cmd = TrackPopupMenu(m, TPM_RETURNCMD | TPM_RIGHTBUTTON, rc.left, rc.bottom, 0, hWnd, nullptr);
-            DestroyMenu(m);
-            if (cmd >= 1 && cmd <= items->size() && cmd <= 60) {
-                s_communityBusy = true;
-                SetDlgItemTextW(hWnd, kIdShareCommunity, L"Loading...");
-                VizFetchCommunitySetup(hWnd, (*items)[cmd - 1].file);
-            } else if (cmd == 1000) {
-                unsigned parts = EditorParts(hWnd);
-                if (parts) VizShareToCommunity(hWnd, parts, EditorSetupName(hWnd));
-                else MessageBeep(MB_ICONWARNING);
-            } else if (cmd == 1001) {
-                ShellExecuteW(nullptr, L"open", kCommunityFolder, nullptr, nullptr, SW_SHOWNORMAL);
-            }
-            return 0;
-        }
-        case WM_APP_SHARE_SETUP: {
-            std::unique_ptr<std::wstring> text((std::wstring*)lParam);
-            s_communityBusy = false;
-            SetDlgItemTextW(hWnd, kIdShareCommunity, L"Community");
-            if (text->empty()) MessageBoxW(hWnd, L"Couldn't get that setup from GitHub.", L"Tourne'Table", MB_OK | MB_ICONWARNING);
-            else VizImportSetup(hWnd, *text, EditorParts(hWnd));
-            EditorSync(hWnd);
-            return 0;
-        }
         case WM_CLOSE:
             DestroyWindow(hWnd);
             return 0;
         case WM_DESTROY:
             KillTimer(hWnd, kApplyTimer);
             KillTimer(hWnd, kShareTimer);
-            s_communityBusy = false;
             g_styleEditorWnd = nullptr;
             return 0;
     }
@@ -19357,6 +19253,7 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
                     FlushSettingsIssues();
                 }
             } else if (wParam == TIMER_ID_MSG_FULLSCREEN_WATCH) {
+                VizSeekAppsRefresh();
                 // The media strip is a plain layered window living alongside
                 // whatever else is topmost, and it's the one piece of this mod
                 // that has to survive in that crowd -- another app taking
@@ -19439,6 +19336,18 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         case WM_APP_CONTEXT_MENU:
             if (!g_unloading) VizShowContextMenu(POINT{(LONG)(int)wParam, (LONG)(int)lParam});
             return 0;
+
+        case WM_APP_SEEK_AT:
+            if (!g_unloading) VizSeekAtX((LONG)(int)wParam);
+            return 0;
+
+        case WM_APP_MENU_OUTSIDE: {
+            // Delivered by the menu's own loop, so EndMenu reaches this thread's menu.
+            HWND under = WindowFromPoint(POINT{(LONG)(int)wParam, (LONG)(int)lParam});
+            WCHAR cls[16] = {};
+            if (!under || !GetClassNameW(under, cls, ARRAYSIZE(cls)) || wcscmp(cls, L"#32768") != 0) EndMenu();
+            return 0;
+        }
 
         case WM_DESTROY:
             VizDockStop();
@@ -19717,6 +19626,7 @@ void LoadSettings() {
     g_settings.monitor = std::max(1, VizSettingInt(L"position.monitor"));
 
     g_settings.keyMoveEnabled = VizSettingInt(L"interaction.keyMoveEnabled") != 0;
+    VizSyncKeyboardHook();
 
     PCWSTR keyMoveModifier = VizSettingString(L"interaction.keyMoveModifier");
     g_settings.keyMoveModifier =
