@@ -47,7 +47,7 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 ## ✧ NEW IN 2.0 AND 2.1
 
-2.1 is the build that runs inside Tourne Desktop, as a Windhawk mod of its own. It replaces the 1.x release and the 2.0 betas (turn those off: only one Tourne'Table should run). The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
+2.1 replaces 1.x. If you ran one of the 2.0 test builds from GitHub, turn it off: only one Tourne'Table should run. The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
 
 **Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** opens the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) in your browser (bring one in with **Paste code** or **Open file**; the mod itself never goes online) or opens a ready GitHub issue to share yours. Your audio device, hotkeys, file paths and hardware never go in a setup. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
 
@@ -61,7 +61,7 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 The 1.4 analysis is still there as **Analysis Engine = Classic**.
 
-**You choose where the work runs.** **Workload** is GPU, CPU or Hybrid: Hybrid analyses on the CPU and draws on the GPU (the cheapest split almost everywhere), GPU does both on the graphics chip, CPU does both on the processor. NPU stays as an experimental option.
+**You choose where the work runs.** **Workload** is GPU, CPU or Hybrid: Hybrid analyses on the CPU and draws on the GPU (the cheapest split almost everywhere), GPU does both on the graphics chip, CPU does both on the processor.
 
 **A new renderer built to cost next to nothing.** **Renderer = Direct3D 11** draws everything from one tiny shader and a buffer of bar heights, **skips any frame where nothing moved**, keeps the text on its own surface that only redraws when the text changes, and tells Windows when the panel is opaque so it copies instead of blending. When audio stops, drawing stops, and after a few more seconds of silence the audio stream itself stops (**Deep Idle**). The 1.5 Direct2D path is still there for comparison.
 
@@ -73,7 +73,7 @@ The 1.4 analysis is still there as **Analysis Engine = Classic**.
 
 **Glow and Bloom.** A soft halo around every bar, worked out in the same shader pass that draws it, and a lens-style bloom from a quarter-size blur that only runs on frames that change. Direct3D 11 renderer.
 
-**A Media Card.** Media Controls > Layout = Card: album art with previous / play / next on hover, a seek bar, one-click output switching and a volume slider. The output button changes the **Windows default output** for every app (through the same undocumented Windows interface sound-switcher tools use), and the slider sets the **system master volume**; both act only when you click, drag or scroll them. Theme its background, border, corner radius, art size and accent (icon colour, custom, album art or your Windows accent).
+**A Media Card.** Media Controls > Layout = Card: album art with previous / play / next on hover, a seek bar, one-click output switching and a volume slider. The output button changes the **Windows default output** for every app (through the same undocumented Windows interface sound-switcher tools use), and the slider sets the **system master volume**; both act only when you click, drag or scroll them, and both stay as set after the mod is turned off, like any change made in Windows' own sound settings. Theme its background, border, corner radius, art size and accent (icon colour, custom, album art or your Windows accent).
 
 **My Styles.** Right-click > My Styles > Style Editor: mix a base style, colours, bar sizes, reflection, glow and bloom while the visualizer previews it live, save it under a name, and pick it from the menu any time.
 
@@ -470,7 +470,6 @@ There are two jobs in this mod, and they can run on different silicon: **analysi
 - **Hybrid** *(default)*: analysis on the CPU, drawing on the GPU. Analysis is a fraction of a percent of one core, and the GPU draws for almost nothing, so this is the cheapest split on nearly every PC.
 - **GPU**: the analysis runs on the graphics chip as well, in four small compute passes that feed the drawing directly, so the CPU only copies audio and nothing comes back each frame but 8 bytes of statistics. Needs the Precision engine and the Direct3D 11 renderer, and uses at most FFT Size 4096. Worth trying on a strong iGPU; measure it against Hybrid rather than assume.
 - **CPU**: analysis and drawing both on the processor (drawing in software, through WARP). The GPU is left with nothing but Windows' own compositing. Fine for a small widget; a full-width strip at a high frame rate is real CPU work.
-- **NPU** *(experimental)*: the FFTs run on an Intel AI Boost NPU, drawing on the GPU. See the NPU section below for why this rarely saves anything.
 
 **Drawing Device**: Which GPU draws.
 - **Auto** *(default)*: the GPU your chosen monitor is plugged into. On a laptop with two GPUs, or a desktop with the iGPU left on, drawing on the *other* one means every frame gets copied across to the GPU that scans it out, which is exactly the kind of uneven frame time this mod is trying to avoid. Auto asks Windows which GPU owns that screen and uses it, and follows if the answer changes.
@@ -489,8 +488,6 @@ If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop s
 
 **Opaque Panel**: When the background panel can't show anything behind it (**Blur** on, or a panel colour with full alpha) and **Auto-Hide** is off, the Direct3D 11 renderer creates the panel's surface with alpha ignored and lets the compositor cut the rounded corners. Windows then copies those pixels instead of blending them every frame; Chromium measured the same switch at 3.12 W against 2.28 W. **Off** always blends, for comparison.
 
-**NPU Runtime Folder**: Where Intel's OpenVINO runtime lives. Required for Workload = NPU: the mod only loads OpenVINO from the folder you name here and never searches for it.
-
 **Smooth Mode**: Frame timing locked to the display, and motion on elapsed time. **Auto** *(default)* turns it on when drawing runs on an integrated GPU or the CPU; **On** works on any GPU and is worth trying on a discrete one too; **Off** is the 1.4 timing. What it changes:
 
 - **Frame timing locked to the display.** The 1.4 loop asks for a frame every `1000 / Target FPS` milliseconds and lets the timer's wake-up latency pile up, which is why 144 requested measured 141.7 delivered. On a 144 Hz panel that is a couple of refreshes every second with no new frame: a repeat, which you see as a hitch. Smooth Mode schedules from Windows' own composition clock instead, places every frame half a refresh away from the deadline on either side, and never accumulates drift.
@@ -504,31 +501,6 @@ If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop s
 ![Oscilloscope closeup](https://raw.githubusercontent.com/USER-TOURNE/Tourne-Style/main/windhawk-mods/tourne-table/media/4.gif)
 
 *The same shape in a warm colour: the Oscilloscope picks up Color Mode like every other shape.*
-
-# ◇ RUNNING THE ANALYSIS ON AN NPU (EXPERIMENTAL)
-
-Written against an **Alienware Aurora ACT1250** (the 2025 Aurora: Core Ultra 7 265K / 265KF or Ultra 9 285K, RTX 50-series), but it applies to any Intel Core Ultra machine.
-
-**Read this first: it almost certainly won't save power.** An NPU is a matrix-multiply engine. It wins when the work is a large, dense block of multiply-accumulates that runs continuously, like a neural network. An FFT is neither: to run on the NPU it has to be rewritten as matrix multiplies, which is roughly 25 times more arithmetic than an FFT, and every call has a fixed start-up cost the FFT is far too small to pay back. Calling it once per frame also keeps the NPU from power-gating between calls. Meanwhile the CPU does the whole analysis in well under 1% of one core. More bars don't change that: with the Precision engine every bar adds up its own bins once per frame, so 240 bars cost the same as 7.
-
-It stays as an option because the plumbing is the hard, reusable part (finding the runtime, compiling off the audio path, proving the result against a known answer, falling back to the CPU with a reason), and because the NPU's real use in a visualizer is still to come: neural models such as note transcription (a piano-roll mode, note names on musical bars) or stem separation (colour each bar by whether drums, bass or vocals drive it). Those are dense, continuous matrix work, which is what an NPU is for.
-
-**What's in there.** Arrow Lake desktop chips carry Intel's NPU 3, sold as *Intel AI Boost*: about 13 TOPS, the same generation as Meteor Lake, and present on K, KF and F models alike (the F only drops the iGPU). It is a separate block from both the CPU cores and the GPU, built for large batches of multiply-accumulates in low precision (FP16 / INT8).
-
-**Making sure it's on.**
-1. Device Manager should have a **Neural processors** category with **Intel(R) AI Boost** under it. Task Manager on Windows 11 24H2 and later also shows an **NPU** graph on the Performance tab.
-2. If it's missing, install the **Intel NPU driver** (from Dell's support page for the Aurora, or Intel's own "Intel NPU Driver - Windows" download). It needs Windows 11.
-3. Still missing after that: check the BIOS for an NPU / AI Boost switch. Some Arrow Lake firmware ships one, and Intel's own guidance for Windows 10 machines is to turn the NPU off there.
-
-**Giving this mod a way to talk to it.** Intel exposes the NPU through its **OpenVINO** runtime, which this mod loads at runtime if it's present. Nothing is bundled and nothing is installed for you. Get it one of these ways, then put its folder into **NPU Runtime Folder** (the mod loads it only from there):
-- download the OpenVINO archive for Windows from Intel and extract it (`C:\Program Files (x86)\Intel\openvino_<version>` is the conventional spot), or
-- `pip install openvino` into a Python install and use its `Lib\site-packages\openvino\libs` folder.
-
-Use an OpenVINO version at least as new as the one your NPU driver's release notes name. Then set **Workload** to **NPU**. The Windhawk log says what happened: which runtime and device it found, how long the model took to compile, and every 30 seconds the mean and worst NPU time per FFT. If anything is missing, the settings-problems window says which piece and what to do, and the analysis stays on the CPU in the meantime.
-
-> **64-bit only.** OpenVINO ships 64-bit builds only. Windhawk 1.x runs tool mods in a 32-bit process, so there the NPU option reports that and stays on the CPU.
-
-**How it works.** The FFT is rewritten as matrix multiplies (a "four-step" DFT: a DFT down the columns, a twiddle multiply, a DFT along the rows). The model is generated in memory for your FFT Size, compiled for the NPU once, and checked against a known answer before it's trusted. Its output feeds exactly the same band maths as the CPU path, for either engine, so the bars look identical. Measure it with HWiNFO against Hybrid, the same way the CPU figures above were measured, and keep whichever costs less.
 
 # ▲ WHERE THE EFFICIENCY COMES FROM
 
@@ -1585,12 +1557,11 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
 - hardware:
     - workload: hybrid
       $name: Workload
-      $description: Where the work runs. Hybrid analyses on the CPU, which is a fraction of a percent of one core, and draws on the GPU, the cheapest split on almost every PC. GPU moves the analysis onto the graphics chip too, so the CPU only copies audio. CPU does everything on the processor, drawing included (software rendering), leaving the GPU nothing but Windows' own compositing. NPU runs the FFTs on an Intel AI Boost NPU and is experimental; see the readme for why it rarely saves power
+      $description: Where the work runs. Hybrid analyses on the CPU, which is a fraction of a percent of one core, and draws on the GPU, the cheapest split on almost every PC. GPU moves the analysis onto the graphics chip too, so the CPU only copies audio. CPU does everything on the processor, drawing included (software rendering), leaving the GPU nothing but Windows' own compositing.
       $options:
         - hybrid: Hybrid - CPU analysis, GPU drawing (recommended)
         - gpu: GPU - analysis and drawing on the GPU
         - cpu: CPU - everything on the processor
-        - npu: NPU analysis, GPU drawing (experimental)
     - renderDevice: auto
       $name: Drawing Device
       $description: Which GPU draws. Auto uses the one your chosen monitor is plugged into, which avoids copying every frame from one GPU to another and is the right answer almost everywhere. Integrated and Discrete force a GPU type, and fall back to Auto (with a warning) if this PC does not have one. CPU draws in software, the same as Workload = CPU
@@ -1611,9 +1582,6 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
       $options:
         - auto: Auto
         - 'off': 'Off'
-    - npuRuntimePath: ''
-      $name: NPU Runtime Folder
-      $description: The folder that contains openvino_c.dll, or the root of an extracted OpenVINO archive. Required for Workload = NPU: the mod loads OpenVINO only from this folder and never searches for it
     - smoothMode: auto
       $name: Smooth Mode
       $description: Frame timing locked to the display's refresh so every frame lands on its own refresh, and motion that scales with real elapsed time. Target FPS is rounded to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) because that is what makes motion even. With the Direct2D renderer it also bakes the panel and batches the bars. Auto turns it on when drawing runs on an integrated GPU or the CPU. On works with any GPU. Off is the 1.4 timing
@@ -1684,7 +1652,7 @@ using namespace winrt::Windows::Storage::Streams;
 
 using Microsoft::WRL::ComPtr;
 
-// ---- Shared setups (2.3): the layer an imported setup sits in -------------------------------------
+// ---- Shared setups: the layer an imported setup sits in -------------------------------------
 // Every setting is read through here. An imported setup's values (the mod value "sharedSetup", as
 // key=value lines) come first, then the settings page; quick settings still go on top of both.
 // Reset Quick Settings clears it, and the settings page's values come back.
@@ -1759,14 +1727,13 @@ void VizSettingFree(PCWSTR s) { delete[] s; }
 #define WM_APP_MEDIA_REPAINT (WM_APP + 4)
 #define WM_APP_REQUEST_SAVE_POSITION (WM_APP + 5)
 #define WM_APP_FORCE_REDRAW (WM_APP + 6)
-// Hardware section. A worker thread (NPU build) or the render path (device
+// Hardware section. A worker thread or the render path (device
 // loss) can't touch the settings-issue list or rebuild D3D objects itself, so
 // both hand the job to the message window, which lives on the UI thread.
 #define WM_APP_HW_NOTICE (WM_APP + 7)        // lParam: heap std::wstring*, owned by receiver
 #define WM_APP_REBUILD_DEVICE (WM_APP + 8)   // wParam: 1 = device was lost
 #define WM_APP_CONTEXT_MENU (WM_APP + 9)     // wParam, lParam: screen x, y
 #define WM_APP_PANEL_FIT (WM_APP + 10)       // Place In = Panel: size the window to the box
-#define WM_APP_MENU_OUTSIDE (WM_APP + 11)    // a click while the menu is up; wParam, lParam: screen x, y
 #define WM_APP_SEEK_AT (WM_APP + 12)         // Click to Seek; wParam: screen x
 #define OVERLAY_WINDOW_CLASS (L"DesktopAudioVisOverlay_" WH_MOD_ID)
 #define MESSAGE_WINDOW_CLASS (L"DesktopAudioVisMessage_" WH_MOD_ID)
@@ -1802,7 +1769,7 @@ enum class VizMoveTarget { Visualizer, NowPlaying, PeakFreq, MediaControls };
 enum class VizRenderDevice { Auto, Integrated, Discrete, Cpu };
 enum class VizSmoothMode { Auto, On, Off };
 // 2.0. Where the work runs; which analysis core; which renderer.
-enum class VizWorkload { Hybrid, Gpu, Cpu, Npu };
+enum class VizWorkload { Hybrid, Gpu, Cpu };
 enum class VizRenderer { D3D11, Direct2D };
 enum class VizOpaquePanel { Auto, Off };
 enum class VizEngineKind { Precision, Classic };
@@ -1862,7 +1829,7 @@ struct Settings {
 
     bool dragEnabled = false;
     bool hostTaskbar = false;         // Position > Place In = Taskbar
-    bool hostPanel = false;           // Position > Place In = Panel (2.2)
+    bool hostPanel = false;           // Position > Place In = Panel
     int panelBackdrop = 1;            // 0 clear, 1 acrylic, 2 mica
     std::wstring panelHotkey;
     bool splitEnabled = false;        // show the visualizer as two pieces
@@ -1965,7 +1932,6 @@ struct Settings {
     float mediaVerticalPosition = 95.0f;
 
     VizRenderDevice renderDevice = VizRenderDevice::Auto;
-    std::wstring npuRuntimePath;
     VizSmoothMode smoothMode = VizSmoothMode::Auto;
     VizWorkload workload = VizWorkload::Hybrid;
     VizRenderer renderer = VizRenderer::D3D11;
@@ -2095,7 +2061,7 @@ std::atomic<float> g_mediaOverrideH{50.0f};
 std::atomic<float> g_mediaOverrideV{95.0f};
 
 std::atomic<HWND> g_overlayWnd{nullptr};
-// Place In = Panel (2.2): whether the current overlay window is the panel,
+// Place In = Panel: whether the current overlay window is the panel,
 // and the panel's own state (kept in the "panel" mod value).
 bool g_overlayInPanel = false;
 bool g_panelHidden = false;
@@ -2103,7 +2069,6 @@ bool g_panelPinned = false;
 float g_panelZoom = 1.0f;
 RECT g_panelRect{0, 0, 0, 0};  // empty until placed once
 int g_panelSizingW = 0, g_panelSizingH = 0;  // non-zero while an edge is being dragged
-UINT g_panelMsg = 0;  // RegisterWindowMessage("TourneTable.Panel")
 ComPtr<IDXGISwapChain1> g_swapChain;
 ComPtr<ID2D1DeviceContext> g_dc;
 ComPtr<IDCompositionDevice> g_compositionDevice;
@@ -2292,9 +2257,6 @@ inline float VizPx(float v) {
 FILETIME g_lastWallpaperTime = {};
 std::atomic<HMONITOR> g_cachedMonitor{nullptr};
 
-std::atomic<bool> g_captureRunning{false};
-std::thread* g_captureThread = nullptr;
-HANDLE g_captureEvent = nullptr;
 std::atomic<bool> g_deviceChanged{false};
 
 // Per-band energy and oscilloscope waveform are each produced as a whole array
@@ -2397,7 +2359,7 @@ std::mutex g_nowPlayingMutex;
 std::wstring g_nowPlayingDisplay;
 std::wstring g_nowPlayingTitle, g_nowPlayingArtist;  // the parts, for the two-line layout
 
-// ---- track timeline: begin (src/tests_features/test_timeline.cpp compiles this block from v2b.cpp)
+// ---- track timeline: begin
 // Track timeline from the media session, for the progress bar: start, end and
 // position in 100 ns units, and the tick at which the position was current.
 // Between updates the bar extrapolates while playing, since most players only
@@ -2637,18 +2599,15 @@ HMONITOR GetMonitorById(int monitorId) {
     return monitorResult;
 }
 
-// ---- DXCore: adapter classification and NPU discovery -------------------------
+// ---- DXCore: adapter classification -------------------------------------------
 //
-// DXGI can enumerate GPUs but can't say which one is integrated, and can't see
-// an NPU at all: NPUs are compute-only (MCDM) devices with no display engine,
-// so they never show up as a DXGI adapter. DXCore sees both. It ships in the
+// DXGI can enumerate GPUs but can't say which one is integrated. DXCore can. It ships in the
 // box from Windows 10 2004 on, but the toolchain's headers don't carry it, so
 // it is loaded at runtime and the handful of methods used here are declared
 // by hand, in vtable order, from the Windows SDK's dxcore_interface.h. Only
 // the leading methods are declared, and nothing past the last one is called.
 //
-// None of this runs per frame: it runs when the device is created and when the
-// NPU path explains why it can't start.
+// None of this runs per frame: it runs when the device is created.
 namespace ttdxcore {
 
 enum : uint32_t {
@@ -2681,19 +2640,8 @@ struct IAdapterFactory : public IUnknown {
 
 static const GUID kIID_Factory = {
     0x78ee5945, 0xc36e, 0x4b13, {0xa6, 0x69, 0x00, 0x5d, 0xd1, 0x1c, 0x0f, 0x06}};
-static const GUID kIID_List = {
-    0x526c7776, 0x40e9, 0x459b, {0xb7, 0x11, 0xf3, 0x2a, 0xd7, 0x6d, 0xfc, 0x28}};
 static const GUID kIID_Adapter = {
     0xf0db4c7f, 0xfe5a, 0x42a2, {0xbd, 0x62, 0xf2, 0xa6, 0xcf, 0x6f, 0xc8, 0x3e}};
-static const GUID kAttrD3D11Graphics = {
-    0x8c47866b, 0x7583, 0x450d, {0xf0, 0xf0, 0x6b, 0xad, 0xa8, 0x95, 0xaf, 0x4b}};
-static const GUID kAttrD3D12Graphics = {
-    0x0c9ece4d, 0x2f6e, 0x4f01, {0x8c, 0x96, 0xe8, 0x9e, 0x33, 0x1b, 0x47, 0xb1}};
-static const GUID kAttrGenericML = {
-    0xb71b0d41, 0x1088, 0x422f, {0xa2, 0x7c, 0x02, 0x50, 0xb7, 0xd3, 0xa9, 0x88}};
-// Windows 11 24H2 and later. Older builds simply return an empty list for it.
-static const GUID kAttrHardwareNpu = {
-    0xd46140c4, 0xadd7, 0x451b, {0x9e, 0x56, 0x06, 0xfe, 0x8c, 0x3b, 0x58, 0xed}};
 
 typedef HRESULT(WINAPI* CreateFactoryFn)(REFIID riid, void** ppvFactory);
 
@@ -2735,41 +2683,6 @@ inline std::wstring AdapterDescription(IAdapter* adapter) {
     std::wstring wide(wlen > 0 ? wlen : 0, L'\0');
     if (wlen > 0) MultiByteToWideChar(CP_ACP, 0, narrow.c_str(), (int)narrow.size(), wide.data(), wlen);
     return wide;
-}
-
-// Name of the first NPU Windows can see, e.g. "Intel(R) AI Boost", or empty.
-// Used to tell "the NPU is there but the runtime isn't" apart from "Windows
-// doesn't see an NPU at all", which need very different fixes.
-inline std::wstring FindNpuName() {
-    ComPtr<IAdapterFactory> factory = CreateFactory();
-    if (!factory) return L"";
-
-    auto firstMatching = [&](const GUID& attr, bool skipGraphics) -> std::wstring {
-        ComPtr<IAdapterList> list;
-        if (FAILED(factory->CreateAdapterList(1, &attr, kIID_List, (void**)list.GetAddressOf())) ||
-            !list) {
-            return L"";
-        }
-        uint32_t count = list->GetAdapterCount();
-        for (uint32_t i = 0; i < count; i++) {
-            ComPtr<IAdapter> adapter;
-            if (FAILED(list->GetAdapter(i, kIID_Adapter, (void**)adapter.GetAddressOf())) || !adapter)
-                continue;
-            // Every GPU also advertises generic ML, so on builds that predate
-            // the NPU attribute the only tell is "compute-only, no graphics".
-            if (skipGraphics && (adapter->IsAttributeSupported(kAttrD3D12Graphics) ||
-                                 adapter->IsAttributeSupported(kAttrD3D11Graphics))) {
-                continue;
-            }
-            std::wstring name = AdapterDescription(adapter.Get());
-            if (!name.empty()) return name;
-        }
-        return L"";
-    };
-
-    std::wstring name = firstMatching(kAttrHardwareNpu, false);
-    if (name.empty()) name = firstMatching(kAttrGenericML, true);
-    return name;
 }
 
 }  // namespace ttdxcore
@@ -3719,7 +3632,7 @@ std::atomic<bool> g_mediaCmdPending{false};
 std::atomic<int> g_mediaCmdQueued{-1};
 
 void SendMediaCommand(int cmd) {
-    g_mediaCmdQueued.store(cmd, std::memory_order_relaxed);
+    g_mediaCmdQueued.store(cmd);
 
     bool expected = false;
     if (!g_mediaCmdPending.compare_exchange_strong(expected, true))
@@ -3732,24 +3645,34 @@ void SendMediaCommand(int cmd) {
         g_mediaCmdThread = nullptr;
     }
 
+    // The thread runs every command queued while it works (the latest one, if
+    // several came in), so a seek on release isn't dropped while the seek on
+    // press is still in flight.
     g_mediaCmdThread = new std::thread([]() {
-        int cmd = g_mediaCmdQueued.load(std::memory_order_relaxed);
-        try {
-            winrt::init_apartment(winrt::apartment_type::multi_threaded);
-            auto mgr = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().get();
-            if (mgr) {
-                auto session = mgr.GetCurrentSession();
-                if (session) {
-                    if (cmd == 0)      session.TrySkipPreviousAsync().get();
-                    else if (cmd == 1) session.TryTogglePlayPauseAsync().get();
-                    else if (cmd == 2) session.TrySkipNextAsync().get();
-                    else if (cmd == 3)
-                        session.TryChangePlaybackPositionAsync(g_mediaSeekTicks.load(std::memory_order_relaxed)).get();
-                }
+        try { winrt::init_apartment(winrt::apartment_type::multi_threaded); } catch (...) {}
+        for (;;) {
+            int cmd = g_mediaCmdQueued.exchange(-1);
+            if (cmd < 0) {
+                g_mediaCmdPending.store(false);
+                // A command that arrived just now, after its caller saw us still busy.
+                if (g_mediaCmdQueued.load() >= 0 && !g_mediaCmdPending.exchange(true)) continue;
+                break;
             }
-        } catch (...) {}
+            try {
+                auto mgr = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().get();
+                if (mgr) {
+                    auto session = mgr.GetCurrentSession();
+                    if (session) {
+                        if (cmd == 0)      session.TrySkipPreviousAsync().get();
+                        else if (cmd == 1) session.TryTogglePlayPauseAsync().get();
+                        else if (cmd == 2) session.TrySkipNextAsync().get();
+                        else if (cmd == 3)
+                            session.TryChangePlaybackPositionAsync(g_mediaSeekTicks.load(std::memory_order_relaxed)).get();
+                    }
+                }
+            } catch (...) {}
+        }
         try { winrt::uninit_apartment(); } catch (...) {}
-        g_mediaCmdPending.store(false, std::memory_order_relaxed);
     });
 }
 
@@ -4706,9 +4629,9 @@ void CreateMediaControlWindow() {
         Wh_Log(L"[Media] CreateWindowEx failed, error %u", GetLastError());
         return;
     }
-    Wh_Log(L"[Media] Window created hwnd=%p enabled=%d iconSize=%d spacing=%d pos=(%.2f,%.2f) monitor=%d",
-           (void*)g_mediaWnd, (int)g_settings.mediaControlsEnabled, g_settings.mediaIconSize,
-           g_settings.mediaIconSpacing, g_settings.mediaHorizontalPosition,
+    Wh_Log(L"[Media] Window created hwnd=%p enabled=%d iconSize=%.2f spacing=%.2f pos=(%.2f,%.2f) monitor=%d",
+           (void*)g_mediaWnd, (int)g_settings.mediaControlsEnabled, (double)g_settings.mediaIconSize,
+           (double)g_settings.mediaIconSpacing, g_settings.mediaHorizontalPosition,
            g_settings.mediaVerticalPosition, g_settings.monitor);
 
     RecreateMediaControlResources();
@@ -5409,7 +5332,7 @@ public:
     // Runs the FFT for each tier that has enough new data, then rebuilds the
     // band levels. Returns true if anything was recomputed.
     //
-    // fftOverride lets the caller run the transform somewhere else (the NPU):
+    // fftOverride lets the caller run the transform somewhere else:
     // it gets the windowed block and must fill re/im with bins 0..N/2, or
     // return false to fall back to the CPU FFT.
     template <typename FftOverride>
@@ -5952,854 +5875,6 @@ private:
 };
 
 }  // namespace ttdsp
-
-// ---- NPU audio analysis (Workload = NPU) ----------------------------------------
-//
-// What the NPU can and can't do here. An NPU is a matrix-multiply engine with
-// no graphics pipeline: it can't rasterise a bar or present a frame, so
-// drawing always stays on Drawing Device. What it can take is the FFT, as long
-// as the FFT is written as matrix multiplies, which is the shape of work an
-// NPU is built for.
-//
-// The FFT is expressed as a "four-step" DFT. With N = N1 * N2 and the input
-// laid out as an N1 x N2 matrix (row-major, so no reshuffling of the samples):
-//
-//   Y = F1 . x          N1-point DFT down each column   (two real matmuls)
-//   Z = Y (*) T         twiddle factors, elementwise    (complex multiply)
-//   X = [Zre|Zim] . G   N2-point DFT along each row     (one real matmul)
-//
-// G packs the complex N2-point DFT as a real 2*N2 x 2*N2 block matrix, so the
-// last step is a single matmul that emits [Xre|Xim]. Bin k = k1 + N1*k2 lands
-// at row k1, column k2 (real) and N2 + k2 (imaginary). For N = 8192 that is
-// 64 x 128, and the constant matrices total about 350 KB.
-//
-// F1 and G carry 1/N1 and 1/N2, so the NPU computes X/N. Intel's NPU runs in
-// FP16, whose ceiling is 65504; unnormalised, an 8192-point bin can reach
-// 8192 times the input level and would overflow. The CPU multiplies N back
-// in, so everything downstream of VizFFT sees exactly the numbers it always
-// has.
-//
-// The model is built in memory as ONNX and handed to Intel's OpenVINO runtime,
-// which is how Intel exposes its NPU. OpenVINO is loaded at runtime through its
-// flat C API, so nothing here links against it and the mod still builds and
-// runs on machines without it. ONNX rather than OpenVINO's own IR because ONNX
-// carries its weights inline: IR would need a weights tensor created through
-// an element-type enum whose numbering has changed between OpenVINO releases.
-// Input and output tensors are the request's own, for the same reason.
-//
-// An honest note on cost, because this mod is built around measuring it: the
-// CPU FFT is already a fraction of a millisecond per block, roughly 90 blocks a
-// second at FFT Size 1024. Moving it to the NPU frees that CPU time but wakes
-// the NPU at the same rate, so whether package power goes down is something to
-// measure on your own machine, not something to assume. The log reports mean
-// and worst-case NPU time per block every 30 s for exactly that reason.
-namespace ttnpu {
-
-// ---- ONNX ModelProto writer --------------------------------------------------
-// Just enough protobuf to emit one ModelProto. Field numbers are from
-// onnx/onnx.proto: ModelProto{ir_version=1, producer_name=2, graph=7,
-// opset_import=8}, GraphProto{node=1, name=2, initializer=5, input=11,
-// output=12}, NodeProto{input=1, output=2, name=3, op_type=4, attribute=5},
-// AttributeProto{name=1, i=3, type=20}, TensorProto{dims=1, data_type=2,
-// name=8, raw_data=9}, ValueInfoProto{name=1, type=2}, TypeProto{tensor_type=1},
-// TypeProto.Tensor{elem_type=1, shape=2}, TensorShapeProto{dim=1},
-// Dimension{dim_value=1}, OperatorSetIdProto{domain=1, version=2}.
-struct Pb {
-    std::string b;
-    void Varint(uint64_t v) {
-        while (v >= 0x80) {
-            b.push_back((char)((v & 0x7F) | 0x80));
-            v >>= 7;
-        }
-        b.push_back((char)v);
-    }
-    void Key(uint32_t field, uint32_t wire) { Varint(((uint64_t)field << 3) | wire); }
-    void Int(uint32_t field, int64_t v) {
-        Key(field, 0);
-        Varint((uint64_t)v);
-    }
-    void Bytes(uint32_t field, const void* p, size_t n) {
-        Key(field, 2);
-        Varint(n);
-        b.append((const char*)p, n);
-    }
-    void Str(uint32_t field, const char* s) { Bytes(field, s, strlen(s)); }
-    void Msg(uint32_t field, const Pb& m) { Bytes(field, m.b.data(), m.b.size()); }
-};
-
-constexpr int64_t kOnnxFloat = 1;      // TensorProto.DataType.FLOAT
-constexpr int64_t kOnnxAttrInt = 2;    // AttributeProto.AttributeType.INT
-constexpr int64_t kOnnxIrVersion = 7;  // IR_VERSION_2020_5_8, the first to allow opset 13
-constexpr int64_t kOnnxOpset = 13;
-
-inline Pb OnnxInitializer(const char* name, int rows, int cols, const std::vector<float>& data) {
-    Pb t;
-    t.Int(1, rows);
-    t.Int(1, cols);
-    t.Int(2, kOnnxFloat);
-    t.Str(8, name);
-    // raw_data is little-endian by spec, which is the native order on every
-    // Windows target.
-    t.Bytes(9, data.data(), data.size() * sizeof(float));
-    return t;
-}
-
-inline Pb OnnxValueInfo(const char* name, int rows, int cols) {
-    Pb d0, d1, shape, tensorType, type, vi;
-    d0.Int(1, rows);
-    d1.Int(1, cols);
-    shape.Msg(1, d0);
-    shape.Msg(1, d1);
-    tensorType.Int(1, kOnnxFloat);
-    tensorType.Msg(2, shape);
-    type.Msg(1, tensorType);
-    vi.Str(1, name);
-    vi.Msg(2, type);
-    return vi;
-}
-
-inline Pb OnnxNode(const char* op, const char* in0, const char* in1, const char* out,
-                   bool hasAxis = false, int64_t axis = 0) {
-    Pb n;
-    n.Str(1, in0);
-    n.Str(1, in1);
-    n.Str(2, out);
-    n.Str(3, out);
-    n.Str(4, op);
-    if (hasAxis) {
-        Pb a;
-        a.Str(1, "axis");
-        a.Int(3, axis);
-        a.Int(20, kOnnxAttrInt);
-        n.Msg(5, a);
-    }
-    return n;
-}
-
-// Splits an FFT size into the N1 x N2 factors used by the four-step layout.
-// Near-square keeps every constant matrix small.
-inline bool SplitSize(int n, int* n1, int* n2) {
-    switch (n) {
-        case 1024: *n1 = 32; *n2 = 32; return true;
-        case 2048: *n1 = 32; *n2 = 64; return true;
-        case 4096: *n1 = 64; *n2 = 64; return true;
-        case 8192: *n1 = 64; *n2 = 128; return true;
-    }
-    return false;
-}
-
-// The whole model: input "x" [N1, N2] float, output "y" [N1, 2*N2] float.
-inline std::string BuildDftModel(int n1, int n2) {
-    const long long n = (long long)n1 * n2;
-    const double tau = 6.283185307179586476925;
-
-    // Angles are reduced with integer arithmetic before the trig call, so
-    // large index products don't lose precision in the argument.
-    std::vector<float> f1re((size_t)n1 * n1), f1im((size_t)n1 * n1);
-    for (int k1 = 0; k1 < n1; k1++) {
-        for (int j = 0; j < n1; j++) {
-            double ang = tau * (double)(((long long)k1 * j) % n1) / (double)n1;
-            f1re[(size_t)k1 * n1 + j] = (float)(cos(ang) / n1);
-            f1im[(size_t)k1 * n1 + j] = (float)(-sin(ang) / n1);
-        }
-    }
-
-    std::vector<float> tre((size_t)n1 * n2), tim((size_t)n1 * n2);
-    for (int k1 = 0; k1 < n1; k1++) {
-        for (int j = 0; j < n2; j++) {
-            double ang = tau * (double)(((long long)k1 * j) % n) / (double)n;
-            tre[(size_t)k1 * n2 + j] = (float)cos(ang);
-            tim[(size_t)k1 * n2 + j] = (float)(-sin(ang));
-        }
-    }
-
-    // G = [[F2re, F2im], [-F2im, F2re]], so [Zre | Zim] . G = [Xre | Xim].
-    const int g = 2 * n2;
-    std::vector<float> gm((size_t)g * g);
-    for (int j = 0; j < n2; j++) {
-        for (int k = 0; k < n2; k++) {
-            double ang = tau * (double)(((long long)j * k) % n2) / (double)n2;
-            float fr = (float)(cos(ang) / n2);
-            float fi = (float)(-sin(ang) / n2);
-            gm[(size_t)j * g + k] = fr;
-            gm[(size_t)j * g + n2 + k] = fi;
-            gm[(size_t)(n2 + j) * g + k] = -fi;
-            gm[(size_t)(n2 + j) * g + n2 + k] = fr;
-        }
-    }
-
-    Pb graph;
-    graph.Msg(1, OnnxNode("MatMul", "f1re", "x", "yre"));
-    graph.Msg(1, OnnxNode("MatMul", "f1im", "x", "yim"));
-    graph.Msg(1, OnnxNode("Mul", "yre", "tre", "a"));
-    graph.Msg(1, OnnxNode("Mul", "yim", "tim", "b"));
-    graph.Msg(1, OnnxNode("Sub", "a", "b", "zre"));
-    graph.Msg(1, OnnxNode("Mul", "yre", "tim", "c"));
-    graph.Msg(1, OnnxNode("Mul", "yim", "tre", "d"));
-    graph.Msg(1, OnnxNode("Add", "c", "d", "zim"));
-    graph.Msg(1, OnnxNode("Concat", "zre", "zim", "z", true, 1));
-    graph.Msg(1, OnnxNode("MatMul", "z", "g", "y"));
-    graph.Str(2, "tourne_table_dft");
-    graph.Msg(5, OnnxInitializer("f1re", n1, n1, f1re));
-    graph.Msg(5, OnnxInitializer("f1im", n1, n1, f1im));
-    graph.Msg(5, OnnxInitializer("tre", n1, n2, tre));
-    graph.Msg(5, OnnxInitializer("tim", n1, n2, tim));
-    graph.Msg(5, OnnxInitializer("g", g, g, gm));
-    graph.Msg(11, OnnxValueInfo("x", n1, n2));
-    graph.Msg(12, OnnxValueInfo("y", n1, g));
-
-    Pb opset;
-    opset.Str(1, "");
-    opset.Int(2, kOnnxOpset);
-
-    // Order matters for one reason: OpenVINO sniffs the format by reading the
-    // first three top-level fields and wants three different ones.
-    Pb model;
-    model.Int(1, kOnnxIrVersion);
-    model.Str(2, "TourneTable");
-    model.Msg(7, graph);
-    model.Msg(8, opset);
-    return model.b;
-}
-
-// Bin k of the four-step output, scaled back up to VizFFT's (unnormalised)
-// units. y is [N1, 2*N2] row-major.
-inline void UnpackBins(const float* y, int n1, int n2, std::vector<float>& re,
-                       std::vector<float>& im) {
-    const int n = n1 * n2;
-    const int stride = 2 * n2;
-    const float scale = (float)n;
-    for (int k = 0; k < n / 2; k++) {
-        int k1 = k % n1, k2 = k / n1;
-        re[k] = y[k1 * stride + k2] * scale;
-        im[k] = y[k1 * stride + n2 + k2] * scale;
-    }
-}
-
-// ---- OpenVINO C API, resolved at runtime ----------------------------------------
-// Signatures are copied from openvino/c/*.h. ov_status_e is a plain enum (0 =
-// OK). Every handle is opaque, so they are all void* here.
-struct OvDevices {
-    char** devices;
-    size_t size;
-};
-struct OvVersion {
-    const char* buildNumber;
-    const char* description;
-};
-struct OvApi {
-    HMODULE lib = nullptr;
-    int (*core_create)(void** core) = nullptr;
-    void (*core_free)(void* core) = nullptr;
-    int (*core_get_available_devices)(const void* core, OvDevices* devices) = nullptr;
-    void (*available_devices_free)(OvDevices* devices) = nullptr;
-    int (*core_read_model_from_memory_buffer)(const void* core, const char* model, size_t len,
-                                              const void* weights, void** outModel) = nullptr;
-    int (*core_compile_model)(const void* core, const void* model, const char* device,
-                              size_t propertyArgsSize, void** compiled, ...) = nullptr;
-    void (*model_free)(void* model) = nullptr;
-    int (*compiled_model_create_infer_request)(const void* compiled, void** request) = nullptr;
-    void (*compiled_model_free)(void* compiled) = nullptr;
-    int (*infer_request_get_input_tensor_by_index)(const void* request, size_t idx,
-                                                   void** tensor) = nullptr;
-    int (*infer_request_get_output_tensor_by_index)(const void* request, size_t idx,
-                                                    void** tensor) = nullptr;
-    int (*infer_request_infer)(void* request) = nullptr;
-    void (*infer_request_free)(void* request) = nullptr;
-    int (*tensor_data)(const void* tensor, void** data) = nullptr;
-    int (*tensor_get_byte_size)(const void* tensor, size_t* size) = nullptr;
-    void (*tensor_free)(void* tensor) = nullptr;
-    // Optional: absent from older runtimes, only used for nicer log lines.
-    int (*core_get_property)(const void* core, const char* device, const char* key,
-                             char** value) = nullptr;
-    void (*free_string)(const char* s) = nullptr;
-    const char* (*get_last_err_msg)() = nullptr;
-    int (*get_openvino_version)(OvVersion* v) = nullptr;
-    void (*version_free)(OvVersion* v) = nullptr;
-};
-
-struct Engine {
-    void* compiled = nullptr;
-    void* request = nullptr;
-    void* in = nullptr;
-    void* out = nullptr;
-    int n = 0, n1 = 0, n2 = 0;
-};
-
-// Shared state. The capture thread never takes this lock on its hot path: it
-// owns one Engine outright and only reaches for the lock when it needs a new
-// one, which is at start-up and on an FFT Size change.
-std::mutex g_mutex;
-std::condition_variable g_cv;
-std::thread* g_worker = nullptr;
-bool g_shutdown = false;
-bool g_enabled = false;
-bool g_runtimeRetry = false;  // set by Configure, consumed by the worker
-std::wstring g_runtimePath;  // copy of the setting, taken on the UI thread
-int g_wantSize = 0;          // FFT size the capture thread is asking for
-int g_builtSize = 0;         // size of the engine that currently exists, 0 if none
-int g_failedSize = 0;        // size whose build failed; not retried until settings change
-Engine* g_pending = nullptr; // built (or handed back after a pause), not in use
-std::wstring g_lastNotice;
-
-// Runtime and core: created by the worker, live for the process, and touched
-// by the worker thread only (Shutdown frees the core after joining it). The
-// DLLs are never unloaded -- OpenVINO's thread pool doesn't survive being
-// pulled out from under it, and the process exits right after the mod unloads
-// anyway.
-OvApi g_api;
-void* g_core = nullptr;
-bool g_runtimeAttempted = false;
-bool g_runtimeReady = false;
-std::wstring g_runtimeDir;
-std::wstring g_runtimeError;
-std::string g_deviceName;  // FULL_DEVICE_NAME, e.g. "Intel(R) AI Boost"
-
-// Hands a message to the UI thread for the settings-problems summary, once per
-// distinct message per settings change.
-inline void Notice(const std::wstring& msg) {
-    Wh_Log(L"[NPU] %s", msg.c_str());
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        if (msg == g_lastNotice) return;
-        g_lastNotice = msg;
-    }
-    HWND wnd = g_messageWnd;
-    if (!wnd) return;
-    auto* heap = new std::wstring(msg);
-    if (!PostMessage(wnd, WM_APP_HW_NOTICE, 0, (LPARAM)heap)) delete heap;
-}
-
-inline std::wstring Widen(const char* s) {
-    if (!s) return L"";
-    int len = MultiByteToWideChar(CP_UTF8, 0, s, -1, nullptr, 0);
-    if (len <= 1) return L"";
-    std::wstring w(len - 1, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s, -1, w.data(), len);
-    return w;
-}
-
-inline std::wstring LastOvError(int status) {
-    WCHAR buf[64];
-    swprintf_s(buf, L"status %d", status);
-    std::wstring out = buf;
-    if (g_api.get_last_err_msg) {
-        const char* m = g_api.get_last_err_msg();
-        if (m && *m) {
-            std::wstring w = Widen(m);
-            // OpenVINO's messages carry a full C++ backtrace-ish preamble;
-            // the first line is the useful part.
-            size_t nl = w.find_first_of(L"\r\n");
-            if (nl != std::wstring::npos) w.resize(nl);
-            if (w.size() > 300) w.resize(300);
-            out += L": " + w;
-        }
-    }
-    return out;
-}
-
-inline bool DirHasRuntime(const std::wstring& dir) {
-    if (dir.empty()) return false;
-    DWORD attr = GetFileAttributesW((dir + L"\\openvino_c.dll").c_str());
-    return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
-}
-
-// Only the folder named in NPU Runtime Folder: the mod never searches the disk
-// or PATH for a DLL to load into Windhawk. That folder may be the one holding
-// openvino_c.dll, an extracted archive, a site-packages folder or the
-// openvino package folder.
-inline std::vector<std::wstring> CandidateDirs(const std::wstring& userPath) {
-    std::vector<std::wstring> dirs;
-    if (userPath.empty()) return dirs;
-    dirs.push_back(userPath);
-    dirs.push_back(userPath + L"\\runtime\\bin\\intel64\\Release");
-    dirs.push_back(userPath + L"\\openvino\\libs");
-    dirs.push_back(userPath + L"\\libs");
-    return dirs;
-}
-
-template <class T>
-inline bool Resolve(HMODULE lib, const char* name, T& fn) {
-    fn = (T)(void*)GetProcAddress(lib, name);
-    return fn != nullptr;
-}
-
-inline bool LoadRuntimeFrom(const std::wstring& dir, std::wstring* err) {
-    // The extracted archive keeps TBB (which openvino.dll imports) in a sibling
-    // tree rather than next to it; pip puts everything in one folder. Both
-    // directories are added to this process's DLL search for the loads below
-    // and for the plugins OpenVINO loads later. The cookies are kept for the
-    // life of the process, like the DLLs themselves.
-    AddDllDirectory(dir.c_str());
-    WCHAR tbb[MAX_PATH * 2];
-    if (GetFullPathNameW((dir + L"\\..\\..\\..\\3rdparty\\tbb\\bin").c_str(), ARRAYSIZE(tbb), tbb,
-                         nullptr)) {
-        DWORD attr = GetFileAttributesW(tbb);
-        if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY)) AddDllDirectory(tbb);
-    }
-
-    std::wstring dll = dir + L"\\openvino_c.dll";
-    HMODULE lib = LoadLibraryExW(dll.c_str(), nullptr,
-                                 LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS |
-                                     LOAD_LIBRARY_SEARCH_USER_DIRS);
-    if (!lib) {
-        WCHAR buf[96];
-        swprintf_s(buf, L"Windows error %lu", GetLastError());
-        *err = L"Found " + dll + L" but it would not load (" + buf +
-               L"). Usually a missing dependency: an incomplete copy, or a 32-bit/ARM build.";
-        return false;
-    }
-
-    OvApi api;
-    api.lib = lib;
-    bool ok = Resolve(lib, "ov_core_create", api.core_create) &&
-              Resolve(lib, "ov_core_free", api.core_free) &&
-              Resolve(lib, "ov_core_get_available_devices", api.core_get_available_devices) &&
-              Resolve(lib, "ov_available_devices_free", api.available_devices_free) &&
-              Resolve(lib, "ov_core_read_model_from_memory_buffer",
-                      api.core_read_model_from_memory_buffer) &&
-              Resolve(lib, "ov_core_compile_model", api.core_compile_model) &&
-              Resolve(lib, "ov_model_free", api.model_free) &&
-              Resolve(lib, "ov_compiled_model_create_infer_request",
-                      api.compiled_model_create_infer_request) &&
-              Resolve(lib, "ov_compiled_model_free", api.compiled_model_free) &&
-              Resolve(lib, "ov_infer_request_get_input_tensor_by_index",
-                      api.infer_request_get_input_tensor_by_index) &&
-              Resolve(lib, "ov_infer_request_get_output_tensor_by_index",
-                      api.infer_request_get_output_tensor_by_index) &&
-              Resolve(lib, "ov_infer_request_infer", api.infer_request_infer) &&
-              Resolve(lib, "ov_infer_request_free", api.infer_request_free) &&
-              Resolve(lib, "ov_tensor_data", api.tensor_data) &&
-              Resolve(lib, "ov_tensor_get_byte_size", api.tensor_get_byte_size) &&
-              Resolve(lib, "ov_tensor_free", api.tensor_free);
-    if (!ok) {
-        *err = L"The OpenVINO runtime in " + dir +
-               L" is too old: reading a model from memory needs OpenVINO 2023.1 or newer.";
-        return false;
-    }
-    Resolve(lib, "ov_core_get_property", api.core_get_property);
-    Resolve(lib, "ov_free", api.free_string);
-    Resolve(lib, "ov_get_last_err_msg", api.get_last_err_msg);
-    Resolve(lib, "ov_get_openvino_version", api.get_openvino_version);
-    Resolve(lib, "ov_version_free", api.version_free);
-
-    g_api = api;
-    g_runtimeDir = dir;
-    return true;
-}
-
-// Loads the runtime and creates the core, once per process. Runs on the
-// worker thread only. On failure the reason is kept, and a later settings
-// change (a corrected folder, say) gets one fresh attempt.
-inline bool EnsureRuntime(const std::wstring& userPath, std::wstring* err) {
-    if (g_runtimeReady) return true;
-    if (g_runtimeAttempted) {
-        *err = g_runtimeError;
-        return false;
-    }
-    g_runtimeAttempted = true;
-
-#if !defined(_WIN64)
-    std::wstring npu = ttdxcore::FindNpuName();
-    g_runtimeError =
-        L"NPU analysis needs a 64-bit Windhawk tool process, because OpenVINO only ships "
-        L"64-bit. This one is 32-bit (Windhawk 1.x runs tool mods that way). " +
-        (npu.empty() ? std::wstring(L"")
-                     : L"Windows does see your NPU (" + npu + L"), so it will work on a 64-bit host. ") +
-        L"Staying on the CPU.";
-    *err = g_runtimeError;
-    return false;
-#else
-    std::wstring loadErr;
-    bool loaded = false;
-    for (const auto& dir : CandidateDirs(userPath)) {
-        if (!DirHasRuntime(dir)) continue;
-        if (LoadRuntimeFrom(dir, &loadErr)) {
-            loaded = true;
-            break;
-        }
-    }
-    if (!loaded) {
-        std::wstring npu = ttdxcore::FindNpuName();
-        if (!loadErr.empty()) {
-            g_runtimeError = loadErr;
-        } else if (!userPath.empty()) {
-            g_runtimeError = L"No openvino_c.dll in \"" + userPath +
-                             L"\" (or its runtime\\bin\\intel64\\Release folder).";
-        } else {
-            g_runtimeError = L"NPU Runtime Folder is empty. Set it to the folder that holds openvino_c.dll.";
-        }
-        g_runtimeError +=
-            npu.empty()
-                ? L" Windows doesn't report an NPU either - check Device Manager for a \"Neural "
-                  L"processors\" entry; if it's missing, install the Intel NPU driver and check the "
-                  L"BIOS for an NPU / AI Boost switch."
-                : L" Windows does see your NPU (" + npu +
-                      L"), so only the runtime is missing: extract the OpenVINO archive from "
-                      L"Intel (or pip install openvino) and point NPU Runtime Folder at it.";
-        g_runtimeError += L" Staying on the CPU.";
-        *err = g_runtimeError;
-        return false;
-    }
-
-    int st = g_api.core_create(&g_core);
-    if (st != 0 || !g_core) {
-        g_runtimeError = L"OpenVINO loaded from " + g_runtimeDir + L" but could not start (" +
-                         LastOvError(st) + L"). Staying on the CPU.";
-        *err = g_runtimeError;
-        g_core = nullptr;
-        return false;
-    }
-
-    OvDevices devices{};
-    bool hasNpu = false;
-    std::wstring deviceList;
-    if (g_api.core_get_available_devices(g_core, &devices) == 0) {
-        for (size_t i = 0; i < devices.size; i++) {
-            const char* d = devices.devices[i];
-            if (!d) continue;
-            if (!deviceList.empty()) deviceList += L", ";
-            deviceList += Widen(d);
-            if (strncmp(d, "NPU", 3) == 0) hasNpu = true;
-        }
-        g_api.available_devices_free(&devices);
-    }
-    if (!hasNpu) {
-        std::wstring npu = ttdxcore::FindNpuName();
-        g_runtimeError = L"OpenVINO (" + g_runtimeDir + L") is working but lists no NPU (it sees: " +
-                         (deviceList.empty() ? std::wstring(L"nothing") : deviceList) + L"). " +
-                         (npu.empty() ? std::wstring(L"Windows doesn't report one either - install the "
-                                                     L"Intel NPU driver and check the BIOS.")
-                                      : L"Windows does see " + npu +
-                                            L", so the NPU driver and this OpenVINO are likely "
-                                            L"mismatched: update the Intel NPU driver, or use the "
-                                            L"OpenVINO version its release notes name.") +
-                         L" Staying on the CPU.";
-        *err = g_runtimeError;
-        return false;
-    }
-
-    if (g_api.core_get_property && g_api.free_string) {
-        char* name = nullptr;
-        if (g_api.core_get_property(g_core, "NPU", "FULL_DEVICE_NAME", &name) == 0 && name) {
-            g_deviceName = name;
-            g_api.free_string(name);
-        }
-    }
-    std::wstring version;
-    if (g_api.get_openvino_version && g_api.version_free) {
-        OvVersion v{};
-        if (g_api.get_openvino_version(&v) == 0) {
-            version = Widen(v.buildNumber);
-            g_api.version_free(&v);
-        }
-    }
-    Wh_Log(L"[NPU] OpenVINO %s from %s, NPU: %s", version.c_str(), g_runtimeDir.c_str(),
-           g_deviceName.empty() ? L"(unnamed)" : Widen(g_deviceName.c_str()).c_str());
-    g_runtimeReady = true;
-    return true;
-#endif
-}
-
-inline void FreeEngine(Engine* e) {
-    if (!e) return;
-    if (e->in) g_api.tensor_free(e->in);
-    if (e->out) g_api.tensor_free(e->out);
-    if (e->request) g_api.infer_request_free(e->request);
-    if (e->compiled) g_api.compiled_model_free(e->compiled);
-    delete e;
-}
-
-// One inference. `windowed` may alias `re`: it is copied in before anything is
-// written back.
-inline bool Run(Engine* e, const float* windowed, std::vector<float>& re, std::vector<float>& im) {
-    void* inData = nullptr;
-    void* outData = nullptr;
-    if (g_api.tensor_data(e->in, &inData) != 0 || !inData) return false;
-    memcpy(inData, windowed, (size_t)e->n * sizeof(float));
-    if (g_api.infer_request_infer(e->request) != 0) return false;
-    if (g_api.tensor_data(e->out, &outData) != 0 || !outData) return false;
-    UnpackBins((const float*)outData, e->n1, e->n2, re, im);
-    return true;
-}
-
-// Compiles the model for one FFT size on the NPU and proves it against a known
-// answer before anything relies on it. Worker thread only.
-inline bool BuildEngine(int n, Engine** out, std::wstring* err) {
-    int n1 = 0, n2 = 0;
-    if (!SplitSize(n, &n1, &n2)) {
-        *err = L"Unsupported FFT size for the NPU path.";
-        return false;
-    }
-
-    LARGE_INTEGER f, t0, t1;
-    QueryPerformanceFrequency(&f);
-    QueryPerformanceCounter(&t0);
-
-    std::string onnx = BuildDftModel(n1, n2);
-    void* model = nullptr;
-    int st = g_api.core_read_model_from_memory_buffer(g_core, onnx.data(), onnx.size(), nullptr, &model);
-    if (st != 0 || !model) {
-        *err = L"OpenVINO rejected the FFT model (" + LastOvError(st) + L"). Staying on the CPU.";
-        return false;
-    }
-
-    auto* e = new Engine();
-    e->n = n;
-    e->n1 = n1;
-    e->n2 = n2;
-    // LATENCY: one request in flight at a time, which is exactly this workload.
-    // If a runtime refuses the hint, compile again with its defaults rather
-    // than give up over a tuning knob.
-    st = g_api.core_compile_model(g_core, model, "NPU", 2, &e->compiled, "PERFORMANCE_HINT",
-                                  "LATENCY");
-    if (st != 0 || !e->compiled) {
-        Wh_Log(L"[NPU] compile with LATENCY hint failed (%s), retrying with defaults",
-               LastOvError(st).c_str());
-        e->compiled = nullptr;
-        st = g_api.core_compile_model(g_core, model, "NPU", 0, &e->compiled);
-    }
-    g_api.model_free(model);
-    if (st != 0 || !e->compiled) {
-        e->compiled = nullptr;
-        FreeEngine(e);
-        *err = L"The NPU couldn't compile the FFT model (" + LastOvError(st) + L"). Staying on the CPU.";
-        return false;
-    }
-    if (g_api.compiled_model_create_infer_request(e->compiled, &e->request) != 0 || !e->request ||
-        g_api.infer_request_get_input_tensor_by_index(e->request, 0, &e->in) != 0 || !e->in ||
-        g_api.infer_request_get_output_tensor_by_index(e->request, 0, &e->out) != 0 || !e->out) {
-        FreeEngine(e);
-        *err = L"The NPU compiled the FFT model but wouldn't create a request for it. Staying on the CPU.";
-        return false;
-    }
-
-    // Shapes are fixed by the model, so a size mismatch means the runtime did
-    // something unexpected with the I/O precision; refuse rather than guess.
-    size_t inBytes = 0, outBytes = 0;
-    g_api.tensor_get_byte_size(e->in, &inBytes);
-    g_api.tensor_get_byte_size(e->out, &outBytes);
-    if (inBytes != (size_t)n * sizeof(float) || outBytes != (size_t)n * 2 * sizeof(float)) {
-        FreeEngine(e);
-        WCHAR buf[160];
-        swprintf_s(buf, L"Unexpected NPU tensor sizes (%zu in, %zu out). Staying on the CPU.", inBytes,
-                   outBytes);
-        *err = buf;
-        return false;
-    }
-
-    // Known-answer test: a cosine at bin 5 must come back as a single real
-    // line of height N/2 and nothing much anywhere else. This catches a wrong
-    // layout, a precision problem, or a driver that quietly returns zeros.
-    std::vector<float> probe(n), re(n, 0.f), im(n, 0.f);
-    for (int i = 0; i < n; i++) probe[i] = (float)cos(6.283185307179586 * 5.0 * i / n);
-    if (!Run(e, probe.data(), re, im)) {
-        FreeEngine(e);
-        *err = L"The NPU failed its first test run. Staying on the CPU.";
-        return false;
-    }
-    float half = n * 0.5f, worst = 0.f;
-    for (int k = 1; k < n / 2; k++) {
-        if (k == 5) continue;
-        worst = std::max(worst, sqrtf(re[k] * re[k] + im[k] * im[k]));
-    }
-    float peakErr = fabsf(re[5] - half) / half;
-    if (!(peakErr < 0.03f) || !(worst < 0.02f * half) || !(fabsf(im[5]) < 0.02f * half)) {
-        FreeEngine(e);
-        WCHAR buf[200];
-        swprintf_s(buf,
-                   L"The NPU's FFT didn't match the reference (peak off by %.1f%%, leakage %.1f%%). "
-                   L"Staying on the CPU.",
-                   peakErr * 100.f, worst / half * 100.f);
-        *err = buf;
-        return false;
-    }
-
-    QueryPerformanceCounter(&t1);
-    Wh_Log(L"[NPU] FFT %d ready on %s: compiled and verified in %.0f ms (peak error %.2f%%, "
-           L"leakage %.2f%%)",
-           n, g_deviceName.empty() ? L"NPU" : Widen(g_deviceName.c_str()).c_str(),
-           (double)(t1.QuadPart - t0.QuadPart) * 1000.0 / (double)f.QuadPart, peakErr * 100.f,
-           worst / half * 100.f);
-    *out = e;
-    return true;
-}
-
-inline void WorkerProc() {
-    SetThreadDescription(GetCurrentThread(), L"TourneTable-NPU");
-    std::unique_lock<std::mutex> lock(g_mutex);
-    for (;;) {
-        g_cv.wait(lock, [] {
-            return g_shutdown || (g_enabled && g_wantSize > 0 && g_wantSize != g_builtSize &&
-                                  g_wantSize != g_failedSize);
-        });
-        if (g_shutdown) break;
-
-        int n = g_wantSize;
-        std::wstring path = g_runtimePath;
-        if (g_runtimeRetry) {
-            // A settings change since the last failure: one fresh attempt at
-            // finding and loading the runtime.
-            g_runtimeRetry = false;
-            if (!g_runtimeReady) g_runtimeAttempted = false;
-        }
-        lock.unlock();
-
-        std::wstring err;
-        Engine* e = nullptr;
-        bool ok = EnsureRuntime(path, &err) && BuildEngine(n, &e, &err);
-
-        lock.lock();
-        if (g_shutdown) {
-            if (e) FreeEngine(e);
-            break;
-        }
-        if (ok) {
-            if (g_pending) FreeEngine(g_pending);
-            g_pending = e;
-            g_builtSize = n;
-            g_failedSize = 0;
-        } else {
-            g_failedSize = n;
-            lock.unlock();
-            Notice(err);
-            lock.lock();
-        }
-    }
-}
-
-// UI thread, from LoadSettings. Cheap; safe to call on every settings change.
-inline void Configure(bool enabled, const std::wstring& runtimePath) {
-    std::lock_guard<std::mutex> lock(g_mutex);
-    bool changed = enabled != g_enabled || runtimePath != g_runtimePath;
-    g_enabled = enabled;
-    g_runtimePath = runtimePath;
-    if (changed) {
-        // A settings change is the user's way of saying "try again": clear the
-        // failure so the next block retries, and let the same notice show again.
-        g_failedSize = 0;
-        g_lastNotice.clear();
-        g_runtimeRetry = true;
-    }
-    if (enabled && !g_worker && !g_shutdown) g_worker = new std::thread(WorkerProc);
-    g_cv.notify_all();
-}
-
-// Capture-thread side. One per capture thread; owns its engine outright.
-struct Session {
-    Engine* engine = nullptr;
-    LONGLONG qpcFreq = 0;
-    LONGLONG statSince = 0;
-    LONGLONG statTotal = 0, statWorst = 0;
-    unsigned statCount = 0;
-};
-
-// Runs one FFT block on the NPU. Returns false whenever the CPU should do it
-// instead (not ready yet, not enabled, failed); never blocks on a compile.
-inline bool Analyze(Session& s, int n, const float* windowed, std::vector<float>& re,
-                    std::vector<float>& im) {
-    if (s.engine && s.engine->n != n) {
-        FreeEngine(s.engine);
-        s.engine = nullptr;
-        std::lock_guard<std::mutex> lock(g_mutex);
-        g_builtSize = g_pending ? g_pending->n : 0;
-    }
-    if (!s.engine) {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        if (g_pending && g_pending->n == n) {
-            s.engine = g_pending;
-            g_pending = nullptr;
-        } else if (g_wantSize != n) {
-            g_wantSize = n;
-            g_cv.notify_all();
-        }
-        if (!s.engine) return false;
-    }
-
-    if (!s.qpcFreq) {
-        LARGE_INTEGER f;
-        QueryPerformanceFrequency(&f);
-        s.qpcFreq = f.QuadPart;
-    }
-    LARGE_INTEGER t0, t1;
-    QueryPerformanceCounter(&t0);
-    if (!Run(s.engine, windowed, re, im)) {
-        FreeEngine(s.engine);
-        s.engine = nullptr;
-        {
-            std::lock_guard<std::mutex> lock(g_mutex);
-            g_builtSize = g_pending ? g_pending->n : 0;
-            g_failedSize = n;
-        }
-        Notice(L"An NPU inference call failed mid-stream (driver reset or device removed?). Back on "
-               L"the CPU; change any setting to retry.");
-        return false;
-    }
-    QueryPerformanceCounter(&t1);
-
-    LONGLONG dt = t1.QuadPart - t0.QuadPart;
-    if (!s.statSince) s.statSince = t1.QuadPart;
-    s.statTotal += dt;
-    s.statWorst = std::max(s.statWorst, dt);
-    s.statCount++;
-    if (t1.QuadPart - s.statSince >= 30 * s.qpcFreq) {
-        Wh_Log(L"[NPU] %u blocks in the last 30 s, mean %.3f ms, worst %.3f ms per block", s.statCount,
-               (double)s.statTotal * 1000.0 / (double)s.qpcFreq / (double)s.statCount,
-               (double)s.statWorst * 1000.0 / (double)s.qpcFreq);
-        s.statSince = t1.QuadPart;
-        s.statTotal = s.statWorst = 0;
-        s.statCount = 0;
-    }
-    return true;
-}
-
-// Capture thread exit (pause, device change, unload): hand the engine back so
-// resuming doesn't pay for another compile.
-inline void EndSession(Session& s) {
-    if (!s.engine) return;
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (!g_pending && !g_shutdown) {
-        g_pending = s.engine;
-    } else {
-        FreeEngine(s.engine);
-        g_builtSize = g_pending ? g_pending->n : 0;
-    }
-    s.engine = nullptr;
-}
-
-// Unload. The capture thread must already have stopped.
-inline void Shutdown() {
-    {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        g_shutdown = true;
-    }
-    g_cv.notify_all();
-    bool joined = true;
-    if (g_worker) {
-        // A compile in flight can't be cancelled; don't hold unload hostage to
-        // it. The process exits right after this, which ends the thread.
-        if (WaitForSingleObject(g_worker->native_handle(), 3000) == WAIT_OBJECT_0) {
-            g_worker->join();
-        } else {
-            g_worker->detach();
-            joined = false;
-        }
-        delete g_worker;
-        g_worker = nullptr;
-    }
-    if (!joined) return;
-    std::lock_guard<std::mutex> lock(g_mutex);
-    if (g_pending) {
-        FreeEngine(g_pending);
-        g_pending = nullptr;
-    }
-    if (g_core && g_api.core_free) {
-        g_api.core_free(g_core);
-        g_core = nullptr;
-    }
-}
-
-}  // namespace ttnpu
 
 // ---- Performance Stats (2.0) -----------------------------------------------------------
 //
@@ -7480,7 +6555,6 @@ public:
         if (enum_ && notify_ && notifyRegistered_) enum_->UnregisterEndpointNotificationCallback(notify_);
         if (notify_) notify_->Release();
         notify_ = nullptr;
-        ttnpu::EndSession(npuSession_);
         enum_.Reset();
         if (audioEvent_) CloseHandle(audioEvent_);
         audioEvent_ = nullptr;
@@ -7979,9 +7053,7 @@ private:
                 im_[i] = 0.f;
             }
             ringCount_ -= currentFftSize_ / 2;
-            bool analysedOnNpu = cfg_.workload == VizWorkload::Npu &&
-                                 ttnpu::Analyze(npuSession_, currentFftSize_, re_.data(), re_, im_);
-            if (!analysedOnNpu) VizFFT(re_, im_);
+            VizFFT(re_, im_);
 
             float t_sens = g_settings.sensitivity / 100.0f;
             float sliderGain = (t_sens <= 1.0f) ? 0.25f + t_sens * t_sens * 2.75f : 3.0f + (t_sens - 1.0f) * 4.0f;
@@ -8122,21 +7194,9 @@ private:
         }
         if (silent && settled_) return false;
 
-        auto npu = [this](const float* windowed, int n, float* re, float* im) -> bool {
-            if (cfg_.workload != VizWorkload::Npu) return false;
-            npuRe_.resize(n);
-            npuIm_.resize(n);
-            if (!ttnpu::Analyze(npuSession_, n, windowed, npuRe_, npuIm_)) return false;
-            for (int k = 0; k < n / 2; k++) {
-                re[k] = npuRe_[k];
-                im[k] = npuIm_[k];
-            }
-            re[n / 2] = im[n / 2] = 0.f;  // the NPU model leaves out the Nyquist bin
-            return true;
-        };
         bool fresh = false;
         if (!silentFinal_) {
-            fresh = spec_.Analyze(force || silent, npu);
+            fresh = spec_.Analyze(force || silent, [](const float*, int, float*, float*) { return false; });
             if (silent) silentFinal_ = true;
             if (fresh) {
                 VizPerf(kPerfAnalyses);
@@ -8288,7 +7348,6 @@ private:
     int currentFftSize_ = 0;
     float bandEnv_[VIZ_NUM_BANDS] = {};
     float agcPeakEnv_ = 0.f, agcGain_ = 1.f, prevBassEnv_ = 0.f;
-    ttnpu::Session npuSession_;
 
     // Precision
     VizEngineConfig cfg_;
@@ -8299,7 +7358,7 @@ private:
     bool bandBass_[VIZ_BARS_MAX] = {};
     float agcDb_ = 0.f, loudEnvDb_ = -200.f, bassSlow_ = 0.f;
     VizBandFrame frame_;
-    std::vector<float> mono_, zeros_, npuRe_, npuIm_;
+    std::vector<float> mono_, zeros_;
     long long zeroRun_ = 0, silentNeeded_ = 1LL << 62;  // digital silence, see PrecisionFrame
     bool silentFinal_ = false, settled_ = false, gpuSilentFlushed_ = false, wakeFromSilence_ = false;
 
@@ -8600,14 +7659,23 @@ void VizComputeBarFrame() {
 
 // Copies what the engine thread needs out of the settings, as one value, and
 // tells it. UI thread, from LoadSettings.
+bool VizStyleNeedsCpuBars();
+// Set by the Direct3D 11 renderer when the GPU analysis passes can't start on
+// this device, so the engine analyses on the CPU instead. UI thread only.
+bool g_gpuAnalysisFailed = false;
+
 void VizPublishEngineConfig() {
     VizEngineConfig c;
     c.precision = g_settings.engine == VizEngineKind::Precision;
     c.workload = g_settings.workload;
-    // GPU analysis needs both the Precision engine and the Direct3D 11
-    // renderer; without either it is Hybrid (LoadSettings has said why).
+    // GPU analysis needs the Precision engine, the Direct3D 11 renderer, a
+    // style whose bars are drawn from GPU levels, and passes that started;
+    // otherwise it is Hybrid (LoadSettings or the renderer has said why). The
+    // same test as the renderer's gpuWork, or the engine would publish nothing
+    // and the bars would sit at idle height.
     if (c.workload == VizWorkload::Gpu &&
-        (!c.precision || g_settings.renderer != VizRenderer::D3D11 || g_settings.shape == VizShape::Terminal))
+        (!c.precision || g_settings.renderer != VizRenderer::D3D11 || g_settings.shape == VizShape::Terminal ||
+         VizStyleNeedsCpuBars() || g_gpuAnalysisFailed))
         c.workload = VizWorkload::Hybrid;
     auto& s = c.spec;
     s.fftSize = g_settings.fftSize;
@@ -9392,7 +8460,7 @@ void VizTermMeterLevels(float out[4]) {
     for (int i = 0; i < 4; i++) out[i] = std::clamp(out[i], 0.f, 1.f);
 }
 
-// ---- waterfall scroll: begin (src/tests_features/test_waterfall.cpp compiles this block from v2b.cpp)
+// ---- waterfall scroll: begin
 // Scrolls the waterfall history (rows x cols, row 0 newest) down by `steps`
 // rows and writes the current levels (`newest`, clamped at 0) into row 0. The
 // rows a multi-row step opens up between the new row 0 and the previous newest
@@ -11247,14 +10315,25 @@ void ResetMoveTarget(VizMoveTarget target) {
     if (g_overlayWnd) PostMessage(g_overlayWnd, WM_APP_FORCE_REDRAW, 0, 0);
 }
 
+// Keys whose press the hook swallowed; only their releases are swallowed, so
+// an app never sees a release without its press or a press without its release.
+bool g_keyMoveSwallowed[256] = {};  // input hook thread only
+
 LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
+    if (nCode == HC_ACTION) {
+        KBDLLHOOKSTRUCT* kb = (KBDLLHOOKSTRUCT*)lParam;
+        bool isUp = (wParam == WM_KEYUP || wParam == WM_SYSKEYUP);
+        if (isUp && kb->vkCode < 256 && g_keyMoveSwallowed[kb->vkCode]) {
+            g_keyMoveSwallowed[kb->vkCode] = false;
+            return 1;
+        }
+    }
     if (nCode == HC_ACTION && !g_unloading.load(std::memory_order_relaxed) &&
         g_settings.keyMoveEnabled) {
         KBDLLHOOKSTRUCT* kb = (KBDLLHOOKSTRUCT*)lParam;
         bool isDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
-        bool isUp   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
 
-        if ((isDown || isUp) && !g_fullscreenPaused.load(std::memory_order_relaxed) &&
+        if (isDown && kb->vkCode < 256 && !g_fullscreenPaused.load(std::memory_order_relaxed) &&
             ModKeysHeld(g_settings.keyMoveModifier)) {
             int dx = 0, dy = 0;
             if (KeyMoveDirection(kb->vkCode, &dx, &dy)) {
@@ -11277,8 +10356,7 @@ LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
                         NudgeTextOverlayPx(g_keyMoveTarget, dx * step, dy * step);
                     }
                 }
-                // Swallow the key-up too, so an app underneath never sees a
-                // release for a press it was never told about.
+                g_keyMoveSwallowed[kb->vkCode] = true;  // its release is swallowed too
                 return 1;
             }
 
@@ -11297,6 +10375,7 @@ LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
                            : g_keyMoveTarget == VizMoveTarget::MediaControls ? L"media controls"
                                                                             : L"visualizer");
                 }
+                g_keyMoveSwallowed[kb->vkCode] = true;
                 return 1;
             }
 
@@ -11309,6 +10388,7 @@ LRESULT CALLBACK MoveKeyboardHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
                     ResetMoveTarget(g_keyMoveTarget);
                     Wh_Log(L"[KeyMove] reset target %d", (int)g_keyMoveTarget);
                 }
+                g_keyMoveSwallowed[kb->vkCode] = true;
                 return 1;
             }
         }
@@ -11328,9 +10408,7 @@ bool VizDesktopUnderPoint(POINT pt) {
     WCHAR cls[32] = {};
     GetClassNameW(root, cls, ARRAYSIZE(cls));
     if (g_overlayInPanel && root == g_overlayWnd) return true;
-    // (Tourne Desktop's own bars too: their empty space between segments takes clicks, so it's what's under it)
-    if (g_settings.hostTaskbar && (wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0 ||
-                                   wcsncmp(cls, L"TourneTaskbar", 13) == 0))
+    if (g_settings.hostTaskbar && (wcscmp(cls, L"Shell_TrayWnd") == 0 || wcscmp(cls, L"Shell_SecondaryTrayWnd") == 0))
         return true;
     return wcscmp(cls, L"WorkerW") == 0 || wcscmp(cls, L"Progman") == 0;
 }
@@ -11353,8 +10431,6 @@ bool VizMenuHook(WPARAM wParam, const MSLLHOOKSTRUCT* info) {
             g_menuButtonDown = false;
             return true;
         }
-        if ((wParam == WM_LBUTTONDOWN || wParam == WM_RBUTTONDOWN || wParam == WM_MBUTTONDOWN) && g_messageWnd)
-            PostMessage(g_messageWnd, WM_APP_MENU_OUTSIDE, (WPARAM)info->pt.x, (LPARAM)info->pt.y);
         return false;
     }
     if (wParam == WM_RBUTTONDOWN) {
@@ -11477,9 +10553,11 @@ LRESULT CALLBACK DragMouseHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
                 return 1;
             }
         } else {
+            // Moves go through: the cursor travels with the visualizer, and
+            // UpdateDrag works from the absolute position against the start.
             if (wParam == WM_MOUSEMOVE) {
                 UpdateDrag(info->pt);
-                return 1;
+                return CallNextHookEx(nullptr, nCode, wParam, lParam);
             }
             // A second press of the drag button: the release of the first one
             // never came (see VizDesktopSwitchProc), so that drag is over.
@@ -11528,8 +10606,8 @@ DWORD g_inputHookThreadId = 0;
 
 // Win+L, Ctrl+Alt+Del and UAC prompts switch to a secure desktop, and a button
 // released there never reaches the mouse hook. A drag left running would keep
-// swallowing every mouse move, holding the cursor still everywhere after
-// unlocking, so a desktop switch ends it. Runs on the input hook thread.
+// moving the visualizer with the cursor after unlocking, so a desktop switch
+// ends it. Runs on the input hook thread.
 void CALLBACK VizDesktopSwitchProc(HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD) {
     if (g_dragInProgress) EndDrag();
 }
@@ -14962,6 +14040,10 @@ bool Render(const FrameInputs& in) {
     if (gpuWork) {
         int st = EnsureGpuAnalysis();
         gpuOk = st > 0;
+        if ((st < 0) != g_gpuAnalysisFailed && st != 0) {
+            g_gpuAnalysisFailed = st < 0;
+            VizPublishEngineConfig();
+        }
         if (st < 0 && !g.gpuWarned) {
             g.gpuWarned = true;
             ReportSettingWarning(L"Hardware", L"Workload",
@@ -16969,10 +16051,10 @@ void VizThreadEcoQoS(bool eco) {
     static SetThreadInformationFn fn =
         (SetThreadInformationFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadInformation");
     if (!fn) return;
-    // E2 (to be decided with [Perf] / HWiNFO numbers, not yet): while playing
-    // this still opts out of throttling (HighQoS). The alternative is
-    // {1, eco ? 0x1u : 0x0u, eco ? 0x1u : 0x0u}, "let the system manage",
-    // which keeps the thread off forced P-core / boost scheduling.
+    // While playing this opts out of throttling (HighQoS). The alternative,
+    // {1, eco ? 0x1u : 0x0u, eco ? 0x1u : 0x0u} ("let the system manage"),
+    // would keep the thread off forced P-core / boost scheduling; not chosen
+    // until measurements show it doesn't cost frame pacing.
     PowerThrottlingState st = {1, 0x1 /* EXECUTION_SPEED */, eco ? 0x1u : 0x0u};
     fn(GetCurrentThread(), 3 /* ThreadPowerThrottling */, &st, sizeof(st));
 }
@@ -17301,7 +16383,7 @@ void ResumeFromFullscreen() {
     }
 }
 
-// ---- Place In = Panel (2.2) -------------------------------------------------
+// ---- Place In = Panel -------------------------------------------------
 
 void VizPanelLoad() {
     WCHAR buf[160] = {};
@@ -17440,7 +16522,6 @@ void VizPanelKeepOnScreen() {
 }
 
 void VizCreatePanelWindow(HINSTANCE hInstance) {
-    if (!g_panelMsg) g_panelMsg = RegisterWindowMessageW(L"TourneTable.Panel");
     VizPanelLoad();
     RECT r = g_panelRect;
     if (r.right <= r.left || r.bottom <= r.top) {
@@ -17576,13 +16657,6 @@ void CreateOverlayWindow();
 void ApplySettingsChanged();
 
 LRESULT CALLBACK OverlayWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
-    if (g_overlayInPanel && g_panelMsg && uMsg == g_panelMsg) {
-        if (wParam == 0) VizPanelShow(g_panelHidden);
-        else if (wParam == 1) VizPanelShow(true);
-        else if (wParam == 2) VizPanelShow(false);
-        else if (wParam == 3) VizPanelPin(!g_panelPinned);
-        return g_panelHidden ? 0 : 1;
-    }
     if (g_overlayInPanel) {
         switch (uMsg) {
             case WM_NCCALCSIZE:
@@ -17749,8 +16823,7 @@ static const VizMenuOption kBallistics[] = {
     {L"snappy", L"Snappy"}, {L"smooth", L"Smooth"},       {L"analyzer", L"Analyzer (20 dB/s)"},
     {L"vu", L"VU"},         {L"ppm_ebu", L"PPM, EBU"},    {L"ppm_din", L"PPM, DIN"}};
 static const VizMenuOption kWorkloads[] = {
-    {L"hybrid", L"Hybrid (CPU analysis, GPU drawing)"}, {L"gpu", L"GPU"}, {L"cpu", L"CPU"},
-    {L"npu", L"NPU (experimental)"}};
+    {L"hybrid", L"Hybrid (CPU analysis, GPU drawing)"}, {L"gpu", L"GPU"}, {L"cpu", L"CPU"}};
 static const VizMenuOption kRenderers[] = {{L"d3d11", L"Direct3D 11"}, {L"direct2d", L"Direct2D (1.5)"}};
 static const VizMenuOption kFps[] = {{L"0", L"Match display"}, {L"30", L"30"}, {L"60", L"60"},
                                      {L"120", L"120"},         {L"144", L"144"}, {L"240", L"240"}};
@@ -17795,7 +16868,7 @@ void VizApplyMenuOverrides() {
                                   : is(L"ppm_din") ? VizBallisticsPreset::PpmDin : VizBallisticsPreset::Snappy;
         } else if (k == L"workload") {
             g_settings.workload = is(L"gpu") ? VizWorkload::Gpu : is(L"cpu") ? VizWorkload::Cpu
-                                : is(L"npu") ? VizWorkload::Npu : VizWorkload::Hybrid;
+                                                     : VizWorkload::Hybrid;
         } else if (k == L"renderer") {
             g_settings.renderer = is(L"direct2d") ? VizRenderer::Direct2D : VizRenderer::D3D11;
         } else if (k == L"targetFps") {
@@ -17898,7 +16971,7 @@ enum : UINT {
     kMenuPresetBase = 5000,  // + saved style index
 };
 
-// Saved styles and the Style Editor (p3_editor.cpp).
+// Saved styles and the Style Editor.
 std::vector<std::wstring> VizStylePresetNames();
 bool VizApplyStylePreset(const std::wstring& name);
 void VizOpenStyleEditor();
@@ -18058,11 +17131,12 @@ void VizShowContextMenu(POINT pt) {
     AppendMenuW(menu, MF_STRING | (g_menuOverrides.empty() && g_setupLayer.empty() ? MF_GRAYED : 0), kMenuReset, reset.c_str());
 
     // A menu only closes on an outside click when its owner is foreground.
-    // Windows may refuse that here (the right-click went to the desktop and
-    // the hook swallowed it), and attaching to another thread's input to force
-    // it can hang if that app is not responding. So just ask, and if it is
-    // refused the mouse hook reports each click while the menu is up
-    // (WM_APP_MENU_OUTSIDE) and one that lands outside the menu closes it.
+    // The right-click went to the desktop (the hook swallowed it), so Windows
+    // would refuse SetForegroundWindow. An empty SendInput makes this process
+    // the one that sent the last input, which allows it, without attaching to
+    // another app's input queue (that could hang if the app isn't responding).
+    INPUT input{};
+    SendInput(1, &input, sizeof(INPUT));
     SetForegroundWindow(g_messageWnd);
 
     // While the menu is up the mouse hook passes every click through, so a
@@ -18253,7 +17327,7 @@ bool VizApplyStylePreset(const std::wstring& name) {
     return true;
 }
 
-// ---- Sharing setups (2.3) ----
+// ---- Sharing setups ----
 // A setup is plain text anyone can read: a first line, its name and the parts it carries, then the
 // settings in those parts that differ from the defaults, then quick settings as quick.<key>. It goes
 // around as a file (.ttstyle), as a one-line code (TT2: and the text packed, for chats), or through
@@ -19166,7 +18240,7 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             }
             return 0;
 
-        // A worker thread (the NPU build) has something to tell the user. It
+        // A worker thread has something to tell the user. It
         // arrives here so it can go through the same settings-problems summary
         // as everything else, which is only safe on this thread.
         case WM_APP_HW_NOTICE: {
@@ -19341,16 +18415,10 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             if (!g_unloading) VizSeekAtX((LONG)(int)wParam);
             return 0;
 
-        case WM_APP_MENU_OUTSIDE: {
-            // Delivered by the menu's own loop, so EndMenu reaches this thread's menu.
-            HWND under = WindowFromPoint(POINT{(LONG)(int)wParam, (LONG)(int)lParam});
-            WCHAR cls[16] = {};
-            if (!under || !GetClassNameW(under, cls, ARRAYSIZE(cls)) || wcscmp(cls, L"#32768") != 0) EndMenu();
-            return 0;
-        }
 
         case WM_DESTROY:
             VizDockStop();
+            s_cardVol.Reset();  // a COM object of this thread's apartment: released before CoUninitialize
             g_messageWnd = nullptr;
             return 0;
 
@@ -20015,7 +19083,6 @@ void LoadSettings() {
         PCWSTR v = VizSettingString(L"hardware.workload");
         g_settings.workload = (wcscmp(v, L"gpu") == 0)   ? VizWorkload::Gpu
                             : (wcscmp(v, L"cpu") == 0)   ? VizWorkload::Cpu
-                            : (wcscmp(v, L"npu") == 0)   ? VizWorkload::Npu
                                                          : VizWorkload::Hybrid;
         VizSettingFree(v);
         v = VizSettingString(L"hardware.renderer");
@@ -20288,35 +19355,13 @@ void LoadSettings() {
         }
     }
 
-    {
-        // Same quote-stripping as the icon paths: "Copy as path" brings quotes.
-        PCWSTR raw = VizSettingString(L"hardware.npuRuntimePath");
-        std::wstring path = raw ? raw : L"";
-        VizSettingFree(raw);
-        while (!path.empty() && (path.front() == L'"' || path.front() == L' ')) path.erase(path.begin());
-        while (!path.empty() && (path.back() == L'"' || path.back() == L' ' || path.back() == L'\\'))
-            path.pop_back();
-        if (!path.empty() && g_settings.workload == VizWorkload::Npu) {
-            DWORD attr = GetFileAttributes(path.c_str());
-            if (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
-                ReportSettingIssue(L"Hardware", L"NPU Runtime Folder", path.c_str(),
-                                   L"a folder that exists (the one holding openvino_c.dll, or the "
-                                   L"root of the extracted OpenVINO archive)",
-                                   L"the automatic search");
-                path.clear();
-            }
-        }
-        g_settings.npuRuntimePath = path;
-    }
-
     PCWSTR smoothMode = VizSettingString(L"hardware.smoothMode");
     g_settings.smoothMode = (wcscmp(smoothMode, L"on") == 0)    ? VizSmoothMode::On
                           : (wcscmp(smoothMode, L"off") == 0)   ? VizSmoothMode::Off
                                                                 : VizSmoothMode::Auto;
     VizSettingFree(smoothMode);
 
-    // The NPU worker reads only its own copies, taken here.
-    ttnpu::Configure(g_settings.workload == VizWorkload::Npu, g_settings.npuRuntimePath);
+    g_gpuAnalysisFailed = false;  // tried again with the new settings
     VizPublishEngineConfig();
     // Smooth Mode's Auto depends on the device, which may not exist yet on the
     // first load; InitDirectX resolves it again once it does.
@@ -20408,8 +19453,6 @@ void WhTool_ModUninit() {
     UnregisterStyleEditorClass();
 
     StopVizCaptureThread();
-    // After the engine thread, which hands its NPU engine back on the way out.
-    ttnpu::Shutdown();
     if (g_engineWake) {
         CloseHandle(g_engineWake);
         g_engineWake = nullptr;
