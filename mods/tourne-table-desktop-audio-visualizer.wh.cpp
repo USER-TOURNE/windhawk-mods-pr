@@ -493,13 +493,17 @@ If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop s
 - **Off**: a plain timer at Target FPS, any value, the 1.4 timing.
 - **VSync**: frame timing locked to the display, capped at the refresh rate. Smooth Mode's **On**.
 - **Adaptive**: VSync up to the refresh rate, a plain timer above it, so a Target FPS past the refresh rate is kept. The extra frames never reach the screen, but each one that does is a little fresher.
-- **Latest Frame**: Adaptive, with each frame drawn a quarter refresh later, just before Windows composes. The picture trails the sound by a quarter refresh less (about 1.7 ms at 144 Hz) for the same number of frames.
+- **Fast Sync**: like NVIDIA's. VSync up to the refresh rate. Above it, a whole number of frames per refresh (288 on 144 Hz is two), evenly spaced and lined up so the last one lands just before Windows composes. Windows shows the newest frame and drops the rest, so what you see is always equally fresh. The dropped frames still cost power.
 - **Auto** *(default)*: VSync when drawing runs on an integrated GPU or the CPU, Off otherwise.
 
-A desktop window can't tear or skip Windows' compositor, so these are pacing modes, not the driver's vsync. Every mode but Off changes the following (this was Smooth Mode):
+A desktop window can't tear or skip Windows' compositor, so these are pacing modes, not the driver's vsync.
+
+**Low Latency** (with Frame Sync on): **Off** draws each frame half a refresh before Windows composes, **On** a quarter refresh, and **Ultra** works like NVIDIA's Ultra Low Latency mode. It tracks how long drawing takes (the slowest recent frame, slowly forgotten) and starts each frame that long before the composition, plus half again and 1 ms for timer wake-up. At 144 Hz with 0.5 ms draws that is about 2 ms ahead instead of 3.5 ms. A slow frame raises the margin at once.
+
+**Frame Generation**: **x2** runs the analysis at half of Target FPS and draws the frames in between as the halfway point of the analysed frames on either side, like interpolating frame generation. The screen gets the full rate, the analysis work halves, and the picture is one frame later. Drawing still happens every frame and costs more than the analysis on almost every PC, so the saving is small; it is there to compare. It needs the Precision engine with analysis on the CPU. Every mode but Off changes the following (this was Smooth Mode):
 
 - **Frame timing locked to the display.** The 1.4 loop asks for a frame every `1000 / Target FPS` milliseconds and lets the timer's wake-up latency pile up, which is why 144 requested measured 141.7 delivered. On a 144 Hz panel that is a couple of refreshes every second with no new frame: a repeat, which you see as a hitch. Frame Sync schedules from Windows' own composition clock instead, places every frame half a refresh away from the deadline on either side, and never accumulates drift.
-- **Target FPS rounded to an even fraction of the refresh rate.** 60 FPS on a 144 Hz screen means frames held for 2, 3, 2, 3 refreshes, which reads as judder however precise the timer is. Frame Sync runs the nearest whole fraction instead: 60 becomes 72 on 144 Hz, 48 if you set it to 50, 60 on a 60 Hz screen. With VSync, asking for more than the refresh rate gets the refresh rate; Adaptive and Latest Frame keep it.
+- **Target FPS rounded to an even fraction of the refresh rate.** 60 FPS on a 144 Hz screen means frames held for 2, 3, 2, 3 refreshes, which reads as judder however precise the timer is. Frame Sync runs the nearest whole fraction instead: 60 becomes 72 on 144 Hz, 48 if you set it to 50, 60 on a 60 Hz screen. With VSync, asking for more than the refresh rate gets the refresh rate; Adaptive and Fast Sync keep it.
 - **Motion that doesn't depend on frame timing.** With the Classic engine, bar rise and fall, peak caps, beat flash and scope damping were all "move this fraction per frame", so a late frame visibly slowed everything down for a moment. They now scale by how much time actually passed. (The Precision engine runs on elapsed time whatever this is set to.)
 - **A proper animation clock.** Wave, Breathe and Rainbow ran off a millisecond counter that only ticks every 15.6 ms, stored in a float that loses precision the longer the PC has been on. They now run off the high-resolution clock. (Always, with the Direct3D 11 renderer.)
 - **With the Direct2D renderer:** the background baked once into one image, all bars in one sprite batch, and cached text layouts.
@@ -1594,13 +1598,26 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - 'off': 'Off'
     - frameSync: auto
       $name: Frame Sync
-      $description: How frames line up with the display. Off draws on a plain timer at Target FPS, any value, the 1.4 timing. VSync times every frame from Windows' composition clock so each one lands on its own refresh, rounds Target FPS to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) and caps it at the refresh rate. Adaptive is VSync up to the refresh rate and a plain timer above it, so a Target FPS past the refresh rate is kept. Latest Frame is Adaptive with each frame drawn a quarter refresh later, just before Windows composes, for the least delay between the sound and the picture. Auto is VSync when drawing runs on an integrated GPU or the CPU, and Off otherwise. Every mode but Off also moves things by real elapsed time and, with Direct2D, bakes the panel and batches the bars
+      $description: How frames line up with the display. Off draws on a plain timer at Target FPS, any value, the 1.4 timing. VSync times every frame from Windows' composition clock so each one lands on its own refresh, rounds Target FPS to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) and caps it at the refresh rate. Adaptive is VSync up to the refresh rate and a plain timer above it, so a Target FPS past the refresh rate is kept. Fast Sync works like NVIDIA's. Up to the refresh rate it is VSync. Above it, it draws a whole number of frames per refresh, evenly spaced, and Windows shows the newest one, so what you see is always the freshest frame at the same age. Auto is VSync when drawing runs on an integrated GPU or the CPU, and Off otherwise. Every mode but Off also moves things by real elapsed time and, with Direct2D, bakes the panel and batches the bars
       $options:
         - auto: Auto (VSync on integrated GPU or CPU drawing)
         - 'off': Off (timer, any FPS)
         - vsync: VSync (capped at the refresh rate)
         - adaptive: Adaptive (VSync up to the refresh rate, uncapped above)
-        - latest: Latest Frame (Adaptive, lowest delay)
+        - fast: Fast Sync (uncapped, newest frame shown)
+    - lowLatency: 'off'
+      $name: Low Latency
+      $description: How close to Windows' next composition each frame is drawn, with Frame Sync on. Off draws half a refresh ahead, the safest. On draws a quarter refresh ahead. Ultra works like NVIDIA's Ultra Low Latency mode. It measures how long drawing takes and starts each frame just in time, with a safety margin, so the bars trail the sound by as little as this PC allows. With Frame Sync Off there is no refresh to line up with, so this does nothing
+      $options:
+        - 'off': 'Off'
+        - 'on': On (a quarter refresh ahead)
+        - ultra: Ultra (just in time)
+    - frameGen: 'off'
+      $name: Frame Generation
+      $description: x2 analyses the sound at half of Target FPS and draws every other frame as the halfway point between two analysed ones, so the screen still gets the full Target FPS. It halves the analysis work and adds one frame of delay. Drawing still happens every frame, so on most PCs the saving is small. Needs the Precision engine with analysis on the CPU (Workload Hybrid or CPU). Oscilloscope and scope traces update at the analysis rate
+      $options:
+        - 'off': 'Off'
+        - x2: x2 (half-rate analysis, halfway frames)
     - engineCores: auto
       $name: Engine Cores
       $description: Which processor cores the audio engine and the drawing thread run on. Auto leaves it to Windows. Efficiency keeps both on the efficiency cores of a hybrid CPU (Intel 12th gen and later, some AMD) at low clocks, the least power. Performance keeps them on the performance cores and asks Windows not to throttle them, the steadiest timing. Custom uses the cores listed in Custom Cores. On a CPU whose cores are all the same, Efficiency and Performance only change how Windows clocks the threads. When nothing is playing the engine always drops to low power
@@ -1790,7 +1807,8 @@ enum class VizKeyMoveKeys { Both, Arrows, Wasd };
 enum class VizMoveTarget { Visualizer, NowPlaying, PeakFreq, MediaControls };
 // Hardware section.
 enum class VizRenderDevice { Auto, Integrated, Discrete, Cpu };
-enum class VizFrameSync { Auto, Off, VSync, Adaptive, Latest };
+enum class VizFrameSync { Auto, Off, VSync, Adaptive, Fast };
+enum class VizLowLatency { Off, On, Ultra };
 enum class VizEngineCores { Auto, Efficiency, Performance, Custom };
 // 2.0. Where the work runs; which analysis core; which renderer.
 enum class VizWorkload { Hybrid, Gpu, Cpu };
@@ -1957,6 +1975,8 @@ struct Settings {
 
     VizRenderDevice renderDevice = VizRenderDevice::Auto;
     VizFrameSync frameSync = VizFrameSync::Auto;
+    VizLowLatency lowLatency = VizLowLatency::Off;
+    bool frameGenX2 = false;
     VizEngineCores engineCores = VizEngineCores::Auto;
     VizWorkload workload = VizWorkload::Hybrid;
     VizRenderer renderer = VizRenderer::D3D11;
@@ -6419,7 +6439,41 @@ struct VizBandFrame {
 std::atomic<uint32_t> g_bandFrameSeq{0};
 VizBandFrame g_bandFrame;
 
+void PublishBandFrameNow(const VizBandFrame& f);
+
+// Frame Generation x2. Engine thread only. While g_fgInterp is set (around
+// an analysed frame while playing), a new frame goes out as the halfway point
+// from the last one and is held for the next, generated tick, which shows it
+// as it is: halfway, real, halfway, real, evenly spaced, one frame late.
+bool g_fgInterp = false;
+bool g_fgHavePrev = false, g_fgHeld = false;
+VizBandFrame g_fgPrev, g_fgNext;
+
 void PublishBandFrame(const VizBandFrame& f) {
+    if (g_fgInterp && g_fgHavePrev && g_fgPrev.count == f.count) {
+        VizBandFrame mid = f;
+        for (int i = 0; i < std::clamp(f.count, 0, VIZ_BARS_MAX); i++) mid.level[i] = 0.5f * (g_fgPrev.level[i] + f.level[i]);
+        for (int z = 0; z < 3; z++) mid.zone[z] = 0.5f * (g_fgPrev.zone[z] + f.zone[z]);
+        PublishBandFrameNow(mid);
+        g_fgNext = f;
+        g_fgHeld = true;
+    } else {
+        PublishBandFrameNow(f);
+        g_fgHeld = false;
+    }
+    g_fgPrev = f;
+    g_fgHavePrev = true;
+}
+
+// The generated tick: shows the frame held back by the last analysed one.
+bool VizFrameGenShowHeld() {
+    if (!g_fgHeld) return false;
+    g_fgHeld = false;
+    PublishBandFrameNow(g_fgNext);
+    return true;
+}
+
+void PublishBandFrameNow(const VizBandFrame& f) {
     uint32_t seq = g_bandFrameSeq.load(std::memory_order_relaxed);
     g_bandFrameSeq.store(seq + 1, std::memory_order_release);
     std::atomic_thread_fence(std::memory_order_release);
@@ -7987,7 +8041,7 @@ VizAdapterChoice VizPickRenderAdapter(IDXGIFactory1* factory, VizRenderDevice wa
 
 void VizUpdateSmoothActive() {
     VizFrameSync sync = g_settings.frameSync;
-    bool on = sync == VizFrameSync::VSync || sync == VizFrameSync::Adaptive || sync == VizFrameSync::Latest ||
+    bool on = sync == VizFrameSync::VSync || sync == VizFrameSync::Adaptive || sync == VizFrameSync::Fast ||
               (sync == VizFrameSync::Auto && g_renderAdapter.valid &&
                (g_renderAdapter.integrated || g_renderAdapter.warp));
     bool was = g_smoothActive.exchange(on);
@@ -16107,6 +16161,14 @@ void RenderVisualizer() {
 // It still wakes once per frame, never once per vblank, so the idle-power
 // behaviour the README measures is kept. DWM is asked for its clock twice a
 // second, not per frame.
+// The slowest recent frame's drawing time in ms, forgotten slowly (2% a
+// frame), for Low Latency = Ultra. Written by the UI thread, read by the engine.
+std::atomic<float> g_drawMsMax{1.f};
+void VizNoteDrawMs(float ms) {
+    float m = g_drawMsMax.load(std::memory_order_relaxed);
+    g_drawMsMax.store(std::max(ms, m * 0.98f), std::memory_order_relaxed);
+}
+
 struct VizVsyncSchedule {
     // Smallest time >= t of the form vblank + (k + phase) * period.
     static LONGLONG AlignUp(LONGLONG t, LONGLONG vblank, LONGLONG period, double phase) {
@@ -16309,6 +16371,7 @@ void RenderThreadProc() {
 
     ULONGLONG lastSuccessfulPostTick = 0;
     int qosState = -1;  // -1 unknown, else the VizThreadQoS level
+    unsigned fgTick = 0;
     unsigned coresGen = ~0u;
     auto setEco = [&](bool eco) {
         int level = eco ? 1 : VizBusyQoS();
@@ -16531,22 +16594,35 @@ void RenderThreadProc() {
                 }
                 vsLastSync = nowQpc.QuadPart;
             }
-            // Adaptive and Latest Frame: past the refresh rate, the plain timer
-            // below runs the Target FPS as asked. Latest Frame draws a quarter
-            // refresh later, closer to when Windows composes.
+            // Where in the refresh each frame starts (Low Latency): half a
+            // refresh before Windows composes, a quarter, or just in time.
+            // Adaptive: past the refresh rate, the plain timer below runs the
+            // Target FPS as asked. Fast Sync: past it, a whole number of frames
+            // per refresh on a finer grid, the last one at that same point.
             const VizFrameSync sync = g_settings.frameSync;
-            const bool uncappable = sync == VizFrameSync::Adaptive || sync == VizFrameSync::Latest;
-            const bool aboveRefresh =
-                uncappable && vsPeriod > 0 && (double)fps * (double)vsPeriod > (double)qpcFreq.QuadPart * 1.02;
-            const double phase = sync == VizFrameSync::Latest ? 0.75 : 0.5;
-            if (vsPeriod > 0 && !aboveRefresh) {
-                if (vsDue == 0) vsDue = VizVsyncSchedule::AlignUp(nowQpc.QuadPart, vsVblank, vsPeriod, phase);
+            double phase = 0.5;
+            if (g_settings.lowLatency == VizLowLatency::On) phase = 0.75;
+            if (g_settings.lowLatency == VizLowLatency::Ultra && vsPeriod > 0) {
+                double periodMs = (double)vsPeriod * 1000.0 / (double)qpcFreq.QuadPart;
+                double lead = g_drawMsMax.load(std::memory_order_relaxed) * 1.5 + 1.0;
+                phase = std::clamp(1.0 - lead / periodMs, 0.5, 0.92);
+            }
+            const bool aboveRefresh = (sync == VizFrameSync::Adaptive || sync == VizFrameSync::Fast) &&
+                                      vsPeriod > 0 &&
+                                      (double)fps * (double)vsPeriod > (double)qpcFreq.QuadPart * 1.02;
+            int perRefresh = 1;
+            if (aboveRefresh && sync == VizFrameSync::Fast)
+                perRefresh = (int)std::clamp(llround((double)fps * (double)vsPeriod / (double)qpcFreq.QuadPart), 1LL, 8LL);
+            const LONGLONG grid = vsPeriod / perRefresh;
+            const double gridPhase = phase * perRefresh - std::floor(phase * perRefresh);
+            if (vsPeriod > 0 && (!aboveRefresh || sync == VizFrameSync::Fast)) {
+                if (vsDue == 0) vsDue = VizVsyncSchedule::AlignUp(nowQpc.QuadPart, vsVblank, grid, gridPhase);
                 if (nowQpc.QuadPart < vsDue) {
                     preciseWait((double)(vsDue - nowQpc.QuadPart) * 1000.0 / (double)qpcFreq.QuadPart);
                     continue;
                 }
-                int divisor = VizVsyncSchedule::Divisor((double)fps, vsPeriod, qpcFreq.QuadPart);
-                vsDue = VizVsyncSchedule::Next(vsDue, nowQpc.QuadPart, vsVblank, vsPeriod, divisor, phase);
+                int divisor = perRefresh > 1 ? 1 : VizVsyncSchedule::Divisor((double)fps, vsPeriod, qpcFreq.QuadPart);
+                vsDue = VizVsyncSchedule::Next(vsDue, nowQpc.QuadPart, vsVblank, grid, divisor, gridPhase);
                 absDue = 0;
             } else {
                 LONGLONG interval = (LONGLONG)((double)qpcFreq.QuadPart * intervalMs / 1000.0);
@@ -16586,7 +16662,13 @@ void RenderThreadProc() {
 
         if (!g_renderThreadRunning.load(std::memory_order_relaxed) || g_unloading.load()) break;
 
-        engineFrame();
+        // Frame Generation x2: every other tick shows the frame the last
+        // analysis held back instead of analysing.
+        if (!(g_settings.frameGenX2 && (fgTick++ & 1) && VizFrameGenShowHeld())) {
+            g_fgInterp = g_settings.frameGenX2;
+            engineFrame();
+            g_fgInterp = false;
+        }
         postTick(overlayWnd, GetTickCount64());
     }
 
@@ -16970,7 +17052,12 @@ LRESULT CALLBACK OverlayWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
             }
             g_renderTickPending.store(false, std::memory_order_relaxed);
             if (!g_unloading && !g_fullscreenPaused.load()) {
+                LARGE_INTEGER t0, t1, fq;
+                QueryPerformanceCounter(&t0);
                 RenderVisualizer();
+                QueryPerformanceCounter(&t1);
+                QueryPerformanceFrequency(&fq);
+                VizNoteDrawMs((float)((double)(t1.QuadPart - t0.QuadPart) * 1000.0 / (double)fq.QuadPart));
             }
             return 0;
         }
@@ -17809,7 +17896,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"hardware.workload", L"hybrid", true, 2},
     {L"hardware.renderer", L"d3d11", true, 2},
     {L"hardware.opaquePanel", L"auto", true, 2},
-    {L"hardware.frameSync", L"auto", true, 2}, {L"hardware.engineCores", L"auto", true, 2},
+    {L"hardware.frameSync", L"auto", true, 2}, {L"hardware.lowLatency", L"off", true, 2}, {L"hardware.frameGen", L"off", true, 2}, {L"hardware.engineCores", L"auto", true, 2},
 };
 
 struct VizQuickPart {
@@ -19669,7 +19756,7 @@ void LoadSettings() {
     g_settings.frameSync = (wcscmp(frameSync, L"off") == 0)        ? VizFrameSync::Off
                          : (wcscmp(frameSync, L"vsync") == 0)      ? VizFrameSync::VSync
                          : (wcscmp(frameSync, L"adaptive") == 0)   ? VizFrameSync::Adaptive
-                         : (wcscmp(frameSync, L"latest") == 0)     ? VizFrameSync::Latest
+                         : (wcscmp(frameSync, L"fast") == 0)       ? VizFrameSync::Fast
                                                                    : VizFrameSync::Auto;
     VizSettingFree(frameSync);
     if (g_settings.frameSync == VizFrameSync::Auto) {
@@ -19678,6 +19765,22 @@ void LoadSettings() {
         if (old && wcscmp(old, L"on") == 0) g_settings.frameSync = VizFrameSync::VSync;
         if (old && wcscmp(old, L"off") == 0) g_settings.frameSync = VizFrameSync::Off;
         Wh_FreeStringSetting(old);
+    }
+
+    PCWSTR lowLatency = VizSettingString(L"hardware.lowLatency");
+    g_settings.lowLatency = (wcscmp(lowLatency, L"on") == 0)      ? VizLowLatency::On
+                          : (wcscmp(lowLatency, L"ultra") == 0)   ? VizLowLatency::Ultra
+                                                                  : VizLowLatency::Off;
+    VizSettingFree(lowLatency);
+    PCWSTR frameGen = VizSettingString(L"hardware.frameGen");
+    g_settings.frameGenX2 = wcscmp(frameGen, L"x2") == 0;
+    VizSettingFree(frameGen);
+    if (g_settings.frameGenX2 &&
+        (g_settings.engine != VizEngineKind::Precision || g_settings.workload == VizWorkload::Gpu)) {
+        ReportSettingWarning(L"Hardware", L"Frame Generation",
+                             L"x2 needs the Precision engine with analysis on the CPU (Workload Hybrid or CPU), "
+                             L"so it is off.");
+        g_settings.frameGenX2 = false;
     }
 
     PCWSTR cores = VizSettingString(L"hardware.engineCores");
