@@ -49,7 +49,7 @@ Tourne'Table doesn't live inside `explorer.exe`. It runs as its own dedicated pr
 
 2.1 replaces 1.x. If you ran one of the 2.0 test builds from GitHub, turn it off: only one Tourne'Table should run. If you also use **Tourne Desktop** (my separate desktop app, not part of Windhawk), its taskbar counts as the taskbar for Place In = Taskbar, and it can show, hide or pin the panel through the window message `TourneTable.Panel`. The performance figures further down were measured on 1.x and haven't been re-measured on 2.x yet.
 
-**Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** opens the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) in your browser (bring one in with **Paste code** or **Open file**; the mod itself never goes online) or opens a ready GitHub issue to share yours. A setup carries every setting except the ones that belong to your PC: the audio device, icon files, panel hotkey, monitor, docked app and graphics card. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
+**Share your style.** Right-click > My Styles > Style Editor > Share: **Copy code** puts your setup on the clipboard as one line for any chat, **Save file** writes a `.ttstyle` file, and **Community** opens the setups people have shared in [the Tourne'Style repo](https://github.com/USER-TOURNE/Tourne-Style/tree/main/community) in your browser (bring one in with **Paste code** or **Open file**; the mod itself never goes online) or opens a ready GitHub issue to share yours. A setup carries every setting except the ones that belong to your PC: the audio device, icon files, panel hotkey, monitor, docked app, graphics card and custom cores. Browse them all on the [community page](https://github.com/USER-TOURNE/Tourne-Style/blob/main/community/README.md).
 
 **Every bar is its own measurement now.** Up to 1.5 the analysis split the sound into 7 fixed bands and every bar interpolated between those 7 numbers, so Bar Count and FFT Size changed how many bars you saw, not how much they knew. The new **Precision** engine gives each bar its own frequency band with its own edges, measured straight from the spectrum:
 
@@ -484,17 +484,27 @@ If the GPU is ever lost mid-session (a driver update, a driver reset, a laptop s
   - **Frames where nothing moved are skipped.** The picture is summarised in a hash (bar heights to a quarter pixel, colours, the trace) and compared with the last frame shown. If it matches, nothing is drawn and nothing is presented, so Windows has nothing to recompose.
   - **The text lives on its own surface**, redrawn only when the text or its fade changes. The animated surface covers just the panel, not the room reserved around it for text.
   - **The panel can be opaque** (see Opaque Panel).
-- **Direct2D**: the 1.5 path, unchanged, including Smooth Mode's batching. Kept for comparison, and used automatically, with a warning, if Direct3D 11 can't start (a GPU below feature level 11.0, or `d3dcompiler_47.dll` missing).
+- **Direct2D**: the 1.5 path, unchanged, including the batching it does with Frame Sync on. Kept for comparison, and used automatically, with a warning, if Direct3D 11 can't start (a GPU below feature level 11.0, or `d3dcompiler_47.dll` missing).
 
 **Opaque Panel**: When the background panel can't show anything behind it (**Blur** on, or a panel colour with full alpha) and **Auto-Hide** is off, the Direct3D 11 renderer creates the panel's surface with alpha ignored and lets the compositor cut the rounded corners. Windows then copies those pixels instead of blending them every frame; Chromium measured the same switch at 3.12 W against 2.28 W. **Off** always blends, for comparison.
 
-**Smooth Mode**: Frame timing locked to the display, and motion on elapsed time. **Auto** *(default)* turns it on when drawing runs on an integrated GPU or the CPU; **On** works on any GPU and is worth trying on a discrete one too; **Off** is the 1.4 timing. What it changes:
+**Frame Sync** (called Smooth Mode up to 2.1): how frames line up with the display.
 
-- **Frame timing locked to the display.** The 1.4 loop asks for a frame every `1000 / Target FPS` milliseconds and lets the timer's wake-up latency pile up, which is why 144 requested measured 141.7 delivered. On a 144 Hz panel that is a couple of refreshes every second with no new frame: a repeat, which you see as a hitch. Smooth Mode schedules from Windows' own composition clock instead, places every frame half a refresh away from the deadline on either side, and never accumulates drift.
-- **Target FPS rounded to an even fraction of the refresh rate.** 60 FPS on a 144 Hz screen means frames held for 2, 3, 2, 3 refreshes, which reads as judder however precise the timer is. Smooth Mode runs the nearest whole fraction instead: 60 becomes 72 on 144 Hz, 48 if you set it to 50, 60 on a 60 Hz screen. Asking for more than the refresh rate gets the refresh rate rather than frames nobody can see.
+- **Off**: a plain timer at Target FPS, any value, the 1.4 timing.
+- **VSync**: frame timing locked to the display, capped at the refresh rate. Smooth Mode's **On**.
+- **Adaptive**: VSync up to the refresh rate, a plain timer above it, so a Target FPS past the refresh rate is kept. The extra frames never reach the screen, but each one that does is a little fresher.
+- **Latest Frame**: Adaptive, with each frame drawn a quarter refresh later, just before Windows composes. The picture trails the sound by a quarter refresh less (about 1.7 ms at 144 Hz) for the same number of frames.
+- **Auto** *(default)*: VSync when drawing runs on an integrated GPU or the CPU, Off otherwise.
+
+A desktop window can't tear or skip Windows' compositor, so these are pacing modes, not the driver's vsync. Every mode but Off changes the following (this was Smooth Mode):
+
+- **Frame timing locked to the display.** The 1.4 loop asks for a frame every `1000 / Target FPS` milliseconds and lets the timer's wake-up latency pile up, which is why 144 requested measured 141.7 delivered. On a 144 Hz panel that is a couple of refreshes every second with no new frame: a repeat, which you see as a hitch. Frame Sync schedules from Windows' own composition clock instead, places every frame half a refresh away from the deadline on either side, and never accumulates drift.
+- **Target FPS rounded to an even fraction of the refresh rate.** 60 FPS on a 144 Hz screen means frames held for 2, 3, 2, 3 refreshes, which reads as judder however precise the timer is. Frame Sync runs the nearest whole fraction instead: 60 becomes 72 on 144 Hz, 48 if you set it to 50, 60 on a 60 Hz screen. With VSync, asking for more than the refresh rate gets the refresh rate; Adaptive and Latest Frame keep it.
 - **Motion that doesn't depend on frame timing.** With the Classic engine, bar rise and fall, peak caps, beat flash and scope damping were all "move this fraction per frame", so a late frame visibly slowed everything down for a moment. They now scale by how much time actually passed. (The Precision engine runs on elapsed time whatever this is set to.)
 - **A proper animation clock.** Wave, Breathe and Rainbow ran off a millisecond counter that only ticks every 15.6 ms, stored in a float that loses precision the longer the PC has been on. They now run off the high-resolution clock. (Always, with the Direct3D 11 renderer.)
 - **With the Direct2D renderer:** the background baked once into one image, all bars in one sprite batch, and cached text layouts.
+
+**Engine Cores**: which processor cores the audio engine thread and the drawing thread run on. **Auto** *(default)* leaves it to Windows. **Efficiency** keeps both on a hybrid CPU's efficiency cores and asks for EcoQoS, the least power. **Performance** keeps them on the performance cores and opts them out of power throttling, the steadiest timing (the 2.0 behaviour, plus the core choice). **Custom** uses the cores listed in **Custom Cores** (Task Manager's CPU numbers, for example `0-3, 8`). The choice is a preference Windows honours where it can (CPU sets), not a hard affinity, and nothing outside these two threads changes. When nothing is playing the engine drops to EcoQoS whatever this says. The mod log lists the cores it found and which are efficiency or performance cores.
 
 ---
 
@@ -1572,7 +1582,7 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
         - cpu: CPU (software rendering)
     - renderer: d3d11
       $name: Renderer
-      $description: Direct3D 11 draws everything with one tiny shader from a buffer of bar heights, skips any frame where nothing moved, keeps the text on its own surface that only redraws when the text changes, and tells Windows when the panel is opaque so it copies instead of blending. Direct2D is the 1.5 path, unchanged, including Smooth Mode's batching; it is kept for comparison and as the automatic fallback
+      $description: Direct3D 11 draws everything with one tiny shader from a buffer of bar heights, skips any frame where nothing moved, keeps the text on its own surface that only redraws when the text changes, and tells Windows when the panel is opaque so it copies instead of blending. Direct2D is the 1.5 path, unchanged, including the batching it does with Frame Sync on; it is kept for comparison and as the automatic fallback
       $options:
         - d3d11: Direct3D 11 (recommended)
         - direct2d: Direct2D (1.5 path)
@@ -1582,13 +1592,26 @@ look at, you can throw something in the hat. Entirely optional, genuinely apprec
       $options:
         - auto: Auto
         - 'off': 'Off'
-    - smoothMode: auto
-      $name: Smooth Mode
-      $description: Frame timing locked to the display's refresh so every frame lands on its own refresh, and motion that scales with real elapsed time. Target FPS is rounded to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) because that is what makes motion even. With the Direct2D renderer it also bakes the panel and batches the bars. Auto turns it on when drawing runs on an integrated GPU or the CPU. On works with any GPU. Off is the 1.4 timing
+    - frameSync: auto
+      $name: Frame Sync
+      $description: How frames line up with the display. Off draws on a plain timer at Target FPS, any value, the 1.4 timing. VSync times every frame from Windows' composition clock so each one lands on its own refresh, rounds Target FPS to an even fraction of the refresh rate (60 on a 144 Hz screen runs at 72) and caps it at the refresh rate. Adaptive is VSync up to the refresh rate and a plain timer above it, so a Target FPS past the refresh rate is kept. Latest Frame is Adaptive with each frame drawn a quarter refresh later, just before Windows composes, for the least delay between the sound and the picture. Auto is VSync when drawing runs on an integrated GPU or the CPU, and Off otherwise. Every mode but Off also moves things by real elapsed time and, with Direct2D, bakes the panel and batches the bars
       $options:
-        - auto: Auto (integrated GPU or CPU drawing)
-        - 'on': 'On'
-        - 'off': Off (1.4 timing)
+        - auto: Auto (VSync on integrated GPU or CPU drawing)
+        - 'off': Off (timer, any FPS)
+        - vsync: VSync (capped at the refresh rate)
+        - adaptive: Adaptive (VSync up to the refresh rate, uncapped above)
+        - latest: Latest Frame (Adaptive, lowest delay)
+    - engineCores: auto
+      $name: Engine Cores
+      $description: Which processor cores the audio engine and the drawing thread run on. Auto leaves it to Windows. Efficiency keeps both on the efficiency cores of a hybrid CPU (Intel 12th gen and later, some AMD) at low clocks, the least power. Performance keeps them on the performance cores and asks Windows not to throttle them, the steadiest timing. Custom uses the cores listed in Custom Cores. On a CPU whose cores are all the same, Efficiency and Performance only change how Windows clocks the threads. When nothing is playing the engine always drops to low power
+      $options:
+        - auto: Auto (Windows decides)
+        - efficiency: Efficiency cores (lowest power)
+        - performance: Performance cores (steadiest timing)
+        - custom: Custom (the cores in Custom Cores)
+    - engineCoreList: ""
+      $name: Custom Cores
+      $description: For Engine Cores = Custom. Logical processor numbers as Task Manager numbers them (CPU 0, CPU 1 and so on), separated by commas, with ranges allowed, for example 0-3, 8. The mod log lists which numbers are efficiency and performance cores. Empty means any core
   $name: Hardware
 - validation:
     - showErrors: true
@@ -1767,7 +1790,8 @@ enum class VizKeyMoveKeys { Both, Arrows, Wasd };
 enum class VizMoveTarget { Visualizer, NowPlaying, PeakFreq, MediaControls };
 // Hardware section.
 enum class VizRenderDevice { Auto, Integrated, Discrete, Cpu };
-enum class VizSmoothMode { Auto, On, Off };
+enum class VizFrameSync { Auto, Off, VSync, Adaptive, Latest };
+enum class VizEngineCores { Auto, Efficiency, Performance, Custom };
 // 2.0. Where the work runs; which analysis core; which renderer.
 enum class VizWorkload { Hybrid, Gpu, Cpu };
 enum class VizRenderer { D3D11, Direct2D };
@@ -1932,7 +1956,8 @@ struct Settings {
     float mediaVerticalPosition = 95.0f;
 
     VizRenderDevice renderDevice = VizRenderDevice::Auto;
-    VizSmoothMode smoothMode = VizSmoothMode::Auto;
+    VizFrameSync frameSync = VizFrameSync::Auto;
+    VizEngineCores engineCores = VizEngineCores::Auto;
     VizWorkload workload = VizWorkload::Hybrid;
     VizRenderer renderer = VizRenderer::D3D11;
     VizOpaquePanel opaquePanel = VizOpaquePanel::Auto;
@@ -7961,8 +7986,9 @@ VizAdapterChoice VizPickRenderAdapter(IDXGIFactory1* factory, VizRenderDevice wa
 }
 
 void VizUpdateSmoothActive() {
-    bool on = g_settings.smoothMode == VizSmoothMode::On ||
-              (g_settings.smoothMode == VizSmoothMode::Auto && g_renderAdapter.valid &&
+    VizFrameSync sync = g_settings.frameSync;
+    bool on = sync == VizFrameSync::VSync || sync == VizFrameSync::Adaptive || sync == VizFrameSync::Latest ||
+              (sync == VizFrameSync::Auto && g_renderAdapter.valid &&
                (g_renderAdapter.integrated || g_renderAdapter.warp));
     bool was = g_smoothActive.exchange(on);
     if (was != on) Wh_Log(L"[Hardware] Smooth Mode %s", on ? L"on" : L"off");
@@ -16099,20 +16125,21 @@ struct VizVsyncSchedule {
     // so a drifting or re-read vblank reference is absorbed gradually. If the
     // thread has fallen more than a frame behind, it rejoins at the next slot
     // instead of rendering a burst to catch up.
-    static LONGLONG Next(LONGLONG due, LONGLONG now, LONGLONG vblank, LONGLONG period, int divisor) {
-        LONGLONG next = AlignUp(due + (LONGLONG)divisor * period - period / 2, vblank, period, 0.5);
-        if (next <= now) next = AlignUp(now + 1, vblank, period, 0.5);
+    static LONGLONG Next(LONGLONG due, LONGLONG now, LONGLONG vblank, LONGLONG period, int divisor, double phase) {
+        LONGLONG next = AlignUp(due + (LONGLONG)divisor * period - period / 2, vblank, period, phase);
+        if (next <= now) next = AlignUp(now + 1, vblank, period, phase);
         return next;
     }
 };
 
-// Thread-scoped quality of service. While playing, Windows schedules the
-// engine thread as it sees fit; while idle it asks for EcoQoS, so the trickle and the meter reads run on
-// efficiency cores at low clocks. Thread-scoped on purpose: nothing about the
+// Thread-scoped quality of service. level 0 leaves the thread to Windows,
+// 1 asks for EcoQoS (efficiency cores at low clocks), 2 opts it out of power
+// throttling. The engine thread asks for EcoQoS whenever it is idle; while
+// playing, Engine Cores decides. Thread-scoped on purpose: nothing about the
 // process changes. SetThreadInformation is resolved at runtime (Windows 8+;
 // the power-throttling class needs Windows 10 1709, and older builds simply
 // return an error, which is ignored).
-void VizThreadEcoQoS(bool eco) {
+void VizThreadQoS(int level) {
     struct PowerThrottlingState {
         ULONG Version, ControlMask, StateMask;
     };
@@ -16120,12 +16147,156 @@ void VizThreadEcoQoS(bool eco) {
     static SetThreadInformationFn fn =
         (SetThreadInformationFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadInformation");
     if (!fn) return;
-    // While playing this lets the system manage the thread instead of opting
-    // out of throttling (HighQoS), so it isn't forced onto performance cores
-    // and boost clocks. Measured at 144 fps: about 0.03 ms of engine work per
-    // wake and well under 1 ms of rendering per frame, against a 6.9 ms frame.
-    PowerThrottlingState st = {1, eco ? 0x1u : 0x0u /* EXECUTION_SPEED */, eco ? 0x1u : 0x0u};
+    // Measured at 144 fps: about 0.03 ms of engine work per wake and well
+    // under 1 ms of rendering per frame, against a 6.9 ms frame, so Auto
+    // leaves the choice to Windows rather than forcing boost clocks.
+    PowerThrottlingState st = {1, level ? 0x1u : 0x0u /* EXECUTION_SPEED */, level == 1 ? 0x1u : 0x0u};
     fn(GetCurrentThread(), 3 /* ThreadPowerThrottling */, &st, sizeof(st));
+}
+
+// ---- Engine Cores -------------------------------------------------------------
+// Resolved into CPU set ids on every settings load; the engine thread and the
+// drawing (UI) thread pick them up at their next wake. CPU sets are a
+// preference Windows honours where it can, not a hard affinity, so a parked
+// or busy core never stalls the visualizer. GetSystemCpuSetInformation and
+// SetThreadSelectedCpuSets are Windows 10 and are resolved at runtime.
+std::mutex g_coresMutex;
+std::vector<ULONG> g_coresIds;  // empty: any core
+std::atomic<unsigned> g_coresGen{0};
+std::atomic<int> g_coresMode{0};  // VizEngineCores
+
+// Task Manager's CPU numbers, "0-3, 8". False on anything else.
+bool VizParseCoreList(PCWSTR text, std::vector<int>* out) {
+    PCWSTR p = text;
+    auto skip = [&]() {
+        while (*p == L' ' || *p == L'\t') p++;
+    };
+    for (;;) {
+        skip();
+        if (!*p) return true;
+        if (*p < L'0' || *p > L'9') return false;
+        WCHAR* end = nullptr;
+        long a = wcstol(p, &end, 10), b = a;
+        p = end;
+        skip();
+        if (*p == L'-') {
+            p++;
+            skip();
+            if (*p < L'0' || *p > L'9') return false;
+            b = wcstol(p, &end, 10);
+            p = end;
+            skip();
+        }
+        if (a > b || b > 4095) return false;
+        for (long i = a; i <= b; i++) out->push_back((int)i);
+        if (*p == L',' || *p == L';') p++;
+        else if (*p) return false;
+    }
+}
+
+// "0-7, 16" from a sorted list of numbers.
+std::wstring VizCoreRanges(const std::vector<int>& n) {
+    std::wstring r;
+    for (size_t i = 0; i < n.size();) {
+        size_t j = i;
+        while (j + 1 < n.size() && n[j + 1] == n[j] + 1) j++;
+        if (!r.empty()) r += L", ";
+        r += std::to_wstring(n[i]);
+        if (j > i) r += L"-" + std::to_wstring(n[j]);
+        i = j + 1;
+    }
+    return r;
+}
+
+void VizResolveEngineCores(VizEngineCores mode, PCWSTR list) {
+    typedef BOOL(WINAPI * GetSetsFn)(PSYSTEM_CPU_SET_INFORMATION, ULONG, PULONG, HANDLE, ULONG);
+    static GetSetsFn getSets =
+        (GetSetsFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "GetSystemCpuSetInformation");
+    std::vector<ULONG> ids;
+    ULONG len = 0;
+    if (getSets) getSets(nullptr, 0, &len, GetCurrentProcess(), 0);
+    std::vector<BYTE> buf(len);
+    if (len && getSets((PSYSTEM_CPU_SET_INFORMATION)buf.data(), len, &len, GetCurrentProcess(), 0)) {
+        struct Cpu {
+            ULONG id;
+            int num, cls;
+        };
+        std::vector<Cpu> cpus;
+        int lo = 255, hi = 0;
+        for (ULONG off = 0; off + 8 <= len;) {
+            auto* e = (PSYSTEM_CPU_SET_INFORMATION)(buf.data() + off);
+            if (e->Size == 0 || off + e->Size > len) break;
+            if (e->Type == CpuSetInformation) {
+                int cls = e->CpuSet.EfficiencyClass;
+                cpus.push_back({e->CpuSet.Id, e->CpuSet.Group * 64 + e->CpuSet.LogicalProcessorIndex, cls});
+                lo = std::min(lo, cls);
+                hi = std::max(hi, cls);
+            }
+            off += e->Size;
+        }
+        std::vector<int> want, eff, perf, taken;
+        bool listOk = mode != VizEngineCores::Custom || VizParseCoreList(list, &want);
+        if (!listOk) {
+            ReportSettingWarning(L"Hardware", L"Custom Cores",
+                                 std::wstring(L"\"") + list +
+                                     L"\" isn't a list of CPU numbers like 0-3, 8. Using any core.");
+            want.clear();
+        }
+        for (const Cpu& c : cpus) {
+            (c.cls == lo ? eff : perf).push_back(c.num);
+            bool take = (mode == VizEngineCores::Efficiency && lo != hi && c.cls == lo) ||
+                        (mode == VizEngineCores::Performance && lo != hi && c.cls == hi) ||
+                        (mode == VizEngineCores::Custom &&
+                         std::find(want.begin(), want.end(), c.num) != want.end());
+            if (take) {
+                ids.push_back(c.id);
+                taken.push_back(c.num);
+            }
+        }
+        for (auto* v : {&eff, &perf, &taken}) std::sort(v->begin(), v->end());
+        if (lo != hi)
+            Wh_Log(L"[Cores] %u logical processors: efficiency %s, performance %s", (unsigned)cpus.size(),
+                   VizCoreRanges(eff).c_str(), VizCoreRanges(perf).c_str());
+        else
+            Wh_Log(L"[Cores] %u logical processors, all the same kind", (unsigned)cpus.size());
+        if (mode == VizEngineCores::Custom && !want.empty() && ids.empty())
+            ReportSettingWarning(L"Hardware", L"Custom Cores",
+                                 std::wstring(L"None of ") + list + L" is a CPU on this PC. Using any core.");
+        Wh_Log(L"[Cores] engine and drawing threads on %s",
+               ids.empty() ? L"any core" : VizCoreRanges(taken).c_str());
+    }
+    {
+        std::lock_guard<std::mutex> lock(g_coresMutex);
+        g_coresIds = std::move(ids);
+    }
+    g_coresMode.store((int)mode, std::memory_order_relaxed);
+    g_coresGen.fetch_add(1, std::memory_order_release);
+}
+
+// Puts the calling thread on the Engine Cores choice.
+void VizApplyEngineCores() {
+    typedef BOOL(WINAPI * SetSetsFn)(HANDLE, const ULONG*, ULONG);
+    static SetSetsFn setSets =
+        (SetSetsFn)(void*)GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadSelectedCpuSets");
+    if (!setSets) return;
+    std::vector<ULONG> ids;
+    {
+        std::lock_guard<std::mutex> lock(g_coresMutex);
+        ids = g_coresIds;
+    }
+    setSets(GetCurrentThread(), ids.empty() ? nullptr : ids.data(), (ULONG)ids.size());
+}
+
+// The QoS level for a busy thread under the Engine Cores choice.
+int VizBusyQoS() {
+    switch ((VizEngineCores)g_coresMode.load(std::memory_order_relaxed)) {
+        case VizEngineCores::Efficiency:
+            return 1;
+        case VizEngineCores::Performance:
+            return 2;
+        default:
+            return 0;
+    }
 }
 
 // The engine thread: frame pacing (as 1.5), and since 2.0 also audio capture
@@ -16137,11 +16308,13 @@ void RenderThreadProc() {
     engine.ThreadInit();
 
     ULONGLONG lastSuccessfulPostTick = 0;
-    int ecoState = -1;  // -1 unknown, 0 system-managed, 1 EcoQoS
+    int qosState = -1;  // -1 unknown, else the VizThreadQoS level
+    unsigned coresGen = ~0u;
     auto setEco = [&](bool eco) {
-        if (ecoState == (eco ? 1 : 0)) return;
-        ecoState = eco ? 1 : 0;
-        VizThreadEcoQoS(eco);
+        int level = eco ? 1 : VizBusyQoS();
+        if (qosState == level) return;
+        qosState = level;
+        VizThreadQoS(level);
     };
 
     // Smooth Mode pacing state (see VizVsyncSchedule).
@@ -16203,6 +16376,11 @@ void RenderThreadProc() {
     ULONGLONG meterWakeRaisedUntil = 0;
 
     while (g_renderThreadRunning.load(std::memory_order_relaxed)) {
+        if (unsigned gen = g_coresGen.load(std::memory_order_acquire); gen != coresGen) {
+            coresGen = gen;
+            VizApplyEngineCores();
+            qosState = -1;
+        }
         VizPerfMaybeLog();
         VizPerf(kPerfEngineWakes);
         VizPerf((VizPerfCounter)(kPerfIdlePlaying + std::clamp(g_idleState.load(std::memory_order_relaxed), 0, 2)));
@@ -16353,14 +16531,22 @@ void RenderThreadProc() {
                 }
                 vsLastSync = nowQpc.QuadPart;
             }
-            if (vsPeriod > 0) {
-                if (vsDue == 0) vsDue = VizVsyncSchedule::AlignUp(nowQpc.QuadPart, vsVblank, vsPeriod, 0.5);
+            // Adaptive and Latest Frame: past the refresh rate, the plain timer
+            // below runs the Target FPS as asked. Latest Frame draws a quarter
+            // refresh later, closer to when Windows composes.
+            const VizFrameSync sync = g_settings.frameSync;
+            const bool uncappable = sync == VizFrameSync::Adaptive || sync == VizFrameSync::Latest;
+            const bool aboveRefresh =
+                uncappable && vsPeriod > 0 && (double)fps * (double)vsPeriod > (double)qpcFreq.QuadPart * 1.02;
+            const double phase = sync == VizFrameSync::Latest ? 0.75 : 0.5;
+            if (vsPeriod > 0 && !aboveRefresh) {
+                if (vsDue == 0) vsDue = VizVsyncSchedule::AlignUp(nowQpc.QuadPart, vsVblank, vsPeriod, phase);
                 if (nowQpc.QuadPart < vsDue) {
                     preciseWait((double)(vsDue - nowQpc.QuadPart) * 1000.0 / (double)qpcFreq.QuadPart);
                     continue;
                 }
                 int divisor = VizVsyncSchedule::Divisor((double)fps, vsPeriod, qpcFreq.QuadPart);
-                vsDue = VizVsyncSchedule::Next(vsDue, nowQpc.QuadPart, vsVblank, vsPeriod, divisor);
+                vsDue = VizVsyncSchedule::Next(vsDue, nowQpc.QuadPart, vsVblank, vsPeriod, divisor, phase);
                 absDue = 0;
             } else {
                 LONGLONG interval = (LONGLONG)((double)qpcFreq.QuadPart * intervalMs / 1000.0);
@@ -16774,12 +16960,20 @@ LRESULT CALLBACK OverlayWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
         }
     }
     switch (uMsg) {
-        case WM_APP_RENDER_TICK:
+        case WM_APP_RENDER_TICK: {
+            // The drawing thread follows Engine Cores too.
+            static unsigned uiCoresGen = ~0u;
+            if (unsigned gen = g_coresGen.load(std::memory_order_acquire); gen != uiCoresGen) {
+                uiCoresGen = gen;
+                VizApplyEngineCores();
+                VizThreadQoS(VizBusyQoS());
+            }
             g_renderTickPending.store(false, std::memory_order_relaxed);
             if (!g_unloading && !g_fullscreenPaused.load()) {
                 RenderVisualizer();
             }
             return 0;
+        }
 
         case WM_WINDOWPOSCHANGED: {
             const WINDOWPOS* wp = (const WINDOWPOS*)lParam;
@@ -17586,7 +17780,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"background.borderColor", L"#40FFFFFF", true, 1},
     {L"performance.targetFps", L"60", false, 2},
     // Behaviour goes in a setup too. Only what belongs to one PC stays out:
-    // the audio device, icon files, the panel hotkey, monitor, docked app and GPU.
+    // the audio device, icon files, the panel hotkey, monitor, docked app, GPU and custom cores.
     {L"progress.clickToSeek", L"0", false, 4},
     {L"progress.seekAppsMode", L"except", true, 4},
     {L"progress.seekApps", L"", true, 4},
@@ -17615,7 +17809,7 @@ static const VizSetupKey kSetupKeys[] = {
     {L"hardware.workload", L"hybrid", true, 2},
     {L"hardware.renderer", L"d3d11", true, 2},
     {L"hardware.opaquePanel", L"auto", true, 2},
-    {L"hardware.smoothMode", L"auto", true, 2},
+    {L"hardware.frameSync", L"auto", true, 2}, {L"hardware.engineCores", L"auto", true, 2},
 };
 
 struct VizQuickPart {
@@ -18150,7 +18344,7 @@ void EditorBuild(HWND hWnd) {
     add(L"STATIC",
         L"Changes apply at once. Reset Quick Settings in the right-click menu returns to the settings page. "
         L"Reflection, Glow and Bloom need the Direct3D 11 renderer. Share carries the ticked parts; your audio "
-        L"device, hotkey, monitor, docked app, GPU and file paths stay out. Community opens GitHub in your browser.",
+        L"device, hotkey, monitor, docked app, GPU, cores and file paths stay out. Community opens GitHub in your browser.",
         SS_LEFT, L, y, labelW + ctlW, px(80), -1);
     y += px(88);
     RECT rc = {0, 0, labelW + ctlW + L * 2, y};
@@ -19471,11 +19665,30 @@ void LoadSettings() {
         }
     }
 
-    PCWSTR smoothMode = VizSettingString(L"hardware.smoothMode");
-    g_settings.smoothMode = (wcscmp(smoothMode, L"on") == 0)    ? VizSmoothMode::On
-                          : (wcscmp(smoothMode, L"off") == 0)   ? VizSmoothMode::Off
-                                                                : VizSmoothMode::Auto;
-    VizSettingFree(smoothMode);
+    PCWSTR frameSync = VizSettingString(L"hardware.frameSync");
+    g_settings.frameSync = (wcscmp(frameSync, L"off") == 0)        ? VizFrameSync::Off
+                         : (wcscmp(frameSync, L"vsync") == 0)      ? VizFrameSync::VSync
+                         : (wcscmp(frameSync, L"adaptive") == 0)   ? VizFrameSync::Adaptive
+                         : (wcscmp(frameSync, L"latest") == 0)     ? VizFrameSync::Latest
+                                                                   : VizFrameSync::Auto;
+    VizSettingFree(frameSync);
+    if (g_settings.frameSync == VizFrameSync::Auto) {
+        // Smooth Mode, up to 2.1: On is VSync, Off is Off.
+        PCWSTR old = Wh_GetStringSetting(L"hardware.smoothMode");
+        if (old && wcscmp(old, L"on") == 0) g_settings.frameSync = VizFrameSync::VSync;
+        if (old && wcscmp(old, L"off") == 0) g_settings.frameSync = VizFrameSync::Off;
+        Wh_FreeStringSetting(old);
+    }
+
+    PCWSTR cores = VizSettingString(L"hardware.engineCores");
+    g_settings.engineCores = (wcscmp(cores, L"efficiency") == 0)    ? VizEngineCores::Efficiency
+                           : (wcscmp(cores, L"performance") == 0)   ? VizEngineCores::Performance
+                           : (wcscmp(cores, L"custom") == 0)        ? VizEngineCores::Custom
+                                                                    : VizEngineCores::Auto;
+    VizSettingFree(cores);
+    PCWSTR coreList = VizSettingString(L"hardware.engineCoreList");
+    VizResolveEngineCores(g_settings.engineCores, coreList ? coreList : L"");
+    VizSettingFree(coreList);
 
     g_gpuAnalysisFailed = false;  // tried again with the new settings
     VizPublishEngineConfig();
